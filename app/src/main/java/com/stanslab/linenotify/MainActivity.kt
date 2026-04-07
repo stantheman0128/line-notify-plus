@@ -25,6 +25,7 @@ import androidx.compose.ui.unit.sp
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LifecycleEventEffect
+import kotlinx.coroutines.launch
 import com.stanslab.linenotify.service.LineNotificationListener
 import com.stanslab.linenotify.ui.theme.LineNotifyTheme
 
@@ -83,9 +84,14 @@ fun MainScreen() {
     var serviceEnabled by remember { mutableStateOf(prefs.getBoolean(LineNotificationListener.KEY_SERVICE_ENABLED, true)) }
     var replaceOriginal by remember { mutableStateOf(prefs.getBoolean(LineNotificationListener.KEY_REPLACE_ORIGINAL, true)) }
     var notifStyle by remember { mutableStateOf(prefs.getString(LineNotificationListener.KEY_NOTIFICATION_STYLE, "thread") ?: "thread") }
+    var updateInfo by remember { mutableStateOf<UpdateChecker.UpdateInfo?>(null) }
+    val scope = rememberCoroutineScope()
 
     LifecycleEventEffect(Lifecycle.Event.ON_RESUME) {
         isListenerEnabled = isNotificationListenerEnabled(context)
+        scope.launch {
+            updateInfo = UpdateChecker.checkForUpdate(context)
+        }
     }
 
     Scaffold(
@@ -140,6 +146,33 @@ fun MainScreen() {
                         else
                             MaterialTheme.colorScheme.onErrorContainer
                     )
+                }
+            }
+
+            // 更新提示
+            if (updateInfo?.hasUpdate == true) {
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = CardDefaults.cardColors(
+                        containerColor = MaterialTheme.colorScheme.tertiaryContainer
+                    )
+                ) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth().padding(16.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                "有新版本 v${updateInfo!!.latestVersion}",
+                                fontWeight = FontWeight.Bold
+                            )
+                        }
+                        Button(onClick = {
+                            UpdateChecker.openDownloadPage(context, updateInfo!!.downloadUrl)
+                        }) {
+                            Text("更新")
+                        }
+                    }
                 }
             }
 

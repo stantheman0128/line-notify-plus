@@ -7,8 +7,8 @@ import android.content.Context
 import android.content.Intent
 import android.content.SharedPreferences
 import android.graphics.Bitmap
-import android.graphics.drawable.Icon
-import android.os.Build
+import android.os.Handler
+import android.os.Looper
 import android.service.notification.NotificationListenerService
 import android.service.notification.StatusBarNotification
 import android.util.Log
@@ -46,14 +46,11 @@ class LineNotificationListener : NotificationListenerService() {
     private val threadNotifIds = mutableMapOf<String, Int>()
     private var nextThreadId = THREAD_ID_BASE
 
-    // 去重
-    private val recentNotifications = mutableMapOf<String, Long>()
     private val recentDedupeKeys = mutableSetOf<String>()
-
-    // 記錄每個聊天室對應的 Apple 模式通知 ID（用於清除）
     private val appleNotifIds = mutableMapOf<String, MutableList<Int>>()
 
     private lateinit var prefs: SharedPreferences
+    private val handler = Handler(Looper.getMainLooper())
 
     override fun onCreate() {
         super.onCreate()
@@ -80,7 +77,7 @@ class LineNotificationListener : NotificationListenerService() {
             return
         }
 
-        // 過濾 LINE 的堆疊摘要通知（title 含有逗號+冒號，如「A, B：C」）
+        // 過濾 LINE 的堆疊摘要通知（title 含逗號+冒號）
         if (title.contains("：") && title.contains(",")) {
             if (prefs.getBoolean(KEY_REPLACE_ORIGINAL, true)) {
                 cancelNotification(sbn.key)
@@ -88,22 +85,23 @@ class LineNotificationListener : NotificationListenerService() {
             return
         }
 
-        // 先解析聊天室，才能正確去重
-        val isGroup = extras.getBoolean("android.isGroupConversation", false)
+        // 解析聊天室
+        // LINE 群組通知：subText = 群組名, title = 發送者
+        // LINE 個人通知：subText = null, title = 發送者
         val subText = extras.getCharSequence("android.subText")?.toString()
+        val isGroup = subText != null
 
         val sender: String
         val chatTitle: String
-        if (isGroup && subText != null) {
+        if (isGroup) {
             sender = title
-            chatTitle = subText
+            chatTitle = subText!!
         } else {
             sender = title
             chatTitle = title
         }
 
-        // 去重：LINE 對同一則訊息會發兩個通知（postTime 差幾毫秒）
-        // 用「聊天室+內容+秒」去重，確保不同聊天室的相同訊息不會互相擋
+        // 去重
         val timeSeconds = sbn.postTime / 1000
         val dedupeKey = "$chatTitle|$text|$timeSeconds"
         if (!recentDedupeKeys.add(dedupeKey)) {
@@ -121,12 +119,10 @@ class LineNotificationListener : NotificationListenerService() {
         val disabledChats = prefs.getStringSet(KEY_DISABLED_CHATS, emptySet()) ?: emptySet()
         if (chatTitle in disabledChats) return
 
-        // 提取頭貼（LINE 可能用多種方式存放）
+        // 提取頭貼
         val largeIcon: Bitmap? = try {
-            // 方法 1: 標準 largeIcon
             @Suppress("DEPRECATION")
             (extras.getParcelable("android.largeIcon") as? Bitmap)
-                // 方法 2: 從 Icon 物件轉換
                 ?: notification.getLargeIcon()?.let { icon ->
                     val drawable = icon.loadDrawable(this)
                     if (drawable != null) {
@@ -141,12 +137,9 @@ class LineNotificationListener : NotificationListenerService() {
                         bmp
                     } else null
                 }
-        } catch (e: Exception) {
-            Log.w(TAG, "提取頭貼失敗: ${e.message}")
-            null
-        }
+        } catch (e: Exception) { null }
 
-        // 檢查此聊天室是否剛被清除過（用戶滑掉了通知）
+        // 檢查緩衝區是否需要清除
         val clearedChats = prefs.getStringSet("cleared_chats", emptySet())?.toMutableSet() ?: mutableSetOf()
         if (chatTitle in clearedChats) {
             chatRooms[chatTitle]?.clearMessages()
@@ -154,7 +147,7 @@ class LineNotificationListener : NotificationListenerService() {
             prefs.edit().putStringSet("cleared_chats", clearedChats).apply()
         }
 
-        Log.d(TAG, "收到訊息 [$chatTitle] $sender: $text (群組=$isGroup, 有頭貼=${largeIcon != null})")
+        Log.d(TAG, "收到訊息 [$chatTitle] $sender: $text (群組=$isGroup)")
 
         val message = ChatMessage(
             sender = sender,
@@ -170,6 +163,7 @@ class LineNotificationListener : NotificationListenerService() {
         }
         room.addMessage(message)
 
+        // 保存 LINE 的 contentIntent 和回覆 action（在取消通知前）
         if (notification.contentIntent != null) {
             room.contentIntent = notification.contentIntent
         }
@@ -181,14 +175,17 @@ class LineNotificationListener : NotificationListenerService() {
 
         saveKnownChat(chatTitle, isGroup)
 
+        // 先發我們的通知
         val style = prefs.getString(KEY_NOTIFICATION_STYLE, "thread") ?: "thread"
         when (style) {
             "apple" -> postAppleStyleNotification(room, message)
             else -> postThreadStyleNotification(room)
         }
 
+        // 延遲取消 LINE 原通知（確保我們的 contentIntent 不會因為 LINE 通知被取消而失效）
         if (prefs.getBoolean(KEY_REPLACE_ORIGINAL, true)) {
-            cancelNotification(sbn.key)
+            val key = sbn.key
+            handler.postDelayed({ cancelNotification(key) }, 200)
         }
     }
 
@@ -201,7 +198,6 @@ class LineNotificationListener : NotificationListenerService() {
     // ==========================================
     private fun postThreadStyleNotification(room: ChatRoom) {
         val notifId = threadNotifIds.getOrPut(room.chatTitle) { nextThreadId++ }
-        val groupKey = "linenotify_${room.chatTitle}"
 
         val me = Person.Builder().setName("我").build()
         val msgStyle = NotificationCompat.MessagingStyle(me)
@@ -213,10 +209,7 @@ class LineNotificationListener : NotificationListenerService() {
 
         for (msg in room.messages) {
             val personBuilder = Person.Builder().setName(msg.sender)
-            // 設定發送者頭貼
-            msg.senderIcon?.let { icon ->
-                personBuilder.setIcon(IconCompat.createWithBitmap(icon))
-            }
+            msg.senderIcon?.let { personBuilder.setIcon(IconCompat.createWithBitmap(it)) }
             msgStyle.addMessage(msg.text, msg.timestamp, personBuilder.build())
         }
 
@@ -229,13 +222,8 @@ class LineNotificationListener : NotificationListenerService() {
             .setPriority(NotificationCompat.PRIORITY_HIGH)
             .setColor(0xFF06C755.toInt())
 
-        // 設定頭貼為大圖示
         room.senderIcon?.let { builder.setLargeIcon(it) }
-
-        // 點擊跳轉 LINE + 清除緩衝
         room.contentIntent?.let { builder.setContentIntent(it) }
-
-        // 通知被滑掉或點擊時清除緩衝區
         builder.setDeleteIntent(buildClearBufferIntent(room.chatTitle))
 
         addReplyAction(builder, room)
@@ -254,7 +242,6 @@ class LineNotificationListener : NotificationListenerService() {
         val manager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
 
         val messageId = nextMessageId++
-        // 記錄此聊天室的所有通知 ID
         appleNotifIds.getOrPut(room.chatTitle) { mutableListOf() }.add(messageId)
 
         val msgBuilder = NotificationCompat.Builder(this, CHANNEL_ID)
@@ -271,13 +258,8 @@ class LineNotificationListener : NotificationListenerService() {
             .setPriority(NotificationCompat.PRIORITY_HIGH)
             .setColor(0xFF06C755.toInt())
 
-        // 頭貼
         newMessage.senderIcon?.let { msgBuilder.setLargeIcon(it) }
-
-        // 點擊跳轉 + 清除同組所有通知
-        room.contentIntent?.let { lineIntent ->
-            msgBuilder.setContentIntent(lineIntent)
-        }
+        room.contentIntent?.let { msgBuilder.setContentIntent(it) }
         msgBuilder.setDeleteIntent(buildClearBufferIntent(room.chatTitle))
 
         addReplyAction(msgBuilder, room)
@@ -306,21 +288,16 @@ class LineNotificationListener : NotificationListenerService() {
     }
 
     // ==========================================
-    // 共用工具
+    // 共用
     // ==========================================
 
-    /**
-     * 通知被滑掉或點擊消失時，清除該聊天室的訊息緩衝區
-     */
     private fun buildClearBufferIntent(chatTitle: String): PendingIntent {
         val intent = Intent(this, NotificationDismissReceiver::class.java).apply {
             action = NotificationDismissReceiver.ACTION_CLEAR_BUFFER
             putExtra(NotificationDismissReceiver.EXTRA_CHAT_TITLE, chatTitle)
         }
         return PendingIntent.getBroadcast(
-            this,
-            chatTitle.hashCode(),
-            intent,
+            this, chatTitle.hashCode(), intent,
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
     }
@@ -347,19 +324,9 @@ class LineNotificationListener : NotificationListenerService() {
         }
     }
 
-    /**
-     * 外部呼叫：清除特定聊天室的訊息緩衝區
-     */
-    fun clearChatBuffer(chatTitle: String) {
-        chatRooms[chatTitle]?.clearMessages()
-        Log.d(TAG, "已清除 [$chatTitle] 的訊息緩衝")
-    }
-
     private fun createNotificationChannel() {
         val channel = NotificationChannel(
-            CHANNEL_ID,
-            CHANNEL_NAME,
-            NotificationManager.IMPORTANCE_HIGH
+            CHANNEL_ID, CHANNEL_NAME, NotificationManager.IMPORTANCE_HIGH
         ).apply {
             description = "LINE Notify+ 增強通知"
             enableVibration(true)
