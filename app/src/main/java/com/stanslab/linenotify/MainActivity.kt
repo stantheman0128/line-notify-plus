@@ -248,6 +248,20 @@ fun MainScreen() {
                         Text("• 個別管理 — 每個聊天室可獨立開關")
                     }
                 }
+
+                // 官方帳號
+                Button(
+                    onClick = {
+                        val intent = Intent(Intent.ACTION_VIEW, android.net.Uri.parse("https://line.me/ti/p/@687yglbr"))
+                        context.startActivity(intent)
+                    },
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = MaterialTheme.colorScheme.primary
+                    )
+                ) {
+                    Text("加入 LINE Notify+ 官方帳號", fontSize = 16.sp)
+                }
             }
         }
     }
