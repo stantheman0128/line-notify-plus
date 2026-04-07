@@ -88,25 +88,7 @@ class LineNotificationListener : NotificationListenerService() {
             return
         }
 
-        // 去重：LINE 對同一則訊息會發兩個通知（postTime 差幾毫秒）
-        // 將時間四捨五入到秒來去重
-        val timeSeconds = sbn.postTime / 1000
-        val dedupeKey = "$text|$timeSeconds"
-        if (!recentDedupeKeys.add(dedupeKey)) {
-            Log.d(TAG, "去重命中，跳過")
-            // 已處理過，直接取消重複的 LINE 通知
-            if (prefs.getBoolean(KEY_REPLACE_ORIGINAL, true)) {
-                cancelNotification(sbn.key)
-            }
-            return
-        }
-        // 清理舊記錄
-        if (recentDedupeKeys.size > 100) {
-            val toRemove = recentDedupeKeys.take(50)
-            recentDedupeKeys.removeAll(toRemove.toSet())
-        }
-
-        // 解析聊天室
+        // 先解析聊天室，才能正確去重
         val isGroup = extras.getBoolean("android.isGroupConversation", false)
         val subText = extras.getCharSequence("android.subText")?.toString()
 
@@ -118,6 +100,21 @@ class LineNotificationListener : NotificationListenerService() {
         } else {
             sender = title
             chatTitle = title
+        }
+
+        // 去重：LINE 對同一則訊息會發兩個通知（postTime 差幾毫秒）
+        // 用「聊天室+內容+秒」去重，確保不同聊天室的相同訊息不會互相擋
+        val timeSeconds = sbn.postTime / 1000
+        val dedupeKey = "$chatTitle|$text|$timeSeconds"
+        if (!recentDedupeKeys.add(dedupeKey)) {
+            if (prefs.getBoolean(KEY_REPLACE_ORIGINAL, true)) {
+                cancelNotification(sbn.key)
+            }
+            return
+        }
+        if (recentDedupeKeys.size > 100) {
+            val toRemove = recentDedupeKeys.take(50)
+            recentDedupeKeys.removeAll(toRemove.toSet())
         }
 
         // 檢查是否個別關閉
