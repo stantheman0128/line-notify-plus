@@ -1,0 +1,48 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+
+    <!-- LINE 對話泡泡（置中在 108x108 畫布中） -->
+    <group
+        android:translateX="22"
+        android:translateY="22"
+        android:scaleX="2.67"
+        android:scaleY="2.67">
+
+        <!-- 泡泡外框 -->
+        <path
+            android:fillColor="#FFFFFF"
+            android:pathData="M12,2C6.48,2 2,5.58 2,10c0,2.62 1.64,4.93 4.12,6.34L5.5,20.5c-0.15,0.5 0.3,0.76 0.7,0.5l4.2,-2.5c0.52,0.06 1.05,0.1 1.6,0.1c5.52,0 10,-3.58 10,-8S17.52,2 12,2z"/>
+
+        <!-- L -->
+        <path
+            android:fillColor="#06C755"
+            android:pathData="M7.5,8.5h1.2v3.8h1.8v1H7.5V8.5z"/>
+        <!-- I -->
+        <path
+            android:fillColor="#06C755"
+            android:pathData="M11,8.5h1.2v4.8H11V8.5z"/>
+        <!-- N -->
+        <path
+            android:fillColor="#06C755"
+            android:pathData="M12.8,8.5H14l1.6,2.8V8.5h1.1v4.8h-1.1l-1.7,-3v3h-1.1V8.5z"/>
+        <!-- E -->
+        <path
+            android:fillColor="#06C755"
+            android:pathData="M17.2,8.5h2.8v1h-1.6v0.8h1.5v0.9h-1.5v1.1h1.7v1h-2.9V8.5z"/>
+    </group>
+
+    <!-- 右上角齒輪 -->
+    <group
+        android:translateX="62"
+        android:translateY="16"
+        android:scaleX="2.2"
+        android:scaleY="2.2">
+        <path
+            android:fillColor="#333333"
+            android:pathData="M6,0.8l0.6,0 0.2,0.9c0.25,0.1 0.48,0.23 0.69,0.38l0.82,-0.35 0.56,0.98 -0.65,0.56c0.04,0.15 0.06,0.3 0.06,0.46s-0.02,0.31 -0.06,0.46l0.65,0.56 -0.56,0.98 -0.82,-0.35c-0.21,0.15 -0.44,0.28 -0.69,0.38L6.6,6.6H5.4L5.2,5.73c-0.25,-0.1 -0.48,-0.23 -0.69,-0.38l-0.82,0.35 -0.56,-0.98 0.65,-0.56C3.74,4.01 3.72,3.86 3.72,3.7s0.02,-0.31 0.06,-0.46l-0.65,-0.56 0.56,-0.98 0.82,0.35c0.21,-0.15 0.44,-0.28 0.69,-0.38L5.4,0.8H6zM5.7,2.6a1.1,1.1 0,1 0,0 2.2a1.1,1.1 0,1 0,0 -2.2z"/>
+    </group>
+</vector>
