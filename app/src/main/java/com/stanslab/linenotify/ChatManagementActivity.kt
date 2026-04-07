@@ -30,7 +30,7 @@ class ChatManagementActivity : ComponentActivity() {
     }
 }
 
-data class ChatItem(val name: String, val isGroup: Boolean, val enabled: Boolean)
+data class ChatItem(val name: String, val type: String, val enabled: Boolean)
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -40,9 +40,9 @@ fun ChatManagementScreen(onBack: () -> Unit) {
         context.getSharedPreferences(LineNotificationListener.PREFS_NAME, Context.MODE_PRIVATE)
     }
 
-    // 讀取已知聊天室
     val knownGroups = prefs.getStringSet("known_groups", emptySet()) ?: emptySet()
     val knownChats = prefs.getStringSet("known_chats", emptySet()) ?: emptySet()
+    val knownCommunities = prefs.getStringSet("known_communities", emptySet()) ?: emptySet()
     val disabledChats = remember {
         mutableStateOf(
             prefs.getStringSet(LineNotificationListener.KEY_DISABLED_CHATS, emptySet())
@@ -50,13 +50,16 @@ fun ChatManagementScreen(onBack: () -> Unit) {
         )
     }
 
-    val allChats = remember(knownGroups, knownChats) {
+    val allChats = remember(knownGroups, knownChats, knownCommunities) {
         val list = mutableListOf<ChatItem>()
+        knownCommunities.sorted().forEach { name ->
+            list.add(ChatItem(name, type = "community", enabled = name !in disabledChats.value))
+        }
         knownGroups.sorted().forEach { name ->
-            list.add(ChatItem(name, isGroup = true, enabled = name !in disabledChats.value))
+            list.add(ChatItem(name, type = "group", enabled = name !in disabledChats.value))
         }
         knownChats.sorted().forEach { name ->
-            list.add(ChatItem(name, isGroup = false, enabled = name !in disabledChats.value))
+            list.add(ChatItem(name, type = "personal", enabled = name !in disabledChats.value))
         }
         list
     }
@@ -105,36 +108,35 @@ fun ChatManagementScreen(onBack: () -> Unit) {
                 contentPadding = PaddingValues(16.dp),
                 verticalArrangement = Arrangement.spacedBy(4.dp)
             ) {
+                // 社群區塊
+                val communities = allChats.filter { it.type == "community" }
+                if (communities.isNotEmpty()) {
+                    item {
+                        SectionHeader("社群")
+                    }
+                    items(communities, key = { "c_${it.name}" }) { chat ->
+                        ChatToggleItem(chat, disabledChats, prefs)
+                    }
+                }
+
                 // 群組區塊
-                val groups = allChats.filter { it.isGroup }
+                val groups = allChats.filter { it.type == "group" }
                 if (groups.isNotEmpty()) {
                     item {
-                        Text(
-                            text = "群組",
-                            fontSize = 14.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = MaterialTheme.colorScheme.primary,
-                            modifier = Modifier.padding(vertical = 8.dp)
-                        )
+                        SectionHeader("群組")
                     }
-                    items(groups, key = { it.name }) { chat ->
+                    items(groups, key = { "g_${it.name}" }) { chat ->
                         ChatToggleItem(chat, disabledChats, prefs)
                     }
                 }
 
                 // 個人聊天區塊
-                val individuals = allChats.filter { !it.isGroup }
+                val individuals = allChats.filter { it.type == "personal" }
                 if (individuals.isNotEmpty()) {
                     item {
-                        Text(
-                            text = "個人聊天",
-                            fontSize = 14.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = MaterialTheme.colorScheme.primary,
-                            modifier = Modifier.padding(vertical = 8.dp)
-                        )
+                        SectionHeader("個人聊天")
                     }
-                    items(individuals, key = { it.name }) { chat ->
+                    items(individuals, key = { "p_${it.name}" }) { chat ->
                         ChatToggleItem(chat, disabledChats, prefs)
                     }
                 }
@@ -144,12 +146,29 @@ fun ChatManagementScreen(onBack: () -> Unit) {
 }
 
 @Composable
+private fun SectionHeader(title: String) {
+    Text(
+        text = title,
+        fontSize = 14.sp,
+        fontWeight = FontWeight.Bold,
+        color = MaterialTheme.colorScheme.primary,
+        modifier = Modifier.padding(vertical = 8.dp)
+    )
+}
+
+@Composable
 private fun ChatToggleItem(
     chat: ChatItem,
     disabledChats: MutableState<MutableSet<String>>,
     prefs: android.content.SharedPreferences
 ) {
     var enabled by remember { mutableStateOf(chat.name !in disabledChats.value) }
+
+    val typeLabel = when (chat.type) {
+        "community" -> "社群"
+        "group" -> "群組"
+        else -> "個人"
+    }
 
     Card(modifier = Modifier.fillMaxWidth()) {
         Row(
@@ -165,7 +184,7 @@ private fun ChatToggleItem(
                     fontWeight = FontWeight.Medium
                 )
                 Text(
-                    text = if (chat.isGroup) "群組" else "個人",
+                    text = typeLabel,
                     fontSize = 12.sp,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )

@@ -85,21 +85,36 @@ class LineNotificationListener : NotificationListenerService() {
             return
         }
 
-        // 解析聊天室
-        // LINE 群組通知：subText = 群組名, title = 發送者
+        // 解析聊天室類型
+        // LINE 群組/社群通知：subText = 群組名或社群名, title = 發送者
         // LINE 個人通知：subText = null, title = 發送者
         val subText = extras.getCharSequence("android.subText")?.toString()
-        val isGroup = subText != null
+        val channelId = sbn.notification.channelId ?: ""
+        val tag = sbn.tag ?: ""
+        val shortcutId = extras.getString("android.shortcutId") ?: ""
 
+        // 判斷聊天類型：個人 / 群組 / 社群
+        // 社群(OpenChat) 的 shortcutId 通常以 "c" 開頭，群組以 "g" 開頭，個人以 "u" 開頭
+        val chatType: String
         val sender: String
         val chatTitle: String
-        if (isGroup) {
+
+        if (subText != null) {
             sender = title
-            chatTitle = subText!!
+            chatTitle = subText
+            chatType = when {
+                shortcutId.startsWith("c") -> "community"
+                else -> "group"
+            }
         } else {
             sender = title
             chatTitle = title
+            chatType = "personal"
         }
+        val isGroup = chatType != "personal"
+
+        // Debug: 記錄通知結構幫助分析
+        Log.v(TAG, "通知結構 channelId=$channelId tag=$tag shortcutId=$shortcutId chatType=$chatType")
 
         // 去重
         val timeSeconds = sbn.postTime / 1000
@@ -173,7 +188,7 @@ class LineNotificationListener : NotificationListenerService() {
             }
         }
 
-        saveKnownChat(chatTitle, isGroup)
+        saveKnownChat(chatTitle, chatType)
 
         // 先發我們的通知
         val style = prefs.getString(KEY_NOTIFICATION_STYLE, "thread") ?: "thread"
@@ -191,6 +206,32 @@ class LineNotificationListener : NotificationListenerService() {
 
     override fun onNotificationRemoved(sbn: StatusBarNotification, rankingMap: RankingMap?, reason: Int) {
         if (sbn.packageName !in LINE_PACKAGES) return
+
+        // 當 LINE 的通知被移除（用戶在 LINE 裡讀了訊息），同時移除我們的對應通知
+        val extras = sbn.notification.extras
+        val title = extras.getString("android.title") ?: return
+        val subText = extras.getCharSequence("android.subText")?.toString()
+        val chatTitle = subText ?: title
+
+        val manager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+
+        // 移除對話串模式的通知
+        threadNotifIds[chatTitle]?.let { notifId ->
+            manager.cancel(notifId)
+            Log.d(TAG, "LINE 通知被移除，同步清除 [$chatTitle] 的通知")
+        }
+
+        // 移除 Apple 模式的通知
+        appleNotifIds[chatTitle]?.forEach { notifId ->
+            manager.cancel(notifId)
+        }
+        appleNotifIds.remove(chatTitle)
+
+        // 移除 summary
+        summaryIds[chatTitle]?.let { manager.cancel(it) }
+
+        // 清除緩衝區
+        chatRooms[chatTitle]?.clearMessages()
     }
 
     // ==========================================
@@ -316,8 +357,12 @@ class LineNotificationListener : NotificationListenerService() {
         }
     }
 
-    private fun saveKnownChat(chatTitle: String, isGroup: Boolean) {
-        val key = if (isGroup) "known_groups" else "known_chats"
+    private fun saveKnownChat(chatTitle: String, chatType: String) {
+        val key = when (chatType) {
+            "community" -> "known_communities"
+            "group" -> "known_groups"
+            else -> "known_chats"
+        }
         val known = prefs.getStringSet(key, mutableSetOf())?.toMutableSet() ?: mutableSetOf()
         if (known.add(chatTitle)) {
             prefs.edit().putStringSet(key, known).apply()
