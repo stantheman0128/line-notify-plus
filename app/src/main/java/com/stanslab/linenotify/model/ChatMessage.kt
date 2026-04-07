@@ -22,7 +22,7 @@ data class ChatRoom(
     var senderIcon: Bitmap? = null, // 最近的發送者頭貼
 ) {
     companion object {
-        const val MAX_MESSAGES = 7
+        const val MAX_MESSAGES = 50
     }
 
     fun addMessage(msg: ChatMessage) {
@@ -34,6 +34,8 @@ data class ChatRoom(
     }
 
     fun clearMessages() {
+        messages.forEach { it.senderIcon?.recycle() }
         messages.clear()
+        senderIcon = null
     }
 }

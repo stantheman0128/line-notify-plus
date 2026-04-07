@@ -15,8 +15,11 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.Info
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.foundation.layout.size
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
@@ -89,8 +92,13 @@ fun MainScreen() {
 
     LifecycleEventEffect(Lifecycle.Event.ON_RESUME) {
         isListenerEnabled = isNotificationListenerEnabled(context)
-        scope.launch {
-            updateInfo = UpdateChecker.checkForUpdate(context)
+        // 每小時最多檢查一次更新
+        val lastCheck = prefs.getLong("last_update_check", 0)
+        if (System.currentTimeMillis() - lastCheck > 3600_000) {
+            scope.launch {
+                updateInfo = UpdateChecker.checkForUpdate(context)
+                prefs.edit().putLong("last_update_check", System.currentTimeMillis()).apply()
+            }
         }
     }
 
@@ -98,6 +106,18 @@ fun MainScreen() {
         topBar = {
             TopAppBar(
                 title = { Text("LINE Notify+") },
+                actions = {
+                    IconButton(onClick = {
+                        context.startActivity(Intent(context, AboutActivity::class.java))
+                    }) {
+                        Icon(
+                            Icons.Outlined.Info,
+                            contentDescription = "App 資訊",
+                            modifier = Modifier.size(28.dp),
+                            tint = MaterialTheme.colorScheme.onPrimaryContainer
+                        )
+                    }
+                },
                 colors = TopAppBarDefaults.topAppBarColors(
                     containerColor = MaterialTheme.colorScheme.primaryContainer,
                     titleContentColor = MaterialTheme.colorScheme.onPrimaryContainer
@@ -150,7 +170,7 @@ fun MainScreen() {
             }
 
             // 更新提示
-            if (updateInfo?.hasUpdate == true) {
+            updateInfo?.takeIf { it.hasUpdate }?.let { info ->
                 Card(
                     modifier = Modifier.fillMaxWidth(),
                     colors = CardDefaults.cardColors(
@@ -162,13 +182,10 @@ fun MainScreen() {
                         horizontalArrangement = Arrangement.SpaceBetween
                     ) {
                         Column(modifier = Modifier.weight(1f)) {
-                            Text(
-                                "有新版本 v${updateInfo!!.latestVersion}",
-                                fontWeight = FontWeight.Bold
-                            )
+                            Text("有新版本 v${info.latestVersion}", fontWeight = FontWeight.Bold)
                         }
                         Button(onClick = {
-                            UpdateChecker.openDownloadPage(context, updateInfo!!.downloadUrl)
+                            UpdateChecker.openDownloadPage(context, info.downloadUrl)
                         }) {
                             Text("更新")
                         }
@@ -294,16 +311,6 @@ fun MainScreen() {
                     )
                 ) {
                     Text("加入 LINE Notify+ 官方帳號", fontSize = 16.sp)
-                }
-
-                // App 資訊
-                OutlinedButton(
-                    onClick = {
-                        context.startActivity(Intent(context, AboutActivity::class.java))
-                    },
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    Text("App 資訊", fontSize = 16.sp)
                 }
             }
         }

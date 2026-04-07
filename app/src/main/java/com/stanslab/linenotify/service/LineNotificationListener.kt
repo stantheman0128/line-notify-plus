@@ -49,6 +49,9 @@ class LineNotificationListener : NotificationListenerService() {
     private val recentDedupeKeys = mutableSetOf<String>()
     private val appleNotifIds = mutableMapOf<String, MutableList<Int>>()
 
+    // 記錄最近處理過的 chatTitle，用於 onNotificationRemoved 判斷是否為連鎖反應
+    private val recentlyProcessed = mutableMapOf<String, Long>()
+
     private lateinit var prefs: SharedPreferences
     private val handler = Handler(Looper.getMainLooper())
 
@@ -200,6 +203,7 @@ class LineNotificationListener : NotificationListenerService() {
         // 延遲取消 LINE 原通知（確保我們的 contentIntent 不會因為 LINE 通知被取消而失效）
         if (prefs.getBoolean(KEY_REPLACE_ORIGINAL, true)) {
             val key = sbn.key
+            recentlyProcessed[chatTitle] = System.currentTimeMillis()
             handler.postDelayed({ cancelNotification(key) }, 200)
         }
     }
@@ -207,31 +211,26 @@ class LineNotificationListener : NotificationListenerService() {
     override fun onNotificationRemoved(sbn: StatusBarNotification, rankingMap: RankingMap?, reason: Int) {
         if (sbn.packageName !in LINE_PACKAGES) return
 
-        // 當 LINE 的通知被移除（用戶在 LINE 裡讀了訊息），同時移除我們的對應通知
+        // 非取代模式下不同步清除（兩邊通知獨立）
+        if (!prefs.getBoolean(KEY_REPLACE_ORIGINAL, true)) return
+
         val extras = sbn.notification.extras
         val title = extras.getString("android.title") ?: return
         val subText = extras.getCharSequence("android.subText")?.toString()
         val chatTitle = subText ?: title
 
+        // 最近 2 秒內我們處理過 = 我們自己取消的連鎖反應，不做任何事
+        val processedTime = recentlyProcessed[chatTitle]
+        if (processedTime != null && System.currentTimeMillis() - processedTime < 2000) return
+
+        // 用戶在 LINE 裡讀了訊息 → 同步清除我們的通知
         val manager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
-
-        // 移除對話串模式的通知
-        threadNotifIds[chatTitle]?.let { notifId ->
-            manager.cancel(notifId)
-            Log.d(TAG, "LINE 通知被移除，同步清除 [$chatTitle] 的通知")
-        }
-
-        // 移除 Apple 模式的通知
-        appleNotifIds[chatTitle]?.forEach { notifId ->
-            manager.cancel(notifId)
-        }
+        threadNotifIds[chatTitle]?.let { manager.cancel(it) }
+        appleNotifIds[chatTitle]?.forEach { manager.cancel(it) }
         appleNotifIds.remove(chatTitle)
-
-        // 移除 summary
         summaryIds[chatTitle]?.let { manager.cancel(it) }
-
-        // 清除緩衝區
         chatRooms[chatTitle]?.clearMessages()
+        Log.d(TAG, "用戶已讀，同步清除 [$chatTitle] 的通知")
     }
 
     // ==========================================

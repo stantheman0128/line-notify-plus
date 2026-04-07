@@ -154,6 +154,22 @@ fun AboutScreen(onBack: () -> Unit) {
                 ) {
                     Text("更新紀錄", fontSize = 18.sp, fontWeight = FontWeight.Bold)
 
+                    ChangelogEntry("v1.0.5", listOf(
+                        "訊息堆疊上限提高至 50 則",
+                        "修正通知閃現即消失的問題",
+                        "關閉取代模式時不再同步清除通知",
+                        "App 資訊移至右上角 icon",
+                    ))
+
+                    HorizontalDivider()
+
+                    ChangelogEntry("v1.0.4", listOf(
+                        "新增 App 資訊頁面",
+                        "版本更新紀錄、手動檢查更新",
+                    ))
+
+                    HorizontalDivider()
+
                     ChangelogEntry("v1.0.3", listOf(
                         "在 LINE 裡讀訊息後通知自動消失",
                         "聊天室管理支援社群/群組/個人三種分類",
