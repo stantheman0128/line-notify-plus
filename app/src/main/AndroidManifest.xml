@@ -27,6 +27,11 @@
         </activity>
 
         <activity
+            android:name=".AboutActivity"
+            android:exported="false"
+            android:theme="@style/Theme.LineNotify" />
+
+        <activity
             android:name=".ChatManagementActivity"
             android:exported="false"
             android:theme="@style/Theme.LineNotify" />

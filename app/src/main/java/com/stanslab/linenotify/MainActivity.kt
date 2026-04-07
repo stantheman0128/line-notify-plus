@@ -295,6 +295,16 @@ fun MainScreen() {
                 ) {
                     Text("加入 LINE Notify+ 官方帳號", fontSize = 16.sp)
                 }
+
+                // App 資訊
+                OutlinedButton(
+                    onClick = {
+                        context.startActivity(Intent(context, AboutActivity::class.java))
+                    },
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Text("App 資訊", fontSize = 16.sp)
+                }
             }
         }
     }
