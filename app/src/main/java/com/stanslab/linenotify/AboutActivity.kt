@@ -10,6 +10,8 @@ import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -40,6 +42,8 @@ fun AboutScreen(onBack: () -> Unit) {
     val scope = rememberCoroutineScope()
     var updateInfo by remember { mutableStateOf<UpdateChecker.UpdateInfo?>(null) }
     var checking by remember { mutableStateOf(false) }
+    var downloading by remember { mutableStateOf(false) }
+    var downloadProgress by remember { mutableStateOf(0) }
 
     val currentVersion = remember {
         try {
@@ -53,7 +57,11 @@ fun AboutScreen(onBack: () -> Unit) {
                 title = { Text("App 資訊") },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
-                        Text("←", fontSize = 20.sp)
+                        Icon(
+                            Icons.AutoMirrored.Filled.ArrowBack,
+                            contentDescription = "返回",
+                            tint = MaterialTheme.colorScheme.onPrimaryContainer
+                        )
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
@@ -104,30 +112,58 @@ fun AboutScreen(onBack: () -> Unit) {
                 ) {
                     Text("版本更新", fontSize = 18.sp, fontWeight = FontWeight.Bold)
 
-                    if (updateInfo?.hasUpdate == true) {
-                        Card(
-                            colors = CardDefaults.cardColors(
-                                containerColor = MaterialTheme.colorScheme.tertiaryContainer
-                            )
-                        ) {
-                            Row(
-                                modifier = Modifier.fillMaxWidth().padding(12.dp),
-                                horizontalArrangement = Arrangement.SpaceBetween,
-                                verticalAlignment = Alignment.CenterVertically
+                    updateInfo?.let { info ->
+                        if (info.hasUpdate) {
+                            Card(
+                                colors = CardDefaults.cardColors(
+                                    containerColor = MaterialTheme.colorScheme.tertiaryContainer
+                                )
                             ) {
-                                Text("有新版本 v${updateInfo!!.latestVersion}")
-                                Button(onClick = {
-                                    UpdateChecker.openDownloadPage(context, updateInfo!!.downloadUrl)
-                                }) {
-                                    Text("下載更新")
+                                Column(modifier = Modifier.padding(12.dp)) {
+                                    Row(
+                                        modifier = Modifier.fillMaxWidth(),
+                                        horizontalArrangement = Arrangement.SpaceBetween,
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        Text("有新版本 v${info.latestVersion}")
+                                        if (!downloading) {
+                                            Button(onClick = {
+                                                val apk = info.apkUrl
+                                                if (apk != null) {
+                                                    downloading = true
+                                                    scope.launch {
+                                                        UpdateChecker.downloadAndInstall(context, apk) { progress ->
+                                                            downloadProgress = progress
+                                                        }
+                                                        downloading = false
+                                                    }
+                                                } else {
+                                                    UpdateChecker.openDownloadPage(context, info.downloadUrl)
+                                                }
+                                            }) {
+                                                Text("一鍵更新")
+                                            }
+                                        }
+                                    }
+                                    if (downloading) {
+                                        LinearProgressIndicator(
+                                            progress = { downloadProgress / 100f },
+                                            modifier = Modifier.fillMaxWidth().padding(top = 8.dp)
+                                        )
+                                        Text(
+                                            "下載中 $downloadProgress%",
+                                            fontSize = 12.sp,
+                                            modifier = Modifier.padding(top = 4.dp)
+                                        )
+                                    }
                                 }
                             }
+                        } else {
+                            Text(
+                                "已是最新版本",
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
                         }
-                    } else if (updateInfo != null) {
-                        Text(
-                            "已是最新版本",
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
                     }
 
                     OutlinedButton(
@@ -153,6 +189,13 @@ fun AboutScreen(onBack: () -> Unit) {
                     verticalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
                     Text("更新紀錄", fontSize = 18.sp, fontWeight = FontWeight.Bold)
+
+                    ChangelogEntry("v1.0.6", listOf(
+                        "一鍵更新：App 內直接下載安裝新版本",
+                        "修正返回按鈕顏色看不到的問題",
+                    ))
+
+                    HorizontalDivider()
 
                     ChangelogEntry("v1.0.5", listOf(
                         "訊息堆疊上限提高至 50 則",

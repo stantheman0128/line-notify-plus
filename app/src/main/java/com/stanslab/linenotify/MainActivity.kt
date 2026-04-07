@@ -185,7 +185,14 @@ fun MainScreen() {
                             Text("有新版本 v${info.latestVersion}", fontWeight = FontWeight.Bold)
                         }
                         Button(onClick = {
-                            UpdateChecker.openDownloadPage(context, info.downloadUrl)
+                            val apk = info.apkUrl
+                            if (apk != null) {
+                                scope.launch {
+                                    UpdateChecker.downloadAndInstall(context, apk) {}
+                                }
+                            } else {
+                                UpdateChecker.openDownloadPage(context, info.downloadUrl)
+                            }
                         }) {
                             Text("更新")
                         }
