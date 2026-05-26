@@ -9,3 +9,15 @@
 .externalNativeBuild
 .cxx
 local.properties
+
+# Release signing — NEVER commit these
+keystore.properties
+keystore/
+*.jks
+*.keystore
+
+# Icon design exploration (kept on disk for reference, not tracked)
+index/
+icon-exports/
+icon-original.html
+icon-preview.html

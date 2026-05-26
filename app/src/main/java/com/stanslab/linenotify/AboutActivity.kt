@@ -190,6 +190,14 @@ fun AboutScreen(onBack: () -> Unit) {
                 ) {
                     Text("更新紀錄", fontSize = 18.sp, fontWeight = FontWeight.Bold)
 
+                    ChangelogEntry("v1.1.0", listOf(
+                        "全新 App 圖示，準備上架 Google Play",
+                        "修正快速回覆後通知卡在轉圈圈的問題",
+                        "內部清理：移除未使用的程式碼",
+                    ))
+
+                    HorizontalDivider()
+
                     ChangelogEntry("v1.0.6", listOf(
                         "一鍵更新：App 內直接下載安裝新版本",
                         "修正返回按鈕顏色看不到的問題",

@@ -38,7 +38,7 @@
             android:theme="@style/Theme.LineNotify" />
 
         <receiver
-            android:name=".service.NotificationDismissReceiver"
+            android:name=".service.ReplyRelayReceiver"
             android:exported="false" />
 
         <provider

@@ -157,12 +157,16 @@ class LineNotificationListener : NotificationListenerService() {
                 }
         } catch (e: Exception) { null }
 
-        // 檢查緩衝區是否需要清除
-        val clearedChats = prefs.getStringSet("cleared_chats", emptySet())?.toMutableSet() ?: mutableSetOf()
-        if (chatTitle in clearedChats) {
-            chatRooms[chatTitle]?.clearMessages()
-            clearedChats.remove(chatTitle)
-            prefs.edit().putStringSet("cleared_chats", clearedChats).apply()
+        // 檢查我們是否還有該聊天室的活躍通知
+        // 如果沒有（被用戶滑掉了），先清緩衝再堆疊新訊息
+        val manager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+        val ourNotifId = threadNotifIds[chatTitle]
+        if (ourNotifId != null) {
+            val stillActive = manager.activeNotifications.any { it.id == ourNotifId }
+            if (!stillActive) {
+                chatRooms[chatTitle]?.clearMessages()
+                Log.d(TAG, "通知已被滑掉，清除 [$chatTitle] 緩衝")
+            }
         }
 
         Log.d(TAG, "收到訊息 [$chatTitle] $sender: $text (群組=$isGroup)")
@@ -264,12 +268,11 @@ class LineNotificationListener : NotificationListenerService() {
 
         room.senderIcon?.let { builder.setLargeIcon(it) }
         room.contentIntent?.let { builder.setContentIntent(it) }
-        builder.setDeleteIntent(buildClearBufferIntent(room.chatTitle))
 
-        addReplyAction(builder, room)
+        addReplyAction(builder, room, notifId)
 
-        val manager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
-        manager.notify(notifId, builder.build())
+        val mgr = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+        mgr.notify(notifId, builder.build())
 
         Log.d(TAG, "對話串通知 [${room.chatTitle}] 共 ${room.messages.size} 則")
     }
@@ -300,9 +303,8 @@ class LineNotificationListener : NotificationListenerService() {
 
         newMessage.senderIcon?.let { msgBuilder.setLargeIcon(it) }
         room.contentIntent?.let { msgBuilder.setContentIntent(it) }
-        msgBuilder.setDeleteIntent(buildClearBufferIntent(room.chatTitle))
 
-        addReplyAction(msgBuilder, room)
+        addReplyAction(msgBuilder, room, messageId)
         manager.notify(messageId, msgBuilder.build())
 
         // Summary
@@ -320,7 +322,6 @@ class LineNotificationListener : NotificationListenerService() {
 
         room.senderIcon?.let { summaryBuilder.setLargeIcon(it) }
         room.contentIntent?.let { summaryBuilder.setContentIntent(it) }
-        summaryBuilder.setDeleteIntent(buildClearBufferIntent(room.chatTitle))
 
         manager.notify(summaryId, summaryBuilder.build())
 
@@ -331,25 +332,34 @@ class LineNotificationListener : NotificationListenerService() {
     // 共用
     // ==========================================
 
-    private fun buildClearBufferIntent(chatTitle: String): PendingIntent {
-        val intent = Intent(this, NotificationDismissReceiver::class.java).apply {
-            action = NotificationDismissReceiver.ACTION_CLEAR_BUFFER
-            putExtra(NotificationDismissReceiver.EXTRA_CHAT_TITLE, chatTitle)
-        }
-        return PendingIntent.getBroadcast(
-            this, chatTitle.hashCode(), intent,
-            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
-        )
-    }
-
-    private fun addReplyAction(builder: NotificationCompat.Builder, room: ChatRoom) {
+    private fun addReplyAction(builder: NotificationCompat.Builder, room: ChatRoom, notifId: Int) {
         room.replyAction?.let { lineAction ->
+            val lineActionIntent = lineAction.actionIntent ?: return@let
             lineAction.remoteInputs?.firstOrNull()?.let { remoteInput ->
-                val replyInput = androidx.core.app.RemoteInput.Builder(remoteInput.resultKey)
+                val resultKey = remoteInput.resultKey
+                val replyInput = androidx.core.app.RemoteInput.Builder(resultKey)
                     .setLabel(remoteInput.label ?: "回覆")
                     .build()
+
+                // 用我們自己的 PendingIntent 包住 LINE 的 reply action：
+                // 回覆送出後 ReplyRelayReceiver 會轉發給 LINE 並取消本通知，
+                // 否則系統的回覆 spinner 會一直卡住轉圈圈。
+                val relayIntent = Intent(this, ReplyRelayReceiver::class.java).apply {
+                    action = ReplyRelayReceiver.ACTION_REPLY
+                    putExtra(ReplyRelayReceiver.EXTRA_RESULT_KEY, resultKey)
+                    putExtra(ReplyRelayReceiver.EXTRA_LINE_PENDING_INTENT, lineActionIntent)
+                    putExtra(ReplyRelayReceiver.EXTRA_NOTIF_ID, notifId)
+                }
+                val mutableFlag = if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.S) {
+                    PendingIntent.FLAG_MUTABLE
+                } else 0
+                val relayPendingIntent = PendingIntent.getBroadcast(
+                    this, notifId, relayIntent,
+                    PendingIntent.FLAG_UPDATE_CURRENT or mutableFlag
+                )
+
                 val action = NotificationCompat.Action.Builder(
-                    android.R.drawable.ic_menu_send, "回覆", lineAction.actionIntent
+                    android.R.drawable.ic_menu_send, "回覆", relayPendingIntent
                 ).addRemoteInput(replyInput).setAllowGeneratedReplies(true).build()
                 builder.addAction(action)
             }
