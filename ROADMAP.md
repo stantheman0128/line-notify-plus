@@ -10,8 +10,9 @@
 - [x] App 內一鍵更新
 - [x] 版本更新紀錄
 
-## 短期 (v1.1) — 上架版
+## 短期 (v1.1) — 上架版（vc10 = 當前 closed testing 版本）
 - [x] 重新設計 App Icon（不含 LINE 商標，適合上架 Google Play）
+- [x] 移除 in-app updater（改走 Play Store 更新）
 - [ ] 通知風格說明頁面（附截圖/動圖比較兩種模式）
 - [ ] 滑動效能優化（release build + R8）
 - [ ] Q&A 問答頁面
@@ -30,12 +31,11 @@
       → 改成「將 LINE 訊息堆疊，而不只是顯示最新一條訊息」。
 - [ ] **權限提示返回後不更新 bug**：Stan 回報從設定頁返回後不再提示「需要權限」。
       但 explore 發現 `MainActivity.kt:93-94` 有在 ON_RESUME 重新檢查 → **需實機重現才能確診根因**。
-- [ ] **⚠️ 上 Production 前必處理：移除/停用 in-app GitHub updater**：`UpdateChecker.kt` +
-      About 頁的「手動檢查更新」會從 GitHub Releases 下載 APK 自我安裝。Play Store 上架後
-      這會：(1) 與 Play 更新形成雙頭馬車 (2) 可能違反 Google「Device and Network Abuse」政策
-      （正式版不得用非 Play 管道自我更新）。closed testing 階段不會觸發（GitHub 仍停 v1.0.6），
-      但**推 Production 前一定要把這功能的 UI 拿掉或停用**。
-      備註：updater 認 versionName 字串（isNewer 比 "1.1.0"），不認 versionCode。
+- [x] **移除 in-app GitHub updater**（vc10 已完成，commit 1b77c22）：原本 `UpdateChecker.kt` +
+      About 頁「手動檢查更新」會從 GitHub Releases 下載 APK 自我安裝。vc9 上傳 Play Console 時
+      因 REQUEST_INSTALL_PACKAGES 敏感權限被擋（違反 Google 自我更新政策），故提前移除（原規劃 Production 前才做）。
+      已刪 UpdateChecker.kt + file_paths.xml + FileProvider；manifest 移除 REQUEST_INSTALL_PACKAGES + INTERNET。
+      clean build 後 APK 權限只剩 BIND_NOTIFICATION_LISTENER_SERVICE + POST_NOTIFICATIONS（aapt2 驗證）。
 
 ## 中期 (v1.2)
 - [ ] **多語言 i18n**：目前所有字串 hardcoded 在 Kotlin（res/ 只有 values/，無 values-en）。

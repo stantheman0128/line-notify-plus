@@ -1,18 +1,25 @@
 # Play Console 上架進度 (LINE Notify+)
 
-最後更新：2026-05-27
+最後更新：2026-05-30
 App ID: 4975318820563729104 (com.stanslab.linenotify)
+Dev account ID: 7824252807370180483（URL 用得到）
 
 ## 帳號狀態
 - ✅ Google identity verification 通過
 - ✅ App entry 已建立（Free, 繁中 zh-TW）
 
-## 進行中
-- Claude-in-Chrome 連線成功、可到達 Play Console
-- ⚠️ 2026-05-27 嘗試填表時，Play Console 跳 Google 端錯誤「590B3ACE」卡在 loading
-  → 還沒有任何表單填成功（privacy policy 尚未存）
-  → 解法：重新整理頁面 / 稍後再試（590B3ACE 通常是暫時性）
-- Dev account ID: 7824252807370180483（URL 用得到）
+## ⭐ 目前要上傳的版本：versionCode 10 / 1.1.0
+- 檔案：app/build/outputs/bundle/release/app-release.aab（6.16 MB）
+- 簽章 SHA1: F4:51:BA:A8:...（同 keystore）
+- **權限只剩 2 個**：BIND_NOTIFICATION_LISTENER_SERVICE + POST_NOTIFICATIONS
+- 手機已實機驗證 vc10 運作正常（通知監聽 + 對話串合併皆正常）
+
+## 上傳遇到的問題與解法（已解）
+- ⚠️ 2026-05-27 Console 一度跳 Google 端 loading 錯誤 590B3ACE/741585AE（暫時性，重整即可）
+- 🔴 vc9 上傳時跳 **REQUEST_INSTALL_PACKAGES sensitive-permission error**
+  → 根因：in-app GitHub updater 用此權限自我安裝 APK，違反 Google 政策
+  → **解法：已移除整個 in-app updater（commit 1b77c22），vc10 不再有此權限** ✅
+  → 所以改用 vc10 上傳，不會再出現此 error
 
 ## App content 答案卡（逐項填寫指南）
 
@@ -23,7 +30,7 @@ App ID: 4975318820563729104 (com.stanslab.linenotify)
 | **Ads** | No, my app does not contain ads | 純事實 |
 | **Content rating** | 開發者 email: stan@stan-shih.com；類別: Utility/Communication；所有暴力/性/毒品/賭博問題皆答 No → 預期 Everyone/3+ | ⚠️法律聲明 |
 | **Target audience** | 建議 13 歲以上（避開 Families policy 額外合規）；不針對兒童 | ⚠️決策 |
-| **Data safety** | No data collected / No data shared（純本機處理，無 analytics、無上傳）。In-app update 下載 APK 不算資料收集 | ⚠️法律聲明（最重要） |
+| **Data safety** | No data collected / No data shared（純本機處理，無 analytics、無上傳、無網路）。v1.1.0 已移除 in-app updater，App 現在完全無網路存取 | ⚠️法律聲明（最重要） |
 | **Government apps** | No | 純事實 |
 | **Financial features** | No | 純事實 |
 | **Health** | No | 純事實 |
@@ -52,6 +59,11 @@ App ID: 4975318820563729104 (com.stanslab.linenotify)
 3. Closed testing：建 release + 上傳 AAB (app/build/outputs/bundle/release/app-release.aab) + 啟用 Play App Signing
 4. 加 testers + 發 opt-in 連結
 5. 等 14 天 → 申請 Production
+
+## 版本演進備忘
+- vc8: 第一版 1.1.0（齒輪會被圓形遮罩切）
+- vc9: icon 縮 0.80 修正齒輪
+- **vc10: 移除 in-app updater（當前要上傳的版本）** ← 權限只剩 2 個
 
 ## Keystore（勿失）
 keystore/line-notify-release.jks，密碼在 1Password，SHA1 見 git tag v1.1.0
