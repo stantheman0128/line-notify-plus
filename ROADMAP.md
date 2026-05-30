@@ -30,6 +30,12 @@
       → 改成「將 LINE 訊息堆疊，而不只是顯示最新一條訊息」。
 - [ ] **權限提示返回後不更新 bug**：Stan 回報從設定頁返回後不再提示「需要權限」。
       但 explore 發現 `MainActivity.kt:93-94` 有在 ON_RESUME 重新檢查 → **需實機重現才能確診根因**。
+- [ ] **⚠️ 上 Production 前必處理：移除/停用 in-app GitHub updater**：`UpdateChecker.kt` +
+      About 頁的「手動檢查更新」會從 GitHub Releases 下載 APK 自我安裝。Play Store 上架後
+      這會：(1) 與 Play 更新形成雙頭馬車 (2) 可能違反 Google「Device and Network Abuse」政策
+      （正式版不得用非 Play 管道自我更新）。closed testing 階段不會觸發（GitHub 仍停 v1.0.6），
+      但**推 Production 前一定要把這功能的 UI 拿掉或停用**。
+      備註：updater 認 versionName 字串（isNewer 比 "1.1.0"），不認 versionCode。
 
 ## 中期 (v1.2)
 - [ ] **多語言 i18n**：目前所有字串 hardcoded 在 Kotlin（res/ 只有 values/，無 values-en）。
