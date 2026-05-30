@@ -8,8 +8,10 @@ LINE_GREEN = (6, 199, 85)
 DARK = (26, 26, 26)
 WHITE = (255, 255, 255)
 
-ROOT = Path(__file__).parent.parent
-ICON_PATH = ROOT / "index" / "composer-2.5" / "icons" / "exports" / "play_store_icon.png"
+# Use the CANONICAL shipped icon (fingerprint 4e05c9b15b1b, gear connected to
+# bubble) rendered by render_play_store_icon.mjs — NOT the old composer-2.5
+# export where the gear was detached.
+ICON_PATH = Path(__file__).parent / "play-store-icon-512.png"
 OUT_PATH = Path(__file__).parent / "feature-graphic.png"
 
 img = Image.new('RGB', (W, H), WHITE)

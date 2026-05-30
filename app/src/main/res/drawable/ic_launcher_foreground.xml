@@ -1,17 +1,16 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!--
-  LINE Notify+ v1.1 launcher icon foreground
+  LINE Notify+ v1.1.1 launcher icon foreground
 
   Based on v1 Original design, with three refinements:
     1. Green "+" centered at canvas center (54, 54)
     2. Gear hub at gear geometric center (path fix: M5.7,2.6 -> M6,2.6)
-    3. EVERYTHING uniformly scaled 1.1x to preserve original proportions:
-       - bubble scale: 2.67 -> 2.937 (clean rounded to 2.94)
-       - gear   scale: 2.20 -> 2.420
-       - bubble:gear ratio: 2.94/2.42 = 1.215  (original was 2.67/2.20 = 1.214)
-       - bubble-gear distance also scales 1.1x
+    3. EVERYTHING uniformly scaled 1.1x to preserve original proportions.
 
-  All within Material adaptive safe zone [18, 90]. No LINE wordmark.
+  v1.1.1 fix: whole artwork wrapped in a pivot(54,54) scale(0.80) group so the
+  top-right gear (previously reaching Y=10, outside the adaptive safe circle)
+  moves to ~Y=24 — fully inside the safe zone. Stops the gear being clipped by
+  Nothing icon-pack / circular launcher masks. Proportions unchanged.
 -->
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
     android:width="108dp"
@@ -19,32 +18,39 @@
     android:viewportWidth="108"
     android:viewportHeight="108">
 
-    <!-- Speech bubble + green plus.
-         translate (19, 23) + scale 2.94 places "+" center at ~(54.3, 53.9). -->
+    <!-- v1.1.1 safe-zone wrapper: shrink whole artwork to 0.80 around center. -->
     <group
-        android:translateX="19"
-        android:translateY="23"
-        android:scaleX="2.94"
-        android:scaleY="2.94">
+        android:pivotX="54"
+        android:pivotY="54"
+        android:scaleX="0.80"
+        android:scaleY="0.80">
 
-        <path
-            android:fillColor="#FFFFFF"
-            android:pathData="M12,3C7.03,3 3,6.13 3,10c0,2.28 1.46,4.3 3.68,5.57L6,19.5c-0.12,0.42 0.25,0.64 0.58,0.42l3.52,-2.1c0.6,0.1 1.24,0.18 1.9,0.18c4.97,0 9,-3.13 9,-7s-4.03,-7 -9,-7z"/>
+        <!-- Speech bubble + green plus.
+             translate (19, 23) + scale 2.94 places "+" center at ~(54.3, 53.9). -->
+        <group
+            android:translateX="19"
+            android:translateY="23"
+            android:scaleX="2.94"
+            android:scaleY="2.94">
 
-        <path
-            android:fillColor="#06C755"
-            android:pathData="M11.25,7.5v2.25H9v1.5h2.25V13.5h1.5V11.25H15v-1.5h-2.25V7.5z"/>
-    </group>
+            <path
+                android:fillColor="#FFFFFF"
+                android:pathData="M12,3C7.03,3 3,6.13 3,10c0,2.28 1.46,4.3 3.68,5.57L6,19.5c-0.12,0.42 0.25,0.64 0.58,0.42l3.52,-2.1c0.6,0.1 1.24,0.18 1.9,0.18c4.97,0 9,-3.13 9,-7s-4.03,-7 -9,-7z"/>
 
-    <!-- Gear (top-right). Hub fixed M5.7->M6 so hole sits on gear center.
-         scale 2.42 = exactly 2.2 * 1.1 keeps the bubble:gear ratio identical to v1 Original. -->
-    <group
-        android:translateX="63"
-        android:translateY="17"
-        android:scaleX="2.42"
-        android:scaleY="2.42">
-        <path
-            android:fillColor="#FFFFFF"
-            android:pathData="M6,0.8l0.6,0 0.2,0.9c0.25,0.1 0.48,0.23 0.69,0.38l0.82,-0.35 0.56,0.98 -0.65,0.56c0.04,0.15 0.06,0.3 0.06,0.46s-0.02,0.31 -0.06,0.46l0.65,0.56 -0.56,0.98 -0.82,-0.35c-0.21,0.15 -0.44,0.28 -0.69,0.38L6.6,6.6H5.4L5.2,5.73c-0.25,-0.1 -0.48,-0.23 -0.69,-0.38l-0.82,0.35 -0.56,-0.98 0.65,-0.56C3.74,4.01 3.72,3.86 3.72,3.7s0.02,-0.31 0.06,-0.46l-0.65,-0.56 0.56,-0.98 0.82,0.35c0.21,-0.15 0.44,-0.28 0.69,-0.38L5.4,0.8H6zM6,2.6a1.1,1.1 0,1 0,0 2.2a1.1,1.1 0,1 0,0 -2.2z"/>
+            <path
+                android:fillColor="#06C755"
+                android:pathData="M11.25,7.5v2.25H9v1.5h2.25V13.5h1.5V11.25H15v-1.5h-2.25V7.5z"/>
+        </group>
+
+        <!-- Gear (top-right). Hub fixed M5.7->M6 so hole sits on gear center. -->
+        <group
+            android:translateX="63"
+            android:translateY="17"
+            android:scaleX="2.42"
+            android:scaleY="2.42">
+            <path
+                android:fillColor="#FFFFFF"
+                android:pathData="M6,0.8l0.6,0 0.2,0.9c0.25,0.1 0.48,0.23 0.69,0.38l0.82,-0.35 0.56,0.98 -0.65,0.56c0.04,0.15 0.06,0.3 0.06,0.46s-0.02,0.31 -0.06,0.46l0.65,0.56 -0.56,0.98 -0.82,-0.35c-0.21,0.15 -0.44,0.28 -0.69,0.38L6.6,6.6H5.4L5.2,5.73c-0.25,-0.1 -0.48,-0.23 -0.69,-0.38l-0.82,0.35 -0.56,-0.98 0.65,-0.56C3.74,4.01 3.72,3.86 3.72,3.7s0.02,-0.31 0.06,-0.46l-0.65,-0.56 0.56,-0.98 0.82,0.35c0.21,-0.15 0.44,-0.28 0.69,-0.38L5.4,0.8H6zM6,2.6a1.1,1.1 0,1 0,0 2.2a1.1,1.1 0,1 0,0 -2.2z"/>
+        </group>
     </group>
 </vector>

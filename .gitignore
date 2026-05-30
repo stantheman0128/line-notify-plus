@@ -21,3 +21,8 @@ index/
 icon-exports/
 icon-original.html
 icon-preview.html
+
+# Build logs & one-off icon preview renders (not assets)
+build_v9.txt
+build_log*.txt
+play-store-assets/_*.png
