@@ -49,6 +49,10 @@
 - [ ] **分享功能**：share button 帶預設文案 + Play Store 連結推廣（需上架後拿到連結）。
 - [ ] **權限引導強化**：首次使用、未授權時更明確引導跳轉到權限設定頁。
 - [ ] 問題回報（整合 LINE 官方帳號或 GitHub Issues）
+- [ ] **🎬 拍 App 介紹影片**：錄一支短影片介紹 App（對話串 vs Apple 分組、快速回覆、
+      取代原始通知等核心功能）。用途：(1) 上傳 YouTube → 填進 Play Console 的 Video
+      欄位（上架時跳過的選填欄）(2) 社群推廣（Threads / FB Nothing 社團）。
+      建議 30-60 秒、直式手機畫面、實機操作 demo。
 
 ## 中期 (v1.2)
 - [ ] 問題回報（整合 LINE 官方帳號或 GitHub Issues）
