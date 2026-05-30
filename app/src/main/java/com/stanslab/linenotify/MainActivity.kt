@@ -28,7 +28,6 @@ import androidx.compose.ui.unit.sp
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LifecycleEventEffect
-import kotlinx.coroutines.launch
 import com.stanslab.linenotify.service.LineNotificationListener
 import com.stanslab.linenotify.ui.theme.LineNotifyTheme
 
@@ -87,19 +86,9 @@ fun MainScreen() {
     var serviceEnabled by remember { mutableStateOf(prefs.getBoolean(LineNotificationListener.KEY_SERVICE_ENABLED, true)) }
     var replaceOriginal by remember { mutableStateOf(prefs.getBoolean(LineNotificationListener.KEY_REPLACE_ORIGINAL, true)) }
     var notifStyle by remember { mutableStateOf(prefs.getString(LineNotificationListener.KEY_NOTIFICATION_STYLE, "thread") ?: "thread") }
-    var updateInfo by remember { mutableStateOf<UpdateChecker.UpdateInfo?>(null) }
-    val scope = rememberCoroutineScope()
 
     LifecycleEventEffect(Lifecycle.Event.ON_RESUME) {
         isListenerEnabled = isNotificationListenerEnabled(context)
-        // 每小時最多檢查一次更新
-        val lastCheck = prefs.getLong("last_update_check", 0)
-        if (System.currentTimeMillis() - lastCheck > 3600_000) {
-            scope.launch {
-                updateInfo = UpdateChecker.checkForUpdate(context)
-                prefs.edit().putLong("last_update_check", System.currentTimeMillis()).apply()
-            }
-        }
     }
 
     Scaffold(
@@ -166,37 +155,6 @@ fun MainScreen() {
                         else
                             MaterialTheme.colorScheme.onErrorContainer
                     )
-                }
-            }
-
-            // 更新提示
-            updateInfo?.takeIf { it.hasUpdate }?.let { info ->
-                Card(
-                    modifier = Modifier.fillMaxWidth(),
-                    colors = CardDefaults.cardColors(
-                        containerColor = MaterialTheme.colorScheme.tertiaryContainer
-                    )
-                ) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth().padding(16.dp),
-                        horizontalArrangement = Arrangement.SpaceBetween
-                    ) {
-                        Column(modifier = Modifier.weight(1f)) {
-                            Text("有新版本 v${info.latestVersion}", fontWeight = FontWeight.Bold)
-                        }
-                        Button(onClick = {
-                            val apk = info.apkUrl
-                            if (apk != null) {
-                                scope.launch {
-                                    UpdateChecker.downloadAndInstall(context, apk) {}
-                                }
-                            } else {
-                                UpdateChecker.openDownloadPage(context, info.downloadUrl)
-                            }
-                        }) {
-                            Text("更新")
-                        }
-                    }
                 }
             }
 

@@ -21,7 +21,6 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.stanslab.linenotify.ui.theme.LineNotifyTheme
-import kotlinx.coroutines.launch
 
 class AboutActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -39,11 +38,6 @@ class AboutActivity : ComponentActivity() {
 @Composable
 fun AboutScreen(onBack: () -> Unit) {
     val context = LocalContext.current
-    val scope = rememberCoroutineScope()
-    var updateInfo by remember { mutableStateOf<UpdateChecker.UpdateInfo?>(null) }
-    var checking by remember { mutableStateOf(false) }
-    var downloading by remember { mutableStateOf(false) }
-    var downloadProgress by remember { mutableStateOf(0) }
 
     val currentVersion = remember {
         try {
@@ -104,84 +98,6 @@ fun AboutScreen(onBack: () -> Unit) {
                 }
             }
 
-            // 檢查更新
-            Card(modifier = Modifier.fillMaxWidth()) {
-                Column(
-                    modifier = Modifier.padding(20.dp),
-                    verticalArrangement = Arrangement.spacedBy(12.dp)
-                ) {
-                    Text("版本更新", fontSize = 18.sp, fontWeight = FontWeight.Bold)
-
-                    updateInfo?.let { info ->
-                        if (info.hasUpdate) {
-                            Card(
-                                colors = CardDefaults.cardColors(
-                                    containerColor = MaterialTheme.colorScheme.tertiaryContainer
-                                )
-                            ) {
-                                Column(modifier = Modifier.padding(12.dp)) {
-                                    Row(
-                                        modifier = Modifier.fillMaxWidth(),
-                                        horizontalArrangement = Arrangement.SpaceBetween,
-                                        verticalAlignment = Alignment.CenterVertically
-                                    ) {
-                                        Text("有新版本 v${info.latestVersion}")
-                                        if (!downloading) {
-                                            Button(onClick = {
-                                                val apk = info.apkUrl
-                                                if (apk != null) {
-                                                    downloading = true
-                                                    scope.launch {
-                                                        UpdateChecker.downloadAndInstall(context, apk) { progress ->
-                                                            downloadProgress = progress
-                                                        }
-                                                        downloading = false
-                                                    }
-                                                } else {
-                                                    UpdateChecker.openDownloadPage(context, info.downloadUrl)
-                                                }
-                                            }) {
-                                                Text("一鍵更新")
-                                            }
-                                        }
-                                    }
-                                    if (downloading) {
-                                        LinearProgressIndicator(
-                                            progress = { downloadProgress / 100f },
-                                            modifier = Modifier.fillMaxWidth().padding(top = 8.dp)
-                                        )
-                                        Text(
-                                            "下載中 $downloadProgress%",
-                                            fontSize = 12.sp,
-                                            modifier = Modifier.padding(top = 4.dp)
-                                        )
-                                    }
-                                }
-                            }
-                        } else {
-                            Text(
-                                "已是最新版本",
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                        }
-                    }
-
-                    OutlinedButton(
-                        onClick = {
-                            checking = true
-                            scope.launch {
-                                updateInfo = UpdateChecker.checkForUpdate(context)
-                                checking = false
-                            }
-                        },
-                        modifier = Modifier.fillMaxWidth(),
-                        enabled = !checking
-                    ) {
-                        Text(if (checking) "檢查中..." else "手動檢查更新")
-                    }
-                }
-            }
-
             // 更新紀錄
             Card(modifier = Modifier.fillMaxWidth()) {
                 Column(
@@ -192,8 +108,8 @@ fun AboutScreen(onBack: () -> Unit) {
 
                     ChangelogEntry("v1.1.0", listOf(
                         "全新 App 圖示，準備上架 Google Play",
-                        "修正快速回覆後通知卡在轉圈圈的問題",
-                        "內部清理：移除未使用的程式碼",
+                        "改為透過 Google Play 更新（移除 App 內手動更新）",
+                        "內部清理與穩定性提升",
                     ))
 
                     HorizontalDivider()
