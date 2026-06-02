@@ -21,6 +21,15 @@
     <string name="service_needs_permission">Notification access permission is required</string>
     <string name="service_stack_disabled">Complete notifications are turned off</string>
     <string name="open_notification_access">Open notification access</string>
+    <string name="request_post_notifications">Allow notification posting</string>
+    <string name="permission_guide_title">Complete 2 permission steps</string>
+    <string name="permission_guide_body">LINE Notify+ needs to read original LINE notifications first, then post the rebuilt stack version notifications. The service starts after both permissions are ready.</string>
+    <string name="permission_notification_access_title">Notification access</string>
+    <string name="permission_notification_access_body">Allow the app to read original LINE notifications so they can be rebuilt as threads or Apple-style groups.</string>
+    <string name="permission_post_notifications_title">Notification posting</string>
+    <string name="permission_post_notifications_body">Allow the app to post new stack version notifications. Android 12 and below do not require this extra permission.</string>
+    <string name="permission_status_granted">Ready</string>
+    <string name="permission_status_missing">Needs setup</string>
     <string name="settings_title">Settings</string>
     <string name="enable_stack_notifications_title">Enable complete notifications</string>
     <string name="enable_stack_notifications_subtitle">Intercept LINE notifications and combine messages into complete conversations</string>
