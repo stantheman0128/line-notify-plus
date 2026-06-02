@@ -41,6 +41,10 @@ class LineNotificationListener : NotificationListenerService() {
         val suppressedRemovalIds: MutableSet<Int> =
             java.util.Collections.synchronizedSet(mutableSetOf())
 
+        // 服務 instance（給 ReplyRelayReceiver 在同 process 呼叫 handleUserReply）
+        @Volatile
+        var instance: LineNotificationListener? = null
+
         private const val SUMMARY_ID_BASE = 8000
         private const val MESSAGE_ID_BASE = 9000
         private const val THREAD_ID_BASE = 7000
@@ -64,9 +68,15 @@ class LineNotificationListener : NotificationListenerService() {
 
     override fun onCreate() {
         super.onCreate()
+        instance = this
         prefs = getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
         createNotificationChannel()
         Log.d(TAG, "LINE Notify+ 服務啟動")
+    }
+
+    override fun onDestroy() {
+        instance = null
+        super.onDestroy()
     }
 
     override fun onNotificationPosted(sbn: StatusBarNotification) {
@@ -278,6 +288,40 @@ class LineNotificationListener : NotificationListenerService() {
         return null
     }
 
+    /**
+     * 處理用戶的快速回覆（由 ReplyRelayReceiver 轉發給 LINE 後呼叫，同 process）。
+     * - 「回覆後清除」ON：整組清掉（同時停掉系統的回覆 spinner）。
+     * - OFF：把回覆「加進對話」並重貼通知 → 回覆留得住、不會被下一則訊息重建洗掉，spinner 也停。
+     */
+    fun handleUserReply(chatTitle: String, notifId: Int, replyText: CharSequence) {
+        val room = chatRooms[chatTitle]
+        if (room == null) {
+            // 沒有對話狀態 → 至少關掉這則停 spinner
+            (getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager).cancel(notifId)
+            return
+        }
+        if (prefs.getBoolean(KEY_CLEAR_AFTER_REPLY, true)) {
+            clearChatGroup(chatTitle)
+            Log.d(TAG, "回覆後清除整組 [$chatTitle]")
+        } else {
+            room.addMessage(
+                ChatMessage(
+                    sender = getString(R.string.notification_self_person),
+                    text = replyText.toString(),
+                    timestamp = System.currentTimeMillis(),
+                    isGroup = room.isGroup,
+                    chatTitle = chatTitle,
+                    senderIcon = null,
+                    isFromMe = true,
+                )
+            )
+            val style = prefs.getString(KEY_NOTIFICATION_STYLE, "thread") ?: "thread"
+            if (style == "apple") postAppleStyleNotification(room, room.messages.last())
+            else postThreadStyleNotification(room)
+            Log.d(TAG, "回覆已加入對話並保留 [$chatTitle]")
+        }
+    }
+
     // ==========================================
     // 對話串模式
     // ==========================================
@@ -296,9 +340,14 @@ class LineNotificationListener : NotificationListenerService() {
         }
 
         for (msg in room.messages) {
-            val personBuilder = Person.Builder().setName(msg.sender)
-            msg.senderIcon?.let { personBuilder.setIcon(IconCompat.createWithBitmap(it)) }
-            msgStyle.addMessage(msg.text, msg.timestamp, personBuilder.build())
+            val person = if (msg.isFromMe) {
+                me
+            } else {
+                Person.Builder().setName(msg.sender).apply {
+                    msg.senderIcon?.let { setIcon(IconCompat.createWithBitmap(it)) }
+                }.build()
+            }
+            msgStyle.addMessage(msg.text, msg.timestamp, person)
         }
 
         val builder = NotificationCompat.Builder(this, CHANNEL_ID)
@@ -395,6 +444,7 @@ class LineNotificationListener : NotificationListenerService() {
                     putExtra(ReplyRelayReceiver.EXTRA_RESULT_KEY, resultKey)
                     putExtra(ReplyRelayReceiver.EXTRA_LINE_PENDING_INTENT, lineActionIntent)
                     putExtra(ReplyRelayReceiver.EXTRA_NOTIF_ID, notifId)
+                    putExtra(ReplyRelayReceiver.EXTRA_CHAT_TITLE, room.chatTitle)
                 }
                 val mutableFlag = if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.S) {
                     PendingIntent.FLAG_MUTABLE

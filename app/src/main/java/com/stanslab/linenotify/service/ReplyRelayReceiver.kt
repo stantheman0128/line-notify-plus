@@ -45,21 +45,16 @@ class ReplyRelayReceiver : BroadcastReceiver() {
             Log.e(TAG, "LINE 回覆 PendingIntent 已失效", e)
         }
 
-        // 取消我們自己的通知 → 結束系統的回覆 spinner。
-        // 「回覆後清除」ON（預設）：不抑制，讓 LineNotificationListener.onNotificationRemoved
-        //   偵測到本機通知被移除 → 連帶清掉該聊天室整組 + buffer。
-        // OFF：抑制這次取消，只關掉被回覆的這則（仍要停 spinner），其餘通知留著。
-        if (notifId != -1) {
-            val prefs = context.getSharedPreferences(
-                LineNotificationListener.PREFS_NAME, Context.MODE_PRIVATE
-            )
-            val clearAfterReply =
-                prefs.getBoolean(LineNotificationListener.KEY_CLEAR_AFTER_REPLY, true)
-            if (!clearAfterReply) {
-                LineNotificationListener.suppressedRemovalIds.add(notifId)
-            }
-            val nm = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
-            nm.cancel(notifId)
+        // 交給 service 統一處理：把回覆加進對話、依「回覆後清除」開關決定清掉/保留、並停掉 spinner。
+        // （回覆邏輯需要對話狀態 room.messages，只有 service 有，所以不在這裡自己取消。）
+        val chatTitle = intent.getStringExtra(EXTRA_CHAT_TITLE)
+        val service = LineNotificationListener.instance
+        if (chatTitle != null && service != null) {
+            service.handleUserReply(chatTitle, notifId, replyText)
+        } else if (notifId != -1) {
+            // 後備：service 沒在跑 → 至少關掉被回覆的這則，停 spinner
+            (context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager)
+                .cancel(notifId)
         }
     }
 
@@ -69,5 +64,6 @@ class ReplyRelayReceiver : BroadcastReceiver() {
         const val EXTRA_RESULT_KEY = "result_key"
         const val EXTRA_LINE_PENDING_INTENT = "line_pending_intent"
         const val EXTRA_NOTIF_ID = "notif_id"
+        const val EXTRA_CHAT_TITLE = "chat_title"
     }
 }

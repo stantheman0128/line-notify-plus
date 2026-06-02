@@ -11,6 +11,7 @@ data class ChatMessage(
     val isGroup: Boolean,
     val chatTitle: String,
     val senderIcon: Bitmap? = null, // 發送者頭貼
+    val isFromMe: Boolean = false, // 是否為本人（快速回覆）所發
 )
 
 data class ChatRoom(
