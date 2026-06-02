@@ -9,6 +9,7 @@
     <string name="share_chooser_title">分享 Notify+</string>
     <string name="play_store_url_placeholder">https://play.google.com/store/apps/details?id=com.stanslab.linenotify</string>
     <string name="github_url">https://github.com/stantheman0128/line-notify-plus</string>
+    <string name="github_issues_url">https://github.com/stantheman0128/line-notify-plus/issues</string>
     <string name="line_official_url">https://line.me/ti/p/@260gansj</string>
     <string name="share_message">我在用 Notify+，可以把 LINE 訊息堆疊成對話串，也能用 Apple 分組顯示。下載連結：%1$s</string>
 
@@ -59,6 +60,7 @@
     <string name="changelog_title">更新紀錄</string>
     <string name="about_links_title">關於</string>
     <string name="github_source">GitHub 原始碼</string>
+    <string name="github_issues">GitHub Issues — 回報 bug</string>
     <string name="official_account_report">LINE 官方帳號 — 回報問題與功能建議</string>
     <string name="changelog_1_2_0_reply">修正狀態欄快速回覆送不出、卡轉圈的問題</string>
     <string name="changelog_1_2_0_clear">新增回覆後、已讀後自動清除通知的設定</string>
@@ -165,6 +167,10 @@
     <string name="faq_a_samsung">1. 設定 → 應用程式 → Notify+ → 電池 → 選「不受限制」\n2. 設定 → 電池 → 背景使用限制，確認 Notify+ 不在休眠清單\n3. 關閉「讓未使用的應用程式進入休眠」對本 App 的限制</string>
     <string name="faq_q_huawei">華為手機如何設定後台常駐？</string>
     <string name="faq_a_huawei">1. 設定 → 應用程式 → Notify+ → 電池 → 改「手動管理」，允許自動啟動與背景活動\n2. 設定 → 電池 → App 啟動 → Notify+ 設為手動管理（全開）\n3. 多工後台鎖定 Notify+</string>
+    <string name="report_issue_title">問題回報</string>
+    <string name="report_issue_body">回報時請附上手機型號、Android 版本、LINE 版本、通知風格，以及發生問題的操作步驟。請不要貼出私人訊息內容。</string>
+    <string name="report_issue_line">用 LINE 官方帳號回報</string>
+    <string name="report_issue_github">開啟 GitHub Issues</string>
 
     <string name="notification_self_person">我</string>
     <string name="notification_reply_action">回覆</string>
