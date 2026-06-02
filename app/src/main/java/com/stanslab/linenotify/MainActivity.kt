@@ -10,6 +10,7 @@ import android.os.Bundle
 import android.provider.Settings
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
 import androidx.appcompat.app.AppCompatDelegate
@@ -154,6 +155,14 @@ fun MainScreen(windowWidthSizeClass: WindowWidthSizeClass) {
     var clearAfterRead by remember {
         mutableStateOf(prefs.getBoolean(LineNotificationListener.KEY_CLEAR_AFTER_READ, true))
     }
+    var hasPostNotificationsPermission by remember {
+        mutableStateOf(hasPostNotificationsPermission(context))
+    }
+    val postNotificationsLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.RequestPermission()
+    ) {
+        hasPostNotificationsPermission = hasPostNotificationsPermission(context)
+    }
 
     val onServiceEnabledChange: (Boolean) -> Unit = {
         serviceEnabled = it
@@ -183,6 +192,11 @@ fun MainScreen(windowWidthSizeClass: WindowWidthSizeClass) {
     val onOpenPermissionSettings = {
         context.startActivity(Intent(Settings.ACTION_NOTIFICATION_LISTENER_SETTINGS))
     }
+    val onRequestPostNotifications = {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            postNotificationsLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
+        }
+    }
     val onOpenChatManagement = {
         context.startActivity(Intent(context, ChatManagementActivity::class.java))
     }
@@ -200,6 +214,7 @@ fun MainScreen(windowWidthSizeClass: WindowWidthSizeClass) {
 
     LifecycleEventEffect(Lifecycle.Event.ON_RESUME) {
         isListenerEnabled = isNotificationListenerEnabled(context)
+        hasPostNotificationsPermission = hasPostNotificationsPermission(context)
     }
 
     Scaffold(
@@ -270,6 +285,12 @@ fun MainScreen(windowWidthSizeClass: WindowWidthSizeClass) {
                         isListenerEnabled = isListenerEnabled,
                         serviceEnabled = serviceEnabled
                     )
+                    if (!isListenerEnabled || !hasPostNotificationsPermission) {
+                        PermissionGuideCard(
+                            isListenerEnabled = isListenerEnabled,
+                            hasPostNotificationsPermission = hasPostNotificationsPermission
+                        )
+                    }
                     if (isListenerEnabled) {
                         SettingsCard(
                             serviceEnabled = serviceEnabled,
@@ -279,6 +300,11 @@ fun MainScreen(windowWidthSizeClass: WindowWidthSizeClass) {
                         )
                     } else {
                         PermissionButton(onClick = onOpenPermissionSettings)
+                    }
+                    if (!hasPostNotificationsPermission &&
+                        Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU
+                    ) {
+                        PostNotificationsButton(onClick = onRequestPostNotifications)
                     }
                 }
 
@@ -321,6 +347,12 @@ fun MainScreen(windowWidthSizeClass: WindowWidthSizeClass) {
                     isListenerEnabled = isListenerEnabled,
                     serviceEnabled = serviceEnabled
                 )
+                if (!isListenerEnabled || !hasPostNotificationsPermission) {
+                    PermissionGuideCard(
+                        isListenerEnabled = isListenerEnabled,
+                        hasPostNotificationsPermission = hasPostNotificationsPermission
+                    )
+                }
 
                 if (isListenerEnabled) {
                     SettingsCard(
@@ -329,6 +361,11 @@ fun MainScreen(windowWidthSizeClass: WindowWidthSizeClass) {
                         onServiceEnabledChange = onServiceEnabledChange,
                         onReplaceOriginalChange = onReplaceOriginalChange
                     )
+                    if (!hasPostNotificationsPermission &&
+                        Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU
+                    ) {
+                        PostNotificationsButton(onClick = onRequestPostNotifications)
+                    }
                     ManageChatsRow(onClick = onOpenChatManagement)
                     AdvancedSettingsCard(
                         notifStyle = notifStyle,
@@ -345,6 +382,11 @@ fun MainScreen(windowWidthSizeClass: WindowWidthSizeClass) {
                     OfficialAccountButton()
                 } else {
                     PermissionButton(onClick = onOpenPermissionSettings)
+                    if (!hasPostNotificationsPermission &&
+                        Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU
+                    ) {
+                        PostNotificationsButton(onClick = onRequestPostNotifications)
+                    }
                     HelpEntryButton(onClick = onOpenHelp)
                 }
             }
@@ -405,6 +447,96 @@ private fun PermissionButton(onClick: () -> Unit) {
         )
     ) {
         Text(stringResource(R.string.open_notification_access), fontSize = 16.sp)
+    }
+}
+
+@Composable
+private fun PostNotificationsButton(onClick: () -> Unit) {
+    Button(
+        onClick = onClick,
+        modifier = Modifier.fillMaxWidth()
+    ) {
+        Text(stringResource(R.string.request_post_notifications), fontSize = 16.sp)
+    }
+}
+
+@Composable
+private fun PermissionGuideCard(
+    isListenerEnabled: Boolean,
+    hasPostNotificationsPermission: Boolean
+) {
+    Card(modifier = Modifier.fillMaxWidth()) {
+        Column(
+            modifier = Modifier.padding(20.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            Text(
+                text = stringResource(R.string.permission_guide_title),
+                fontSize = 18.sp,
+                fontWeight = FontWeight.Bold
+            )
+            Text(
+                text = stringResource(R.string.permission_guide_body),
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+            PermissionStepRow(
+                title = stringResource(R.string.permission_notification_access_title),
+                body = stringResource(R.string.permission_notification_access_body),
+                granted = isListenerEnabled
+            )
+            HorizontalDivider()
+            PermissionStepRow(
+                title = stringResource(R.string.permission_post_notifications_title),
+                body = stringResource(R.string.permission_post_notifications_body),
+                granted = hasPostNotificationsPermission
+            )
+        }
+    }
+}
+
+@Composable
+private fun PermissionStepRow(
+    title: String,
+    body: String,
+    granted: Boolean
+) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.spacedBy(12.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Column(modifier = Modifier.weight(1f)) {
+            Text(title, fontSize = 15.sp, fontWeight = FontWeight.Medium)
+            Text(body, fontSize = 13.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        }
+        StatusPill(granted = granted)
+    }
+}
+
+@Composable
+private fun StatusPill(granted: Boolean) {
+    val containerColor = if (granted) {
+        MaterialTheme.colorScheme.primaryContainer
+    } else {
+        MaterialTheme.colorScheme.errorContainer
+    }
+    val contentColor = if (granted) {
+        MaterialTheme.colorScheme.onPrimaryContainer
+    } else {
+        MaterialTheme.colorScheme.onErrorContainer
+    }
+    Card(colors = CardDefaults.cardColors(containerColor = containerColor)) {
+        Text(
+            text = if (granted) {
+                stringResource(R.string.permission_status_granted)
+            } else {
+                stringResource(R.string.permission_status_missing)
+            },
+            modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
+            fontSize = 12.sp,
+            fontWeight = FontWeight.Medium,
+            color = contentColor
+        )
     }
 }
 
@@ -748,4 +880,12 @@ private fun isNotificationListenerEnabled(context: Context): Boolean {
         "enabled_notification_listeners"
     ) ?: return false
     return enabledListeners.contains(componentName.flattenToString())
+}
+
+private fun hasPostNotificationsPermission(context: Context): Boolean {
+    if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU) return true
+    return ContextCompat.checkSelfPermission(
+        context,
+        Manifest.permission.POST_NOTIFICATIONS
+    ) == PackageManager.PERMISSION_GRANTED
 }
