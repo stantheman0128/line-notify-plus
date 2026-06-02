@@ -37,18 +37,14 @@
       已刪 UpdateChecker.kt + file_paths.xml + FileProvider；manifest 移除 REQUEST_INSTALL_PACKAGES + INTERNET。
       clean build 後 APK 權限只剩 BIND_NOTIFICATION_LISTENER_SERVICE + POST_NOTIFICATIONS（aapt2 驗證）。
 
-### 🐛 tester 回報 bug（2026-06-01 closed testing 期間）
-- [ ] **狀態欄浮窗回覆「卡住」**：用狀態欄 inline reply（RemoteInput）直接回覆時，有**很大機率卡住**
-      （送不出去 / 一直轉圈）。⚠️ 注意：v1.0.6→v1.1.0 changelog 已宣稱用 `ReplyRelayReceiver`
-      取代 `NotificationDismissReceiver` 修過「回覆後卡轉圈」，此回報代表**未完全修好或有 regression**。
-      查根因方向：`ReplyRelayReceiver` 的 RemoteInput 取值 + reply action 的 PendingIntent
-      回送 LINE 流程，需實機重現。
-- [ ] **回覆訊息「我本人的頭貼」不顯示**：在狀態欄回覆後，重組通知會把我回覆的文字接進對話串，
-      但傳送者（我自己）的頭貼沒正確帶上。可能是 MessagingStyle 的 reply `Message` 沒設
-      `Person.icon`，或抓不到自己的 avatar。
-- [ ] **回覆/已讀後通知不自動消失**：(a) 回覆某則訊息後通知不消失。(c) 開 App 點掉訊息（或已讀）後
-      通知仍在；從通知點進訊息頁面後，通知似乎也還留著。需釐清 cancel 時機（回覆成功後 /
-      App 標記已讀後 / 點擊跳轉後）與 `NotificationListenerService.cancelNotification()` 的呼叫點。
+### 🐛 tester 回報 bug（2026-06-01）→ 2026-06-03 實機修復完成（分支 fix/notification-behavior）
+- [x] **狀態欄浮窗回覆「卡住」**：根因 = `ReplyRelayReceiver` 只「轉發+取消」，跟系統的樂觀回覆搶輸。
+      改成回覆交給 service 的 `handleUserReply`：先「重貼(update)」接管通知並停 spinner。實機不再卡。
+- [x] **回覆「我本人的頭貼」不顯示**：先給綠色預設頭貼 `ic_self_avatar`，再從 LINE 的 MessagingStyle 通知
+      `extractMessagingStyleFromNotification().user.icon` 自動抓「真實本人頭貼」，且**每帳號一張**。
+- [x] **回覆/已讀後通知不自動消失**：`onNotificationRemoved` 統一處理「本機通知被移除 → 清整組 + buffer」
+      （滑掉/點掉/回覆都清）；加「回覆後清除」「已讀後清除」兩開關。
+      ⚠️ 唯一先天限制：取代模式下「**直接在 LINE App 讀**」收不到已讀訊號（我們已殺掉 LINE 原通知），無法自動清。
 
 ## 中期 (v1.2)
 - [x] **多語言 i18n**：目前所有字串 hardcoded 在 Kotlin（res/ 只有 values/，無 values-en）。
@@ -73,12 +69,10 @@
     - 許願清單 + 贊助金額排序
     - 後端：Supabase（你已有帳號）存許願 + 贊助記錄
     - 前端：App 內嵌 WebView 顯示排行榜
-- [ ] **通知處理邏輯可自選**（tester 建議 2026-06-01）：讓用戶自行選擇通知處理策略
-      （例如「回覆後是否自動清除通知」），用設定頁開關取代寫死的行為。與 v1.1.1
-      「回覆/已讀後通知不消失」bug 相關 — 先當 feature 規劃，給用戶選擇權。
-- [ ] **雙開 LINE 來源區分**（tester 回報 2026-06-01）：用戶雙開（工作分身 / Dual Apps）兩個 LINE 時，
-      目前無法區分訊息來自哪一個 LINE 帳號。雙開通常是不同 user profile 但 package 相同，
-      可從 `StatusBarNotification` 的 `UserHandle` / `getUser()` 判斷來源，並在通知標題標示帳號。
+- [x] **通知處理邏輯可自選**（2026-06-03 已做）：設定頁加「回覆後自動清除」「已讀後自動清除」兩開關，
+      取代寫死行為，給用戶選擇權。
+- [x] **雙開 LINE 來源區分**（2026-06-03 已做，實機雙開驗證通過）：所有 map 改用
+      `roomKey = profileKey(getUser()) + 聊天室名`；本人頭貼每帳號一張；偵測到 >1 帳號時通知標題前綴帳號來源。
 - [ ] **收回訊息保留**（在通知中顯示已被收回的訊息）
 
 ## 長期 (v2.0)
