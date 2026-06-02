@@ -205,6 +205,8 @@ private fun NotificationStyleGuideCard() {
                 fontSize = 18.sp,
                 fontWeight = FontWeight.Bold
             )
+            NotificationStyleVisualGuide()
+            HorizontalDivider()
             StepItem(
                 title = stringResource(R.string.style_thread_title),
                 body = stringResource(R.string.style_help_thread_body)

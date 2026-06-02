@@ -412,6 +412,12 @@ private fun SettingsCard(
     onNotificationStyleChange: (String) -> Unit,
     onLanguageChange: (String) -> Unit
 ) {
+    var showStyleGuideDialog by remember { mutableStateOf(false) }
+
+    if (showStyleGuideDialog) {
+        NotificationStyleGuideDialog(onDismiss = { showStyleGuideDialog = false })
+    }
+
     Card(modifier = Modifier.fillMaxWidth()) {
         Column(modifier = Modifier.padding(20.dp)) {
             Text(
@@ -440,7 +446,10 @@ private fun SettingsCard(
 
             HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
 
-            SectionLabel(stringResource(R.string.notification_style_title))
+            SectionLabelWithInfo(
+                text = stringResource(R.string.notification_style_title),
+                onInfoClick = { showStyleGuideDialog = true }
+            )
             StyleOption(
                 title = stringResource(R.string.style_thread_title),
                 subtitle = stringResource(R.string.style_thread_subtitle),
@@ -479,6 +488,34 @@ private fun SettingsCard(
                 title = stringResource(R.string.language_en),
                 selected = languageTag == "en",
                 onClick = { onLanguageChange("en") }
+            )
+        }
+    }
+}
+
+@Composable
+private fun SectionLabelWithInfo(text: String, onInfoClick: () -> Unit) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(top = 4.dp, bottom = 8.dp),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = androidx.compose.ui.Alignment.CenterVertically
+    ) {
+        Text(
+            text = text,
+            fontSize = 14.sp,
+            fontWeight = FontWeight.Medium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+        IconButton(
+            onClick = onInfoClick,
+            modifier = Modifier.size(32.dp)
+        ) {
+            Icon(
+                imageVector = Icons.Outlined.Info,
+                contentDescription = stringResource(R.string.style_guide_open_content_description),
+                tint = MaterialTheme.colorScheme.primary
             )
         }
     }
