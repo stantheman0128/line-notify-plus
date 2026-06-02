@@ -60,6 +60,9 @@ class LineNotificationListener : NotificationListenerService() {
     private val recentDedupeKeys = mutableSetOf<String>()
     private val appleNotifIds = mutableMapOf<String, MutableList<Int>>()
 
+    // 從 LINE 的 MessagingStyle 通知提取到的「本人」頭貼（LINE 浮窗回覆能顯示就是靠這個）。
+    private var selfPersonIcon: IconCompat? = null
+
     // 記錄最近處理過的 chatTitle，用於 onNotificationRemoved 判斷是否為連鎖反應
     private val recentlyProcessed = mutableMapOf<String, Long>()
 
@@ -173,6 +176,18 @@ class LineNotificationListener : NotificationListenerService() {
                     } else null
                 }
         } catch (e: Exception) { null }
+
+        // 嘗試從 LINE 的 MessagingStyle 通知取出「本人」頭貼（取到就快取，給快速回覆顯示用）
+        if (selfPersonIcon == null) {
+            try {
+                val lineUser = NotificationCompat.MessagingStyle
+                    .extractMessagingStyleFromNotification(notification)?.user
+                lineUser?.icon?.let {
+                    selfPersonIcon = it
+                    Log.d(TAG, "✓ 取得 LINE 本人頭貼")
+                }
+            } catch (e: Exception) { /* LINE 沒附就用預設 */ }
+        }
 
         // 檢查我們是否還有該聊天室的活躍通知
         // 如果沒有（被用戶滑掉了），先清緩衝再堆疊新訊息
@@ -321,7 +336,7 @@ class LineNotificationListener : NotificationListenerService() {
 
         if (prefs.getBoolean(KEY_CLEAR_AFTER_REPLY, true)) {
             // 「回覆後清除」：等系統樂觀回覆狀態落定後再整組清掉，避免被蓋回來。
-            handler.postDelayed({ clearChatGroup(chatTitle) }, 500)
+            handler.postDelayed({ clearChatGroup(chatTitle) }, 2000)
             Log.d(TAG, "回覆後延遲清除整組 [$chatTitle]")
         } else {
             Log.d(TAG, "回覆已加入對話並保留 [$chatTitle]")
@@ -336,7 +351,7 @@ class LineNotificationListener : NotificationListenerService() {
 
         val me = Person.Builder()
             .setName(getString(R.string.notification_self_person))
-            .setIcon(IconCompat.createWithResource(this, R.drawable.ic_self_avatar))
+            .setIcon(selfPersonIcon ?: IconCompat.createWithResource(this, R.drawable.ic_self_avatar))
             .build()
         val msgStyle = NotificationCompat.MessagingStyle(me)
 
