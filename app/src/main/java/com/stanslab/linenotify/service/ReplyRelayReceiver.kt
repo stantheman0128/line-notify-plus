@@ -45,8 +45,19 @@ class ReplyRelayReceiver : BroadcastReceiver() {
             Log.e(TAG, "LINE 回覆 PendingIntent 已失效", e)
         }
 
-        // 取消我們自己的通知 → 結束系統的回覆 spinner
+        // 取消我們自己的通知 → 結束系統的回覆 spinner。
+        // 「回覆後清除」ON（預設）：不抑制，讓 LineNotificationListener.onNotificationRemoved
+        //   偵測到本機通知被移除 → 連帶清掉該聊天室整組 + buffer。
+        // OFF：抑制這次取消，只關掉被回覆的這則（仍要停 spinner），其餘通知留著。
         if (notifId != -1) {
+            val prefs = context.getSharedPreferences(
+                LineNotificationListener.PREFS_NAME, Context.MODE_PRIVATE
+            )
+            val clearAfterReply =
+                prefs.getBoolean(LineNotificationListener.KEY_CLEAR_AFTER_REPLY, true)
+            if (!clearAfterReply) {
+                LineNotificationListener.suppressedRemovalIds.add(notifId)
+            }
             val nm = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
             nm.cancel(notifId)
         }

@@ -33,6 +33,13 @@ class LineNotificationListener : NotificationListenerService() {
         const val KEY_SERVICE_ENABLED = "service_enabled"
         const val KEY_DISABLED_CHATS = "disabled_chats"
         const val KEY_NOTIFICATION_STYLE = "notification_style"
+        const val KEY_CLEAR_AFTER_REPLY = "clear_after_reply"
+        const val KEY_CLEAR_AFTER_READ = "clear_after_read"
+
+        // 我們程式自己取消、不該再觸發「整組清除」連鎖的通知 id。
+        // 跨 ReplyRelayReceiver 共用（同一 process，故用靜態集合）。
+        val suppressedRemovalIds: MutableSet<Int> =
+            java.util.Collections.synchronizedSet(mutableSetOf())
 
         private const val SUMMARY_ID_BASE = 8000
         private const val MESSAGE_ID_BASE = 9000
@@ -213,28 +220,62 @@ class LineNotificationListener : NotificationListenerService() {
     }
 
     override fun onNotificationRemoved(sbn: StatusBarNotification, rankingMap: RankingMap?, reason: Int) {
+        // (A) 我們「自己」的通知被移除（用戶滑掉 / 點掉開 LINE / 回覆關閉）
+        //     → 視為「這個聊天室已處理」，清掉整組通知 + buffer，避免殘留或舊訊息又冒回來。
+        if (sbn.packageName == packageName) {
+            val removedId = sbn.id
+            // 我們程式自己取消的（clearChatGroup 連鎖、或「回覆後不清除」）不要再連鎖
+            if (suppressedRemovalIds.remove(removedId)) return
+            val chatTitle = findChatByNotifId(removedId) ?: return
+            clearChatGroup(chatTitle)
+            Log.d(TAG, "本機通知被移除，清整組 [$chatTitle]")
+            return
+        }
+
         if (sbn.packageName !in LINE_PACKAGES) return
 
         // 非取代模式下不同步清除（兩邊通知獨立）
         if (!prefs.getBoolean(KEY_REPLACE_ORIGINAL, true)) return
+        // 「已讀後自動清除」開關
+        if (!prefs.getBoolean(KEY_CLEAR_AFTER_READ, true)) return
 
         val extras = sbn.notification.extras
         val title = extras.getString("android.title") ?: return
         val subText = extras.getCharSequence("android.subText")?.toString()
         val chatTitle = subText ?: title
 
-        // 最近 2 秒內我們處理過 = 我們自己取消的連鎖反應，不做任何事
+        // 最近 2 秒內我們處理過 = 我們自己取消 LINE 原通知的連鎖反應，不做任何事
         val processedTime = recentlyProcessed[chatTitle]
         if (processedTime != null && System.currentTimeMillis() - processedTime < 2000) return
 
         // 用戶在 LINE 裡讀了訊息 → 同步清除我們的通知
-        val manager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
-        threadNotifIds[chatTitle]?.let { manager.cancel(it) }
-        appleNotifIds[chatTitle]?.forEach { manager.cancel(it) }
-        appleNotifIds.remove(chatTitle)
-        summaryIds[chatTitle]?.let { manager.cancel(it) }
-        chatRooms[chatTitle]?.clearMessages()
+        clearChatGroup(chatTitle)
         Log.d(TAG, "用戶已讀，同步清除 [$chatTitle] 的通知")
+    }
+
+    /**
+     * 清掉某聊天室的所有通知（thread / apple children / summary）+ in-memory buffer。
+     * 取消前先把 id 記進 suppressedRemovalIds，避免 onNotificationRemoved 連鎖再清一次。
+     */
+    private fun clearChatGroup(chatTitle: String) {
+        val manager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+        val ids = mutableListOf<Int>()
+        threadNotifIds.remove(chatTitle)?.let { ids.add(it) }
+        summaryIds.remove(chatTitle)?.let { ids.add(it) }
+        appleNotifIds.remove(chatTitle)?.let { ids.addAll(it) }
+        ids.forEach {
+            suppressedRemovalIds.add(it)
+            manager.cancel(it)
+        }
+        chatRooms[chatTitle]?.clearMessages()
+    }
+
+    /** 由通知 id 反查所屬聊天室 */
+    private fun findChatByNotifId(id: Int): String? {
+        threadNotifIds.entries.firstOrNull { it.value == id }?.let { return it.key }
+        summaryIds.entries.firstOrNull { it.value == id }?.let { return it.key }
+        appleNotifIds.entries.firstOrNull { id in it.value }?.let { return it.key }
+        return null
     }
 
     // ==========================================

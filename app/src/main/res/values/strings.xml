@@ -23,6 +23,11 @@
     <string name="enable_stack_notifications_subtitle">將 LINE 訊息堆疊，而不只是顯示最新一條訊息</string>
     <string name="replace_original_title">取代原始通知</string>
     <string name="replace_original_subtitle">隱藏 LINE 原本的通知，只顯示堆疊版本</string>
+    <string name="clear_timing_title">通知清除時機</string>
+    <string name="clear_after_reply_title">回覆後自動清除通知</string>
+    <string name="clear_after_reply_subtitle">在通知上回覆後，自動關閉這個聊天室的通知</string>
+    <string name="clear_after_read_title">已讀後自動清除通知</string>
+    <string name="clear_after_read_subtitle">在 LINE 裡讀過後盡量同步關閉（取代模式下，直接在 LINE 已讀可能無法即時偵測）</string>
     <string name="notification_style_title">通知風格</string>
     <string name="style_thread_title">對話串模式</string>
     <string name="style_thread_subtitle">同聊天室合併成一則，顯示完整對話串</string>

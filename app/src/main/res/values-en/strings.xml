@@ -23,6 +23,11 @@
     <string name="enable_stack_notifications_subtitle">Stack LINE messages instead of showing only the latest message</string>
     <string name="replace_original_title">Replace original notifications</string>
     <string name="replace_original_subtitle">Hide original LINE notifications and show only the stack version</string>
+    <string name="clear_timing_title">When to clear notifications</string>
+    <string name="clear_after_reply_title">Clear after reply</string>
+    <string name="clear_after_reply_subtitle">After replying from the notification, dismiss this chat\'s notification</string>
+    <string name="clear_after_read_title">Clear after read</string>
+    <string name="clear_after_read_subtitle">Try to dismiss after you read in LINE (reads made directly inside LINE may not be detected in replace mode)</string>
     <string name="notification_style_title">Notification style</string>
     <string name="style_thread_title">Thread mode</string>
     <string name="style_thread_subtitle">Merge the same chat into one notification with the full conversation</string>

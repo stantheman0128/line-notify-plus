@@ -132,6 +132,12 @@ fun MainScreen(windowWidthSizeClass: WindowWidthSizeClass) {
     var languageTag by remember {
         mutableStateOf(AppCompatDelegate.getApplicationLocales().toLanguageTags())
     }
+    var clearAfterReply by remember {
+        mutableStateOf(prefs.getBoolean(LineNotificationListener.KEY_CLEAR_AFTER_REPLY, true))
+    }
+    var clearAfterRead by remember {
+        mutableStateOf(prefs.getBoolean(LineNotificationListener.KEY_CLEAR_AFTER_READ, true))
+    }
 
     val twoPaneFromResources = booleanResource(R.bool.use_two_pane_layout)
     val useTwoPane = twoPaneFromResources ||
@@ -220,6 +226,8 @@ fun MainScreen(windowWidthSizeClass: WindowWidthSizeClass) {
                             replaceOriginal = replaceOriginal,
                             notifStyle = notifStyle,
                             languageTag = languageTag,
+                            clearAfterReply = clearAfterReply,
+                            clearAfterRead = clearAfterRead,
                             onServiceEnabledChange = {
                                 serviceEnabled = it
                                 prefs.edit()
@@ -236,6 +244,18 @@ fun MainScreen(windowWidthSizeClass: WindowWidthSizeClass) {
                                 notifStyle = it
                                 prefs.edit()
                                     .putString(LineNotificationListener.KEY_NOTIFICATION_STYLE, it)
+                                    .apply()
+                            },
+                            onClearAfterReplyChange = {
+                                clearAfterReply = it
+                                prefs.edit()
+                                    .putBoolean(LineNotificationListener.KEY_CLEAR_AFTER_REPLY, it)
+                                    .apply()
+                            },
+                            onClearAfterReadChange = {
+                                clearAfterRead = it
+                                prefs.edit()
+                                    .putBoolean(LineNotificationListener.KEY_CLEAR_AFTER_READ, it)
                                     .apply()
                             },
                             onLanguageChange = {
@@ -284,6 +304,8 @@ fun MainScreen(windowWidthSizeClass: WindowWidthSizeClass) {
                         replaceOriginal = replaceOriginal,
                         notifStyle = notifStyle,
                         languageTag = languageTag,
+                        clearAfterReply = clearAfterReply,
+                        clearAfterRead = clearAfterRead,
                         onServiceEnabledChange = {
                             serviceEnabled = it
                             prefs.edit()
@@ -300,6 +322,18 @@ fun MainScreen(windowWidthSizeClass: WindowWidthSizeClass) {
                             notifStyle = it
                             prefs.edit()
                                 .putString(LineNotificationListener.KEY_NOTIFICATION_STYLE, it)
+                                .apply()
+                        },
+                        onClearAfterReplyChange = {
+                            clearAfterReply = it
+                            prefs.edit()
+                                .putBoolean(LineNotificationListener.KEY_CLEAR_AFTER_REPLY, it)
+                                .apply()
+                        },
+                        onClearAfterReadChange = {
+                            clearAfterRead = it
+                            prefs.edit()
+                                .putBoolean(LineNotificationListener.KEY_CLEAR_AFTER_READ, it)
                                 .apply()
                         },
                         onLanguageChange = {
@@ -407,9 +441,13 @@ private fun SettingsCard(
     replaceOriginal: Boolean,
     notifStyle: String,
     languageTag: String,
+    clearAfterReply: Boolean,
+    clearAfterRead: Boolean,
     onServiceEnabledChange: (Boolean) -> Unit,
     onReplaceOriginalChange: (Boolean) -> Unit,
     onNotificationStyleChange: (String) -> Unit,
+    onClearAfterReplyChange: (Boolean) -> Unit,
+    onClearAfterReadChange: (Boolean) -> Unit,
     onLanguageChange: (String) -> Unit
 ) {
     Card(modifier = Modifier.fillMaxWidth()) {
@@ -436,6 +474,24 @@ private fun SettingsCard(
                 checked = replaceOriginal,
                 enabled = serviceEnabled,
                 onCheckedChange = onReplaceOriginalChange
+            )
+
+            HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
+
+            SectionLabel(stringResource(R.string.clear_timing_title))
+            SettingToggle(
+                title = stringResource(R.string.clear_after_reply_title),
+                subtitle = stringResource(R.string.clear_after_reply_subtitle),
+                checked = clearAfterReply,
+                enabled = serviceEnabled,
+                onCheckedChange = onClearAfterReplyChange
+            )
+            SettingToggle(
+                title = stringResource(R.string.clear_after_read_title),
+                subtitle = stringResource(R.string.clear_after_read_subtitle),
+                checked = clearAfterRead,
+                enabled = serviceEnabled,
+                onCheckedChange = onClearAfterReadChange
             )
 
             HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
