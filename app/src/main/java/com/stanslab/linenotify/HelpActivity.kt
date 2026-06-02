@@ -21,6 +21,7 @@ import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
@@ -30,6 +31,7 @@ import androidx.compose.material3.windowsizeclass.WindowWidthSizeClass
 import androidx.compose.material3.windowsizeclass.calculateWindowSizeClass
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.booleanResource
 import androidx.compose.ui.res.dimensionResource
 import androidx.compose.ui.res.stringResource
@@ -121,6 +123,7 @@ fun HelpScreen(
                 ) {
                     NotificationStyleGuideCard()
                     FaqCard()
+                    ReportIssueCard()
                 }
             }
         } else {
@@ -136,6 +139,7 @@ fun HelpScreen(
                 OnboardingCard()
                 NotificationStyleGuideCard()
                 FaqCard()
+                ReportIssueCard()
             }
         }
     }
@@ -249,6 +253,42 @@ private fun FaqCard() {
                 question = stringResource(R.string.faq_q_reply),
                 answer = stringResource(R.string.faq_a_reply)
             )
+        }
+    }
+}
+
+@Composable
+private fun ReportIssueCard() {
+    val context = LocalContext.current
+    val officialUrl = stringResource(R.string.line_official_url)
+    val githubIssuesUrl = stringResource(R.string.github_issues_url)
+
+    Card(modifier = Modifier.fillMaxWidth()) {
+        Column(
+            modifier = Modifier.padding(20.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            Text(
+                text = stringResource(R.string.report_issue_title),
+                fontSize = 18.sp,
+                fontWeight = FontWeight.Bold
+            )
+            Text(
+                text = stringResource(R.string.report_issue_body),
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+            OutlinedButton(
+                onClick = { context.openExternalUri(officialUrl) },
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Text(stringResource(R.string.report_issue_line))
+            }
+            OutlinedButton(
+                onClick = { context.openExternalUri(githubIssuesUrl) },
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Text(stringResource(R.string.report_issue_github))
+            }
         }
     }
 }

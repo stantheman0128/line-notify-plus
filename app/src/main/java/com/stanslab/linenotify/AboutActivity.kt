@@ -56,6 +56,7 @@ fun AboutScreen(onBack: () -> Unit) {
     val horizontalPadding = dimensionResource(R.dimen.screen_horizontal_padding)
     val verticalPadding = dimensionResource(R.dimen.screen_vertical_padding)
     val githubUrl = stringResource(R.string.github_url)
+    val githubIssuesUrl = stringResource(R.string.github_issues_url)
     val officialUrl = stringResource(R.string.line_official_url)
 
     val currentVersion = remember {
@@ -230,6 +231,10 @@ fun AboutScreen(onBack: () -> Unit) {
 
                     TextButton(onClick = { context.openExternalUri(githubUrl) }) {
                         Text(stringResource(R.string.github_source))
+                    }
+
+                    TextButton(onClick = { context.openExternalUri(githubIssuesUrl) }) {
+                        Text(stringResource(R.string.github_issues))
                     }
 
                     TextButton(onClick = { context.openExternalUri(officialUrl) }) {

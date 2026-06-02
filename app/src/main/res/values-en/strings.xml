@@ -7,6 +7,7 @@
     <string name="share_chooser_title">Share LINE Notify+</string>
     <string name="play_store_url_placeholder">https://play.google.com/store/apps/details?id=com.stanslab.linenotify</string>
     <string name="github_url">https://github.com/stantheman0128/line-notify-plus</string>
+    <string name="github_issues_url">https://github.com/stantheman0128/line-notify-plus/issues</string>
     <string name="line_official_url">https://line.me/ti/p/@687yglbr</string>
     <string name="share_message">I use LINE Notify+ to stack LINE messages into conversation threads or Apple-style groups. Download: %1$s</string>
 
@@ -50,6 +51,7 @@
     <string name="changelog_title">Changelog</string>
     <string name="about_links_title">About</string>
     <string name="github_source">GitHub source</string>
+    <string name="github_issues">GitHub Issues — report bugs</string>
     <string name="official_account_report">LINE official account — report issues and suggest features</string>
     <string name="changelog_1_1_0_icon">New app icon for Google Play</string>
     <string name="changelog_1_1_0_play">Updates now go through Google Play, with in-app manual updates removed</string>
@@ -115,6 +117,10 @@
     <string name="faq_a_original">When enabled, the original LINE notification is hidden and only the rebuilt LINE Notify+ notification remains.</string>
     <string name="faq_q_reply">What if quick replies do not send?</string>
     <string name="faq_a_reply">This is still being investigated during closed testing. Keep the notification and report the phone model, Android version, and LINE version.</string>
+    <string name="report_issue_title">Report an issue</string>
+    <string name="report_issue_body">When reporting, include the phone model, Android version, LINE version, notification style, and steps to reproduce. Do not paste private message content.</string>
+    <string name="report_issue_line">Report via LINE official account</string>
+    <string name="report_issue_github">Open GitHub Issues</string>
 
     <string name="notification_self_person">Me</string>
     <string name="notification_reply_action">Reply</string>

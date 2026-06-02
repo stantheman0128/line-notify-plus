@@ -65,7 +65,7 @@
       取代原始通知等核心功能）。用途：(1) 上傳 YouTube → 填進 Play Console 的 Video
       欄位（上架時跳過的選填欄）(2) 社群推廣（Threads / FB Nothing 社團）。
       建議 30-60 秒、直式手機畫面、實機操作 demo。
-- [ ] **問題回報**（整合 LINE 官方帳號或 GitHub Issues）
+- [x] **問題回報**（整合 LINE 官方帳號或 GitHub Issues）
 - [ ] **功能許願池**
   - 贊助排名機制：付越多，許願的功能越優先
   - 可能實現方式：
