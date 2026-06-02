@@ -15,6 +15,7 @@ import android.util.Log
 import androidx.core.app.NotificationCompat
 import androidx.core.app.Person
 import androidx.core.graphics.drawable.IconCompat
+import com.stanslab.linenotify.R
 import com.stanslab.linenotify.model.ChatMessage
 import com.stanslab.linenotify.model.ChatRoom
 
@@ -27,7 +28,6 @@ class LineNotificationListener : NotificationListenerService() {
             "com.linecorp.line",
         )
         private const val CHANNEL_ID = "line_notify_plus"
-        private const val CHANNEL_NAME = "LINE Notify+"
         const val PREFS_NAME = "line_notify_prefs"
         const val KEY_REPLACE_ORIGINAL = "replace_original"
         const val KEY_SERVICE_ENABLED = "service_enabled"
@@ -243,7 +243,7 @@ class LineNotificationListener : NotificationListenerService() {
     private fun postThreadStyleNotification(room: ChatRoom) {
         val notifId = threadNotifIds.getOrPut(room.chatTitle) { nextThreadId++ }
 
-        val me = Person.Builder().setName("我").build()
+        val me = Person.Builder().setName(getString(R.string.notification_self_person)).build()
         val msgStyle = NotificationCompat.MessagingStyle(me)
 
         if (room.isGroup) {
@@ -290,7 +290,9 @@ class LineNotificationListener : NotificationListenerService() {
         val msgBuilder = NotificationCompat.Builder(this, CHANNEL_ID)
             .setSmallIcon(com.stanslab.linenotify.R.drawable.ic_notif)
             .setContentTitle(
-                if (room.isGroup) "${room.chatTitle} — ${newMessage.sender}"
+                if (room.isGroup) {
+                    getString(R.string.notification_group_title, room.chatTitle, newMessage.sender)
+                }
                 else newMessage.sender
             )
             .setContentText(newMessage.text)
@@ -313,7 +315,7 @@ class LineNotificationListener : NotificationListenerService() {
         val summaryBuilder = NotificationCompat.Builder(this, CHANNEL_ID)
             .setSmallIcon(com.stanslab.linenotify.R.drawable.ic_notif)
             .setContentTitle(room.chatTitle)
-            .setContentText("${room.messages.size} 則訊息")
+            .setContentText(getString(R.string.notification_summary_text, room.messages.size))
             .setAutoCancel(true)
             .setGroup(groupKey)
             .setGroupSummary(true)
@@ -338,7 +340,7 @@ class LineNotificationListener : NotificationListenerService() {
             lineAction.remoteInputs?.firstOrNull()?.let { remoteInput ->
                 val resultKey = remoteInput.resultKey
                 val replyInput = androidx.core.app.RemoteInput.Builder(resultKey)
-                    .setLabel(remoteInput.label ?: "回覆")
+                    .setLabel(remoteInput.label ?: getString(R.string.notification_reply_action))
                     .build()
 
                 // 用我們自己的 PendingIntent 包住 LINE 的 reply action：
@@ -359,7 +361,9 @@ class LineNotificationListener : NotificationListenerService() {
                 )
 
                 val action = NotificationCompat.Action.Builder(
-                    android.R.drawable.ic_menu_send, "回覆", relayPendingIntent
+                    android.R.drawable.ic_menu_send,
+                    getString(R.string.notification_reply_action),
+                    relayPendingIntent
                 ).addRemoteInput(replyInput).setAllowGeneratedReplies(true).build()
                 builder.addAction(action)
             }
@@ -380,9 +384,9 @@ class LineNotificationListener : NotificationListenerService() {
 
     private fun createNotificationChannel() {
         val channel = NotificationChannel(
-            CHANNEL_ID, CHANNEL_NAME, NotificationManager.IMPORTANCE_HIGH
+            CHANNEL_ID, getString(R.string.app_name), NotificationManager.IMPORTANCE_HIGH
         ).apply {
-            description = "LINE Notify+ 增強通知"
+            description = getString(R.string.notification_channel_description)
             enableVibration(true)
             setShowBadge(true)
         }
