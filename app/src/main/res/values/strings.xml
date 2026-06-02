@@ -3,6 +3,7 @@
     <string name="app_name">Notify+</string>
     <string name="unknown_version">unknown</string>
     <string name="action_back">返回</string>
+    <string name="action_close">關閉</string>
     <string name="action_share_app">分享 App</string>
     <string name="main_share_content_description">分享 App</string>
     <string name="advanced_section_title">進階功能</string>
@@ -33,6 +34,8 @@
     <string name="clear_after_read_title">已讀後自動清除通知</string>
     <string name="clear_after_read_subtitle">在 LINE 裡讀過後盡量同步關閉（取代模式下，直接在 LINE 已讀可能無法即時偵測）</string>
     <string name="notification_style_title">通知風格</string>
+    <string name="style_guide_dialog_title">對話串 vs Apple 分組</string>
+    <string name="style_guide_open_content_description">查看通知風格示意圖</string>
     <string name="style_thread_title">對話串模式</string>
     <string name="style_thread_subtitle">同聊天室合併成一則，顯示完整對話串</string>
     <string name="style_apple_title">Apple 分組模式</string>
@@ -146,6 +149,19 @@
     <string name="style_help_title">通知風格說明</string>
     <string name="style_help_thread_body">同一個聊天室只顯示一則通知，內容像聊天記錄一樣往下堆疊。適合群組、社群或連續聊天。</string>
     <string name="style_help_apple_body">每則訊息都是獨立通知，Android 會依聊天室分組收合。適合想保留每則訊息通知狀態的人。</string>
+    <string name="style_preview_status_bar_time">09:41</string>
+    <string name="style_preview_status_bar_icons">LTE 82%</string>
+    <string name="style_preview_avatar_label">L</string>
+    <string name="style_preview_thread_chat_title">週末聚餐群</string>
+    <string name="style_preview_thread_message_count">3 則訊息</string>
+    <string name="style_preview_sender_mina">Mina</string>
+    <string name="style_preview_sender_you">我</string>
+    <string name="style_preview_message_first">今晚 7 點可以嗎？</string>
+    <string name="style_preview_message_reply">可以，我會準時到</string>
+    <string name="style_preview_message_follow_up">我訂好位了</string>
+    <string name="style_preview_apple_title_first">週末聚餐群 — Mina</string>
+    <string name="style_preview_apple_title_reply">週末聚餐群 — 我</string>
+    <string name="style_preview_apple_summary">同聊天室 3 則訊息已分組</string>
     <string name="faq_title">FAQ</string>
     <string name="faq_q_permission">為什麼需要通知存取權限？</string>
     <string name="faq_a_permission">App 只能透過 NotificationListenerService 讀到 LINE 通知內容，才能重新組成完整通知。</string>

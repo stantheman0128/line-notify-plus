@@ -3,6 +3,7 @@
     <string name="app_name">Notify+</string>
     <string name="unknown_version">unknown</string>
     <string name="action_back">Back</string>
+    <string name="action_close">Close</string>
     <string name="action_share_app">Share app</string>
     <string name="main_share_content_description">Share app</string>
     <string name="advanced_section_title">Advanced</string>
@@ -33,6 +34,8 @@
     <string name="clear_after_read_title">Clear after read</string>
     <string name="clear_after_read_subtitle">Try to dismiss after you read in LINE (reads made directly inside LINE may not be detected in replace mode)</string>
     <string name="notification_style_title">Notification style</string>
+    <string name="style_guide_dialog_title">Thread vs Apple grouping</string>
+    <string name="style_guide_open_content_description">View notification style visuals</string>
     <string name="style_thread_title">Thread mode</string>
     <string name="style_thread_subtitle">Merge the same chat into one notification with the full conversation</string>
     <string name="style_apple_title">Apple grouping mode</string>
@@ -146,6 +149,19 @@
     <string name="style_help_title">Notification style guide</string>
     <string name="style_help_thread_body">One chat is shown as one notification, with messages stacked like chat history. Best for groups, communities, and busy conversations.</string>
     <string name="style_help_apple_body">Every message is its own notification, and Android groups them by chat. Best when you want each message to keep its own notification state.</string>
+    <string name="style_preview_status_bar_time">09:41</string>
+    <string name="style_preview_status_bar_icons">LTE 82%</string>
+    <string name="style_preview_avatar_label">L</string>
+    <string name="style_preview_thread_chat_title">Weekend dinner group</string>
+    <string name="style_preview_thread_message_count">3 messages</string>
+    <string name="style_preview_sender_mina">Mina</string>
+    <string name="style_preview_sender_you">Me</string>
+    <string name="style_preview_message_first">Does 7 PM work?</string>
+    <string name="style_preview_message_reply">Yes, I will be on time</string>
+    <string name="style_preview_message_follow_up">The table is booked</string>
+    <string name="style_preview_apple_title_first">Weekend dinner group — Mina</string>
+    <string name="style_preview_apple_title_reply">Weekend dinner group — Me</string>
+    <string name="style_preview_apple_summary">3 messages grouped in this chat</string>
     <string name="faq_title">FAQ</string>
     <string name="faq_q_permission">Why does it need notification access?</string>
     <string name="faq_a_permission">The app can only rebuild LINE notifications after NotificationListenerService reads their content.</string>

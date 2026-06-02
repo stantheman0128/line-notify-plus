@@ -13,7 +13,7 @@
 ## 短期 (v1.1) — 上架版（vc10 = 當前 closed testing 版本）
 - [x] 重新設計 App Icon（不含 LINE 商標，適合上架 Google Play）
 - [x] 移除 in-app updater（改走 Play Store 更新）
-- [ ] 通知風格說明頁面（附截圖/動圖比較兩種模式）
+- [x] 通知風格說明頁面（附截圖/動圖比較兩種模式）
 - [ ] 滑動效能優化（release build + R8）
 - [x] Q&A 問答頁面
 
@@ -53,7 +53,7 @@
 - [x] **平板支援**：目前 App 能在平板上跑但未最佳化（單欄拉寬）。做法：用 WindowSizeClass
       判斷寬螢幕、加 sw600dp/sw720dp layout 變體、list-detail 雙欄。約半天～一天工。
       投報率低（通知工具 99% 手機使用），故排 v1.2。上架時平板截圖用手機圖置中代用。
-- [ ] **通知風格示意圖**：對話串/Apple 分組旁加 info 按鈕，點開 dialog 顯示對比圖/GIF。
+- [x] **通知風格示意圖**：對話串/Apple 分組旁加 info 按鈕，點開 dialog 顯示對比圖/GIF。
 - [x] **FAQ / 新手教學**：首次開啟 onboarding，或設定頁加 FAQ，說明 App 能做什麼。
 - [x] **分享功能**：share button 帶預設文案 + Play Store 連結推廣（需上架後拿到連結）。
 - [ ] **權限引導強化**：首次使用、未授權時更明確引導跳轉到權限設定頁。
