@@ -300,24 +300,30 @@ class LineNotificationListener : NotificationListenerService() {
             (getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager).cancel(notifId)
             return
         }
-        if (prefs.getBoolean(KEY_CLEAR_AFTER_REPLY, true)) {
-            clearChatGroup(chatTitle)
-            Log.d(TAG, "回覆後清除整組 [$chatTitle]")
-        } else {
-            room.addMessage(
-                ChatMessage(
-                    sender = getString(R.string.notification_self_person),
-                    text = replyText.toString(),
-                    timestamp = System.currentTimeMillis(),
-                    isGroup = room.isGroup,
-                    chatTitle = chatTitle,
-                    senderIcon = null,
-                    isFromMe = true,
-                )
+        // 一律先「把回覆加進對話 + 重貼通知」：
+        // update（重貼）會「接管」系統的樂觀回覆、停掉 spinner，並用本人綠頭貼顯示回覆，
+        // 也讓回覆留得住、不被下一則訊息重建洗掉。
+        // （實機驗出來：直接 cancel 會跟系統樂觀回覆搶輸、被蓋回來；update 才贏。）
+        room.addMessage(
+            ChatMessage(
+                sender = getString(R.string.notification_self_person),
+                text = replyText.toString(),
+                timestamp = System.currentTimeMillis(),
+                isGroup = room.isGroup,
+                chatTitle = chatTitle,
+                senderIcon = null,
+                isFromMe = true,
             )
-            val style = prefs.getString(KEY_NOTIFICATION_STYLE, "thread") ?: "thread"
-            if (style == "apple") postAppleStyleNotification(room, room.messages.last())
-            else postThreadStyleNotification(room)
+        )
+        val style = prefs.getString(KEY_NOTIFICATION_STYLE, "thread") ?: "thread"
+        if (style == "apple") postAppleStyleNotification(room, room.messages.last())
+        else postThreadStyleNotification(room)
+
+        if (prefs.getBoolean(KEY_CLEAR_AFTER_REPLY, true)) {
+            // 「回覆後清除」：等系統樂觀回覆狀態落定後再整組清掉，避免被蓋回來。
+            handler.postDelayed({ clearChatGroup(chatTitle) }, 500)
+            Log.d(TAG, "回覆後延遲清除整組 [$chatTitle]")
+        } else {
             Log.d(TAG, "回覆已加入對話並保留 [$chatTitle]")
         }
     }
