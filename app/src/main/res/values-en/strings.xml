@@ -9,6 +9,7 @@
     <string name="share_chooser_title">Share Notify+</string>
     <string name="play_store_url_placeholder">https://play.google.com/store/apps/details?id=com.stanslab.linenotify</string>
     <string name="github_url">https://github.com/stantheman0128/line-notify-plus</string>
+    <string name="github_issues_url">https://github.com/stantheman0128/line-notify-plus/issues</string>
     <string name="line_official_url">https://line.me/ti/p/@687yglbr</string>
     <string name="share_message">I use Notify+ to stack LINE messages into conversation threads or Apple-style groups. Download: %1$s</string>
 
@@ -59,6 +60,7 @@
     <string name="changelog_title">Changelog</string>
     <string name="about_links_title">About</string>
     <string name="github_source">GitHub source</string>
+    <string name="github_issues">GitHub Issues — report bugs</string>
     <string name="official_account_report">LINE official account — report issues and suggest features</string>
     <string name="changelog_1_2_0_reply">Fixed quick replies that failed to send or kept spinning</string>
     <string name="changelog_1_2_0_clear">Added settings to auto-clear notifications after replying or reading</string>
@@ -165,6 +167,10 @@
     <string name="faq_a_samsung">1. Settings → Apps → Notify+ → Battery → Unrestricted\n2. Settings → Battery → Background usage limits — keep Notify+ out of the sleeping list\n3. Disable "Put unused apps to sleep" for this app</string>
     <string name="faq_q_huawei">Huawei: how to keep it running in the background?</string>
     <string name="faq_a_huawei">1. Settings → Apps → Notify+ → Battery → switch to Manual manage; allow auto-launch and background activity\n2. Settings → Battery → App launch → set Notify+ to Manual (all on)\n3. Lock Notify+ in recents</string>
+    <string name="report_issue_title">Report an issue</string>
+    <string name="report_issue_body">When reporting, include the phone model, Android version, LINE version, notification style, and steps to reproduce. Do not paste private message content.</string>
+    <string name="report_issue_line">Report via LINE official account</string>
+    <string name="report_issue_github">Open GitHub Issues</string>
 
     <string name="notification_self_person">Me</string>
     <string name="notification_reply_action">Reply</string>
