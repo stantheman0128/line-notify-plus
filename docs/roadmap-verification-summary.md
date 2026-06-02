@@ -29,6 +29,7 @@ aapt2 dump permissions app/build/outputs/apk/debug/app-debug.apk
 | #3 | `feat/permission-guidance` | `feat/roadmap-ui-i18n-tablet` | A 層 | 首次使用 / 未授權時的通知存取與通知發送權限引導 | `assembleDebug` 通過；APK 權限只剩允許的 2 個 |
 | #4 | `feat/problem-reporting` | `feat/roadmap-ui-i18n-tablet` | A 層 | Help / About 的 LINE 官方帳號與 GitHub Issues 問題回報入口 | `assembleDebug` 通過；APK 權限只剩允許的 2 個 |
 | #5 | `feat/behavior-candidate-checklists` | `feat/roadmap-ui-i18n-tablet` | B 層文件 | 補充需實機驗證的候選修法與測試步驟 | `assembleDebug` 通過；APK 權限只剩允許的 2 個；不宣稱行為已驗 |
+| #6 | `feat/roadmap-verification-summary` | `feat/roadmap-ui-i18n-tablet` | 交付文件 | 彙整已 build 驗證、等實機驗、明確跳過與 guardrails | `assembleDebug` 通過；APK 權限只剩允許的 2 個 |
 
 ## 已 build 驗證的 A 層項目
 
@@ -55,9 +56,9 @@ aapt2 dump permissions app/build/outputs/apk/debug/app-debug.apk
 | 回覆後「我本人的頭貼」不顯示 | `docs/roadmap-b-layer-on-device-checklist.md` |
 | 回覆 / 已讀 / 點擊跳轉後通知不自動消失 | `docs/roadmap-b-layer-on-device-checklist.md` |
 | 雙開 LINE 來源區分 | `docs/roadmap-b-layer-on-device-checklist.md` |
-| 權限設定返回後 UI 是否即時更新 | `docs/roadmap-b-layer-on-device-checklist.md` |
-| 通知處理邏輯可自選 | `docs/roadmap-b-layer-on-device-checklist.md` |
-| 收回訊息保留 | `docs/roadmap-b-layer-on-device-checklist.md` |
+| 權限設定返回後 UI 是否即時更新 | PR #5 擴充 `docs/roadmap-b-layer-on-device-checklist.md` |
+| 通知處理邏輯可自選 | PR #5 擴充 `docs/roadmap-b-layer-on-device-checklist.md` |
+| 收回訊息保留 | PR #5 擴充 `docs/roadmap-b-layer-on-device-checklist.md` |
 
 ## 明確未處理 / 依指令跳過
 
