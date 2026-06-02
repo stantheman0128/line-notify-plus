@@ -17,6 +17,8 @@ data class ChatMessage(
 data class ChatRoom(
     val chatTitle: String,
     val isGroup: Boolean,
+    val roomKey: String = chatTitle,   // 帳號(profile)+聊天室 的唯一 key（雙開區分用）
+    val profileKey: String = "",       // 雙開帳號（Android user profile）
     val messages: MutableList<ChatMessage> = mutableListOf(),
     var contentIntent: PendingIntent? = null,
     var replyAction: Notification.Action? = null,

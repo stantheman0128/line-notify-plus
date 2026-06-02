@@ -36,6 +36,9 @@ class LineNotificationListener : NotificationListenerService() {
         const val KEY_CLEAR_AFTER_REPLY = "clear_after_reply"
         const val KEY_CLEAR_AFTER_READ = "clear_after_read"
 
+        // roomKey 分隔字元：profileKey 是純數字（hashCode），用 ":" 即保證 (profile,聊天室) 唯一對應
+        private const val KEY_SEP = ":"
+
         // 我們程式自己取消、不該再觸發「整組清除」連鎖的通知 id。
         // 跨 ReplyRelayReceiver 共用（同一 process，故用靜態集合）。
         val suppressedRemovalIds: MutableSet<Int> =
@@ -50,6 +53,7 @@ class LineNotificationListener : NotificationListenerService() {
         private const val THREAD_ID_BASE = 7000
     }
 
+    // 以下所有 map 的 key 都是 roomKey = profileKey + 聊天室名（雙開帳號各自獨立）
     private val chatRooms = mutableMapOf<String, ChatRoom>()
     private val summaryIds = mutableMapOf<String, Int>()
     private var nextSummaryId = SUMMARY_ID_BASE
@@ -60,10 +64,13 @@ class LineNotificationListener : NotificationListenerService() {
     private val recentDedupeKeys = mutableSetOf<String>()
     private val appleNotifIds = mutableMapOf<String, MutableList<Int>>()
 
-    // 從 LINE 的 MessagingStyle 通知提取到的「本人」頭貼（LINE 浮窗回覆能顯示就是靠這個）。
-    private var selfPersonIcon: IconCompat? = null
+    // 每個帳號（雙開 profile）一張「本人」頭貼 + 顯示名，key = profileKey。
+    private val selfPersonIcons = mutableMapOf<String, IconCompat>()
+    private val accountLabels = mutableMapOf<String, String>()
+    // 看過的帳號 profile；>1 才在通知標題標出帳號來源。
+    private val knownProfiles = mutableSetOf<String>()
 
-    // 記錄最近處理過的 chatTitle，用於 onNotificationRemoved 判斷是否為連鎖反應
+    // 記錄最近處理過的 roomKey，用於 onNotificationRemoved 判斷是否為連鎖反應
     private val recentlyProcessed = mutableMapOf<String, Long>()
 
     private lateinit var prefs: SharedPreferences
@@ -81,6 +88,10 @@ class LineNotificationListener : NotificationListenerService() {
         instance = null
         super.onDestroy()
     }
+
+    /** 雙開帳號（Android user profile）的穩定 key */
+    private fun profileKeyOf(sbn: StatusBarNotification): String =
+        (sbn.user?.hashCode() ?: 0).toString()
 
     override fun onNotificationPosted(sbn: StatusBarNotification) {
         if (sbn.packageName !in LINE_PACKAGES) return
@@ -136,12 +147,17 @@ class LineNotificationListener : NotificationListenerService() {
         }
         val isGroup = chatType != "personal"
 
+        // 雙開帳號區分：把帳號(profile)納入 key
+        val profileKey = profileKeyOf(sbn)
+        val roomKey = profileKey + KEY_SEP + chatTitle
+        knownProfiles.add(profileKey)
+
         // Debug: 記錄通知結構幫助分析
-        Log.v(TAG, "通知結構 channelId=$channelId tag=$tag shortcutId=$shortcutId chatType=$chatType")
+        Log.v(TAG, "通知結構 channelId=$channelId tag=$tag shortcutId=$shortcutId chatType=$chatType profile=$profileKey")
 
         // 去重
         val timeSeconds = sbn.postTime / 1000
-        val dedupeKey = "$chatTitle|$text|$timeSeconds"
+        val dedupeKey = "$roomKey|$text|$timeSeconds"
         if (!recentDedupeKeys.add(dedupeKey)) {
             if (prefs.getBoolean(KEY_REPLACE_ORIGINAL, true)) {
                 cancelNotification(sbn.key)
@@ -177,26 +193,30 @@ class LineNotificationListener : NotificationListenerService() {
                 }
         } catch (e: Exception) { null }
 
-        // 嘗試從 LINE 的 MessagingStyle 通知取出「本人」頭貼（取到就快取，給快速回覆顯示用）
-        if (selfPersonIcon == null) {
-            try {
-                val lineUser = NotificationCompat.MessagingStyle
-                    .extractMessagingStyleFromNotification(notification)?.user
-                lineUser?.icon?.let {
-                    selfPersonIcon = it
-                    Log.d(TAG, "✓ 取得 LINE 本人頭貼")
+        // 從 LINE 的 MessagingStyle 通知取出「本人」頭貼與名稱，按帳號(profile)分別快取
+        try {
+            val lineUser = NotificationCompat.MessagingStyle
+                .extractMessagingStyleFromNotification(notification)?.user
+            if (lineUser != null) {
+                if (!selfPersonIcons.containsKey(profileKey)) {
+                    lineUser.icon?.let {
+                        selfPersonIcons[profileKey] = it
+                        Log.d(TAG, "✓ 取得帳號[$profileKey]本人頭貼")
+                    }
                 }
-            } catch (e: Exception) { /* LINE 沒附就用預設 */ }
-        }
+                lineUser.name?.toString()?.takeIf { it.isNotBlank() }
+                    ?.let { accountLabels[profileKey] = it }
+            }
+        } catch (e: Exception) { /* LINE 沒附就用預設 */ }
 
         // 檢查我們是否還有該聊天室的活躍通知
         // 如果沒有（被用戶滑掉了），先清緩衝再堆疊新訊息
         val manager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
-        val ourNotifId = threadNotifIds[chatTitle]
+        val ourNotifId = threadNotifIds[roomKey]
         if (ourNotifId != null) {
             val stillActive = manager.activeNotifications.any { it.id == ourNotifId }
             if (!stillActive) {
-                chatRooms[chatTitle]?.clearMessages()
+                chatRooms[roomKey]?.clearMessages()
                 Log.d(TAG, "通知已被滑掉，清除 [$chatTitle] 緩衝")
             }
         }
@@ -212,8 +232,13 @@ class LineNotificationListener : NotificationListenerService() {
             senderIcon = largeIcon,
         )
 
-        val room = chatRooms.getOrPut(chatTitle) {
-            ChatRoom(chatTitle = chatTitle, isGroup = isGroup)
+        val room = chatRooms.getOrPut(roomKey) {
+            ChatRoom(
+                chatTitle = chatTitle,
+                isGroup = isGroup,
+                roomKey = roomKey,
+                profileKey = profileKey,
+            )
         }
         room.addMessage(message)
 
@@ -239,7 +264,7 @@ class LineNotificationListener : NotificationListenerService() {
         // 延遲取消 LINE 原通知（確保我們的 contentIntent 不會因為 LINE 通知被取消而失效）
         if (prefs.getBoolean(KEY_REPLACE_ORIGINAL, true)) {
             val key = sbn.key
-            recentlyProcessed[chatTitle] = System.currentTimeMillis()
+            recentlyProcessed[roomKey] = System.currentTimeMillis()
             handler.postDelayed({ cancelNotification(key) }, 200)
         }
     }
@@ -251,9 +276,9 @@ class LineNotificationListener : NotificationListenerService() {
             val removedId = sbn.id
             // 我們程式自己取消的（clearChatGroup 連鎖、或「回覆後不清除」）不要再連鎖
             if (suppressedRemovalIds.remove(removedId)) return
-            val chatTitle = findChatByNotifId(removedId) ?: return
-            clearChatGroup(chatTitle)
-            Log.d(TAG, "本機通知被移除，清整組 [$chatTitle]")
+            val roomKey = findRoomKeyByNotifId(removedId) ?: return
+            clearChatGroup(roomKey)
+            Log.d(TAG, "本機通知被移除，清整組")
             return
         }
 
@@ -268,13 +293,14 @@ class LineNotificationListener : NotificationListenerService() {
         val title = extras.getString("android.title") ?: return
         val subText = extras.getCharSequence("android.subText")?.toString()
         val chatTitle = subText ?: title
+        val roomKey = profileKeyOf(sbn) + KEY_SEP + chatTitle
 
         // 最近 2 秒內我們處理過 = 我們自己取消 LINE 原通知的連鎖反應，不做任何事
-        val processedTime = recentlyProcessed[chatTitle]
+        val processedTime = recentlyProcessed[roomKey]
         if (processedTime != null && System.currentTimeMillis() - processedTime < 2000) return
 
         // 用戶在 LINE 裡讀了訊息 → 同步清除我們的通知
-        clearChatGroup(chatTitle)
+        clearChatGroup(roomKey)
         Log.d(TAG, "用戶已讀，同步清除 [$chatTitle] 的通知")
     }
 
@@ -282,21 +308,21 @@ class LineNotificationListener : NotificationListenerService() {
      * 清掉某聊天室的所有通知（thread / apple children / summary）+ in-memory buffer。
      * 取消前先把 id 記進 suppressedRemovalIds，避免 onNotificationRemoved 連鎖再清一次。
      */
-    private fun clearChatGroup(chatTitle: String) {
+    private fun clearChatGroup(roomKey: String) {
         val manager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
         val ids = mutableListOf<Int>()
-        threadNotifIds.remove(chatTitle)?.let { ids.add(it) }
-        summaryIds.remove(chatTitle)?.let { ids.add(it) }
-        appleNotifIds.remove(chatTitle)?.let { ids.addAll(it) }
+        threadNotifIds.remove(roomKey)?.let { ids.add(it) }
+        summaryIds.remove(roomKey)?.let { ids.add(it) }
+        appleNotifIds.remove(roomKey)?.let { ids.addAll(it) }
         ids.forEach {
             suppressedRemovalIds.add(it)
             manager.cancel(it)
         }
-        chatRooms[chatTitle]?.clearMessages()
+        chatRooms[roomKey]?.clearMessages()
     }
 
-    /** 由通知 id 反查所屬聊天室 */
-    private fun findChatByNotifId(id: Int): String? {
+    /** 由通知 id 反查所屬 roomKey */
+    private fun findRoomKeyByNotifId(id: Int): String? {
         threadNotifIds.entries.firstOrNull { it.value == id }?.let { return it.key }
         summaryIds.entries.firstOrNull { it.value == id }?.let { return it.key }
         appleNotifIds.entries.firstOrNull { id in it.value }?.let { return it.key }
@@ -305,27 +331,23 @@ class LineNotificationListener : NotificationListenerService() {
 
     /**
      * 處理用戶的快速回覆（由 ReplyRelayReceiver 轉發給 LINE 後呼叫，同 process）。
-     * - 「回覆後清除」ON：整組清掉（同時停掉系統的回覆 spinner）。
-     * - OFF：把回覆「加進對話」並重貼通知 → 回覆留得住、不會被下一則訊息重建洗掉，spinner 也停。
+     * 一律先把回覆加進對話 + 重貼通知（接管系統樂觀回覆、停 spinner、顯示回覆＋本人頭貼，
+     * 也讓回覆留得住、不被下一則訊息重建洗掉）；「回覆後清除」開啟時再延遲整組清掉。
      */
-    fun handleUserReply(chatTitle: String, notifId: Int, replyText: CharSequence) {
-        val room = chatRooms[chatTitle]
+    fun handleUserReply(roomKey: String, notifId: Int, replyText: CharSequence) {
+        val room = chatRooms[roomKey]
         if (room == null) {
             // 沒有對話狀態 → 至少關掉這則停 spinner
             (getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager).cancel(notifId)
             return
         }
-        // 一律先「把回覆加進對話 + 重貼通知」：
-        // update（重貼）會「接管」系統的樂觀回覆、停掉 spinner，並用本人綠頭貼顯示回覆，
-        // 也讓回覆留得住、不被下一則訊息重建洗掉。
-        // （實機驗出來：直接 cancel 會跟系統樂觀回覆搶輸、被蓋回來；update 才贏。）
         room.addMessage(
             ChatMessage(
                 sender = getString(R.string.notification_self_person),
                 text = replyText.toString(),
                 timestamp = System.currentTimeMillis(),
                 isGroup = room.isGroup,
-                chatTitle = chatTitle,
+                chatTitle = room.chatTitle,
                 senderIcon = null,
                 isFromMe = true,
             )
@@ -336,28 +358,43 @@ class LineNotificationListener : NotificationListenerService() {
 
         if (prefs.getBoolean(KEY_CLEAR_AFTER_REPLY, true)) {
             // 「回覆後清除」：等系統樂觀回覆狀態落定後再整組清掉，避免被蓋回來。
-            handler.postDelayed({ clearChatGroup(chatTitle) }, 2000)
-            Log.d(TAG, "回覆後延遲清除整組 [$chatTitle]")
+            handler.postDelayed({ clearChatGroup(roomKey) }, 2000)
+            Log.d(TAG, "回覆後延遲清除整組 [${room.chatTitle}]")
         } else {
-            Log.d(TAG, "回覆已加入對話並保留 [$chatTitle]")
+            Log.d(TAG, "回覆已加入對話並保留 [${room.chatTitle}]")
         }
+    }
+
+    /** 該帳號的本人頭貼（取不到用綠色預設） */
+    private fun selfIconFor(room: ChatRoom): IconCompat =
+        selfPersonIcons[room.profileKey]
+            ?: IconCompat.createWithResource(this, R.drawable.ic_self_avatar)
+
+    /** 多帳號時，標題前綴帳號來源（例：「工作帳號 · 」）；單帳號時為空字串 */
+    private fun acctPrefix(room: ChatRoom): String {
+        if (knownProfiles.size <= 1) return ""
+        val label = accountLabels[room.profileKey] ?: "LINE 分身"
+        return "$label · "
     }
 
     // ==========================================
     // 對話串模式
     // ==========================================
     private fun postThreadStyleNotification(room: ChatRoom) {
-        val notifId = threadNotifIds.getOrPut(room.chatTitle) { nextThreadId++ }
+        val notifId = threadNotifIds.getOrPut(room.roomKey) { nextThreadId++ }
 
         val me = Person.Builder()
             .setName(getString(R.string.notification_self_person))
-            .setIcon(selfPersonIcon ?: IconCompat.createWithResource(this, R.drawable.ic_self_avatar))
+            .setIcon(selfIconFor(room))
             .build()
         val msgStyle = NotificationCompat.MessagingStyle(me)
 
         if (room.isGroup) {
-            msgStyle.conversationTitle = room.chatTitle
+            msgStyle.conversationTitle = acctPrefix(room) + room.chatTitle
             msgStyle.isGroupConversation = true
+        } else if (knownProfiles.size > 1) {
+            // 多帳號時，個人聊天也標出帳號來源
+            msgStyle.conversationTitle = acctPrefix(room) + room.chatTitle
         }
 
         for (msg in room.messages) {
@@ -395,19 +432,21 @@ class LineNotificationListener : NotificationListenerService() {
     // Apple 模式
     // ==========================================
     private fun postAppleStyleNotification(room: ChatRoom, newMessage: ChatMessage) {
-        val groupKey = "linenotify_${room.chatTitle}"
+        val groupKey = "linenotify_${room.roomKey}"
         val manager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
 
         val messageId = nextMessageId++
-        appleNotifIds.getOrPut(room.chatTitle) { mutableListOf() }.add(messageId)
+        appleNotifIds.getOrPut(room.roomKey) { mutableListOf() }.add(messageId)
 
         val msgBuilder = NotificationCompat.Builder(this, CHANNEL_ID)
             .setSmallIcon(com.stanslab.linenotify.R.drawable.ic_notif)
             .setContentTitle(
                 if (room.isGroup) {
-                    getString(R.string.notification_group_title, room.chatTitle, newMessage.sender)
+                    acctPrefix(room) +
+                        getString(R.string.notification_group_title, room.chatTitle, newMessage.sender)
+                } else {
+                    acctPrefix(room) + newMessage.sender
                 }
-                else newMessage.sender
             )
             .setContentText(newMessage.text)
             .setWhen(newMessage.timestamp)
@@ -424,11 +463,11 @@ class LineNotificationListener : NotificationListenerService() {
         manager.notify(messageId, msgBuilder.build())
 
         // Summary
-        val summaryId = summaryIds.getOrPut(room.chatTitle) { nextSummaryId++ }
+        val summaryId = summaryIds.getOrPut(room.roomKey) { nextSummaryId++ }
 
         val summaryBuilder = NotificationCompat.Builder(this, CHANNEL_ID)
             .setSmallIcon(com.stanslab.linenotify.R.drawable.ic_notif)
-            .setContentTitle(room.chatTitle)
+            .setContentTitle(acctPrefix(room) + room.chatTitle)
             .setContentText(getString(R.string.notification_summary_text, room.messages.size))
             .setAutoCancel(true)
             .setGroup(groupKey)
@@ -458,14 +497,14 @@ class LineNotificationListener : NotificationListenerService() {
                     .build()
 
                 // 用我們自己的 PendingIntent 包住 LINE 的 reply action：
-                // 回覆送出後 ReplyRelayReceiver 會轉發給 LINE 並取消本通知，
+                // 回覆送出後 ReplyRelayReceiver 會轉發給 LINE 並交給 service 處理，
                 // 否則系統的回覆 spinner 會一直卡住轉圈圈。
                 val relayIntent = Intent(this, ReplyRelayReceiver::class.java).apply {
                     action = ReplyRelayReceiver.ACTION_REPLY
                     putExtra(ReplyRelayReceiver.EXTRA_RESULT_KEY, resultKey)
                     putExtra(ReplyRelayReceiver.EXTRA_LINE_PENDING_INTENT, lineActionIntent)
                     putExtra(ReplyRelayReceiver.EXTRA_NOTIF_ID, notifId)
-                    putExtra(ReplyRelayReceiver.EXTRA_CHAT_TITLE, room.chatTitle)
+                    putExtra(ReplyRelayReceiver.EXTRA_CHAT_TITLE, room.roomKey)
                 }
                 val mutableFlag = if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.S) {
                     PendingIntent.FLAG_MUTABLE
