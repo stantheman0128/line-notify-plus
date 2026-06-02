@@ -243,7 +243,10 @@ class LineNotificationListener : NotificationListenerService() {
     private fun postThreadStyleNotification(room: ChatRoom) {
         val notifId = threadNotifIds.getOrPut(room.chatTitle) { nextThreadId++ }
 
-        val me = Person.Builder().setName(getString(R.string.notification_self_person)).build()
+        val me = Person.Builder()
+            .setName(getString(R.string.notification_self_person))
+            .setIcon(IconCompat.createWithResource(this, R.drawable.ic_self_avatar))
+            .build()
         val msgStyle = NotificationCompat.MessagingStyle(me)
 
         if (room.isGroup) {
