@@ -41,8 +41,9 @@ Dev account ID: 7824252807370180483（URL 用得到）
 - 圖檔：play-store-assets/feature-graphic.png (1024x500)、screenshots/*.png (3張)
 - ⭐ Icon 512（唯一正確）: **play-store-assets/play-store-icon-512.png**
   - 由 render_play_store_icon.mjs 從「手機實際用的」foreground 向量渲染
-  - 指紋 4e05c9b15b1b == app/src/main/res shipped == v1.1-icon-assets
-  - ⚠️ 不要用 index/*/icons/exports/play_store_icon.png（那些是錯的舊版本！）
+  - 指紋 4e05c9b15b1b == app/src/main/res/drawable/ic_launcher_foreground.xml（唯一 source of truth）
+  - ⚠️ 舊探索版 icon（index/、icon-exports/、舊 v1.1-icon-assets/）已於 2026-06-02 整理時移除/搬到 repo 外 ../line-notify-archive/，別再誤用
+  - ⚠️ render 腳本的 resvg-js 依賴原本在 index/ 內、已隨 archive 移出 → 要重跑請先 `npm i @resvg/resvg-js`
 - ⚠️ 圖檔上傳建議手動拖檔（瀏覽器自動化不穩）
 - Tablet 截圖：optional，可跳過（只需手機截圖 ≥2 張）
 

@@ -1,7 +1,0 @@
-<?xml version="1.0" encoding="utf-8"?>
-<resources>
-    <!-- Adaptive icon background. NOTE: Currently LINE green #06C755 carried
-         over from v1.0.6 source. This is a known trademark risk for Play Store
-         submission; revisit if review flags it. -->
-    <color name="ic_launcher_background">#06C755</color>
-</resources>

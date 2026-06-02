@@ -16,14 +16,9 @@ keystore/
 *.jks
 *.keystore
 
-# Icon design exploration (kept on disk for reference, not tracked)
-index/
-icon-exports/
-icon-original.html
-icon-preview.html
-
 # Build logs & one-off icon preview renders (not assets)
-build_v9.txt
 build_log*.txt
-play-store-assets/_*.png
 build_*.txt
+play-store-assets/_*.png
+
+# Icon design exploration 已於 2026-06-02 整理時移到 repo 外 ../line-notify-archive/
