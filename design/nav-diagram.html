@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<title>導航流程圖</title>
+<script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+<style>
+  body{background:#fff;margin:0;padding:30px;font-family:"Microsoft JhengHei",system-ui,sans-serif}
+  h2{font-size:18px;margin:0 0 16px;color:#1a1a1a}
+  #d{display:inline-block}
+</style>
+</head>
+<body>
+  <h2>LINE Notify+ — 導航流程</h2>
+  <pre class="mermaid" id="d">
+flowchart TD
+    Home["📱 首頁&lt;br/&gt;狀態 + 主開關"] --&gt;|管理個別聊天室| Chat["📱 聊天室頁&lt;br/&gt;篩選 / 排序 / 頭像 / 刪除"]
+    Home --&gt;|新手教學與 FAQ| Help["📱 說明頁&lt;br/&gt;介紹 / 教學 / FAQ"]
+    Home --&gt;|右上 ⓘ| About["📱 關於頁&lt;br/&gt;版本 / 更新紀錄 / 原始碼"]
+    classDef home fill:#06C755,stroke:#059B43,color:#fff,font-weight:bold;
+    classDef sub fill:#E7F6EC,stroke:#9bd5ad,color:#1a1a1a;
+    class Home home;
+    class Chat,Help,About sub;
+  </pre>
+  <script>mermaid.initialize({ startOnLoad:true, theme:'default', flowchart:{ curve:'basis' } });</script>
+</body>
+</html>

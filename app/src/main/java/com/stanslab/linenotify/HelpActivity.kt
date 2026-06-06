@@ -4,6 +4,7 @@ import android.os.Bundle
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.appcompat.app.AppCompatActivity
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -15,6 +16,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material3.Card
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
@@ -29,7 +31,13 @@ import androidx.compose.material3.windowsizeclass.ExperimentalMaterial3WindowSiz
 import androidx.compose.material3.windowsizeclass.WindowWidthSizeClass
 import androidx.compose.material3.windowsizeclass.calculateWindowSizeClass
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.res.booleanResource
 import androidx.compose.ui.res.dimensionResource
 import androidx.compose.ui.res.stringResource
@@ -119,7 +127,6 @@ fun HelpScreen(
                         .verticalScroll(rememberScrollState()),
                     verticalArrangement = Arrangement.spacedBy(16.dp)
                 ) {
-                    NotificationStyleGuideCard()
                     FaqCard()
                 }
             }
@@ -134,7 +141,6 @@ fun HelpScreen(
             ) {
                 HelpIntroCard()
                 OnboardingCard()
-                NotificationStyleGuideCard()
                 FaqCard()
             }
         }
@@ -194,60 +200,94 @@ private fun OnboardingCard() {
 }
 
 @Composable
-private fun NotificationStyleGuideCard() {
+private fun FaqCard() {
     Card(modifier = Modifier.fillMaxWidth()) {
-        Column(
-            modifier = Modifier.padding(20.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp)
-        ) {
+        Column(modifier = Modifier.padding(20.dp)) {
             Text(
-                text = stringResource(R.string.style_help_title),
+                text = stringResource(R.string.faq_title),
                 fontSize = 18.sp,
-                fontWeight = FontWeight.Bold
+                fontWeight = FontWeight.Bold,
+                modifier = Modifier.padding(bottom = 12.dp)
             )
-            StepItem(
-                title = stringResource(R.string.style_thread_title),
-                body = stringResource(R.string.style_help_thread_body)
+            ExpandableFaqItem(
+                question = stringResource(R.string.faq_q_permission),
+                answer = stringResource(R.string.faq_a_permission)
             )
             HorizontalDivider()
-            StepItem(
-                title = stringResource(R.string.style_apple_title),
-                body = stringResource(R.string.style_help_apple_body)
+            ExpandableFaqItem(
+                question = stringResource(R.string.faq_q_network),
+                answer = stringResource(R.string.faq_a_network)
+            )
+            HorizontalDivider()
+            ExpandableFaqItem(
+                question = stringResource(R.string.faq_q_original),
+                answer = stringResource(R.string.faq_a_original)
+            )
+            HorizontalDivider()
+            ExpandableFaqItem(
+                question = stringResource(R.string.faq_q_reply),
+                answer = stringResource(R.string.faq_a_reply)
+            )
+            HorizontalDivider()
+            ExpandableFaqItem(
+                question = stringResource(R.string.faq_q_xiaomi),
+                answer = stringResource(R.string.faq_a_xiaomi)
+            )
+            HorizontalDivider()
+            ExpandableFaqItem(
+                question = stringResource(R.string.faq_q_oppo),
+                answer = stringResource(R.string.faq_a_oppo)
+            )
+            HorizontalDivider()
+            ExpandableFaqItem(
+                question = stringResource(R.string.faq_q_vivo),
+                answer = stringResource(R.string.faq_a_vivo)
+            )
+            HorizontalDivider()
+            ExpandableFaqItem(
+                question = stringResource(R.string.faq_q_samsung),
+                answer = stringResource(R.string.faq_a_samsung)
+            )
+            HorizontalDivider()
+            ExpandableFaqItem(
+                question = stringResource(R.string.faq_q_huawei),
+                answer = stringResource(R.string.faq_a_huawei)
             )
         }
     }
 }
 
 @Composable
-private fun FaqCard() {
-    Card(modifier = Modifier.fillMaxWidth()) {
-        Column(
-            modifier = Modifier.padding(20.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp)
+private fun ExpandableFaqItem(question: String, answer: String) {
+    var expanded by remember { mutableStateOf(false) }
+    Column {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .clickable { expanded = !expanded }
+                .padding(vertical = 12.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
         ) {
             Text(
-                text = stringResource(R.string.faq_title),
-                fontSize = 18.sp,
-                fontWeight = FontWeight.Bold
+                text = question,
+                fontSize = 15.sp,
+                fontWeight = FontWeight.Bold,
+                modifier = Modifier.weight(1f)
             )
-            FaqItem(
-                question = stringResource(R.string.faq_q_permission),
-                answer = stringResource(R.string.faq_a_permission)
+            Icon(
+                imageVector = Icons.Filled.KeyboardArrowDown,
+                contentDescription = null,
+                modifier = Modifier.rotate(if (expanded) 180f else 0f),
+                tint = MaterialTheme.colorScheme.onSurfaceVariant
             )
-            HorizontalDivider()
-            FaqItem(
-                question = stringResource(R.string.faq_q_network),
-                answer = stringResource(R.string.faq_a_network)
-            )
-            HorizontalDivider()
-            FaqItem(
-                question = stringResource(R.string.faq_q_original),
-                answer = stringResource(R.string.faq_a_original)
-            )
-            HorizontalDivider()
-            FaqItem(
-                question = stringResource(R.string.faq_q_reply),
-                answer = stringResource(R.string.faq_a_reply)
+        }
+        if (expanded) {
+            Text(
+                text = answer,
+                fontSize = 13.sp,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(bottom = 12.dp)
             )
         }
     }
@@ -258,13 +298,5 @@ private fun StepItem(title: String, body: String) {
     Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
         Text(title, fontSize = 15.sp, fontWeight = FontWeight.Bold)
         Text(body, fontSize = 13.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
-    }
-}
-
-@Composable
-private fun FaqItem(question: String, answer: String) {
-    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-        Text(question, fontSize = 15.sp, fontWeight = FontWeight.Bold)
-        Text(answer, fontSize = 13.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
     }
 }

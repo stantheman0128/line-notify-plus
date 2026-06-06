@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<title>LINE Notify+ 元件目錄</title>
+<style>
+  :root{ --green:#06C755; --greenDk:#059B43; --ink:#1a1a1a; --dim:#5f6368; }
+  *{box-sizing:border-box}
+  body{margin:0;background:#f0f2f5;font-family:"Microsoft JhengHei",system-ui,sans-serif;color:var(--ink);padding:28px 32px}
+  h1{font-size:22px;margin:0 0 4px}
+  .lead{color:var(--dim);font-size:13px;margin:0 0 22px}
+  h2{font-size:15px;margin:26px 0 12px;padding-left:9px;border-left:4px solid var(--green)}
+  .grid{display:grid;grid-template-columns:repeat(2,1fr);gap:14px}
+  .cell{background:#fff;border:1px solid #e2e5ea;border-radius:12px;padding:14px 16px}
+  .nm{font-weight:800;font-size:14px;color:var(--greenDk);margin-bottom:2px}
+  .nm small{color:var(--dim);font-weight:400;font-size:11px;margin-left:6px}
+  .desc{font-size:11px;color:var(--dim);margin-bottom:10px}
+  .demo{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+
+  /* --- app-accurate component renders --- */
+  .btnFill{background:var(--green);border-radius:20px;padding:11px 20px;color:#fff;font-weight:700;font-size:14px;display:inline-block}
+  .btnOutline{border:1.5px solid #c4c9d0;border-radius:20px;padding:10px 20px;color:var(--greenDk);font-weight:600;font-size:14px;background:#fff;display:inline-block}
+  .btnText{color:var(--greenDk);font-weight:600;font-size:14px;padding:6px 8px;display:inline-block}
+  .iconBtn{width:38px;height:38px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:18px;background:#f0f2f5}
+
+  .sw{width:38px;height:21px;border-radius:12px;background:var(--green);position:relative;display:inline-block}
+  .sw::after{content:"";position:absolute;top:2.5px;right:2.5px;width:16px;height:16px;border-radius:50%;background:#fff}
+  .sw.off{background:#c4c9d0}.sw.off::after{right:auto;left:2.5px}
+  .radio{width:18px;height:18px;border-radius:50%;border:2px solid var(--green);display:inline-flex;align-items:center;justify-content:center}
+  .radio.on::after{content:"";width:9px;height:9px;border-radius:50%;background:var(--green)}
+  .chip{padding:5px 13px;border-radius:16px;border:1.5px solid #c4c9d0;background:#fff;font-size:12px;color:#333}
+  .chip.on{background:var(--green);color:#fff;border-color:var(--green)}
+  .dd{border:1.5px solid #c4c9d0;border-radius:8px;background:#fff;padding:6px 12px;font-size:13px;display:inline-flex;gap:8px;align-items:center}
+
+  .card{border-radius:13px;padding:13px 15px;width:100%;box-shadow:0 1px 3px rgba(0,0,0,.08)}
+  .card.white{background:#fff;border:1px solid #eceef1}
+  .card.status{background:#E7F6EC}
+  .card.gray{background:#E7E0EC}
+  .card.center{background:#fff;border:1px solid #eceef1;text-align:center}
+  .statusBig{font-weight:700;color:#0b7a37;font-size:14px}
+  .sub{font-size:11px;color:var(--dim);margin-top:2px}
+  .secTtl{font-weight:700;font-size:13px;margin-bottom:6px}
+  .scrollBox{border:1px solid #e2e5ea;border-radius:8px;height:70px;overflow:hidden;position:relative;background:#fff;padding:8px;font-size:11px;color:#555;line-height:1.7}
+  .scrollBox::after{content:"";position:absolute;right:3px;top:8px;width:3px;height:26px;border-radius:3px;background:#c4c9d0}
+
+  .rowLine{display:flex;align-items:center;width:100%;background:#fff;border:1px solid #eceef1;border-radius:11px;padding:10px 12px;gap:10px}
+  .rowLine .grow{flex:1}
+  .tt{font-weight:600;font-size:13px}
+  .chev{color:#9aa0ac;font-size:18px}
+  .ava{width:38px;height:38px;border-radius:50%;background:#7B61FF;color:#fff;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:14px;flex:none}
+
+  .topbar{width:100%;background:#F0F9F2;border-radius:8px;height:42px;display:flex;align-items:center;padding:0 12px;color:#1B3A21;font-weight:700;font-size:15px}
+  .topbar .sp{flex:1}
+  .topbar .ic{margin-left:8px;font-size:15px}
+  .secLabel{font-size:12px;font-weight:600;color:var(--dim)}
+  .dialog{width:100%;background:#fff;border-radius:14px;box-shadow:0 6px 20px rgba(0,0,0,.18);padding:14px}
+  .dialog .dt{font-weight:700;font-size:13px;margin-bottom:4px}
+  .dialog .db{font-size:11px;color:var(--dim);margin-bottom:10px}
+  .dialog .da{text-align:right;font-size:13px}
+  .empty{font-size:12px;color:var(--dim)}
+</style>
+</head>
+<body>
+  <h1>🏷️ LINE Notify+ 元件目錄（看圖認名字）</h1>
+  <p class="lead">每個樣式都有固定名稱。之後說「把這裡改成〔名稱〕」即可。文字詳解見 COMPONENTS.md。</p>
+
+  <h2>🅰️ 按鈕（依強調由高到低）</h2>
+  <div class="grid">
+    <div class="cell"><div class="nm">主要按鈕 <small>Filled · 高強調</small></div><div class="desc">實心綠、白字。一頁通常只放一個</div><div class="demo"><span class="btnFill">加入官方帳號</span></div></div>
+    <div class="cell"><div class="nm">外框按鈕 <small>Outlined · 中強調</small></div><div class="desc">白底綠字綠框</div><div class="demo"><span class="btnOutline">新手教學與 FAQ</span></div></div>
+    <div class="cell"><div class="nm">文字按鈕 <small>Text · 低強調</small></div><div class="desc">純文字，無框無底</div><div class="demo"><span class="btnText">GitHub 原始碼</span></div></div>
+    <div class="cell"><div class="nm">圖示按鈕 <small>Icon Button</small></div><div class="desc">只有一個 icon</div><div class="demo"><span class="iconBtn">↗</span><span class="iconBtn">ⓘ</span><span class="iconBtn">🗑️</span></div></div>
+  </div>
+
+  <h2>🅱️ 選擇控制</h2>
+  <div class="grid">
+    <div class="cell"><div class="nm">開關 <small>Switch</small></div><div class="desc">開 / 關 二態</div><div class="demo"><span class="sw"></span><span class="sw off"></span></div></div>
+    <div class="cell"><div class="nm">單選鈕 <small>RadioButton</small></div><div class="desc">一組只選一個</div><div class="demo"><span class="radio on"></span><span class="radio"></span></div></div>
+    <div class="cell"><div class="nm">篩選標籤 <small>FilterChip</small></div><div class="desc">選中變綠</div><div class="demo"><span class="chip on">全部</span><span class="chip">社群</span><span class="chip">群組</span></div></div>
+    <div class="cell"><div class="nm">下拉選單 <small>DropdownMenu</small></div><div class="desc">點按鈕掉下清單</div><div class="demo"><span class="dd">最新訊息 ⌄</span></div></div>
+  </div>
+
+  <h2>🇨 卡片 / 容器</h2>
+  <div class="grid">
+    <div class="cell"><div class="nm">狀態卡 <small>變色 Card</small></div><div class="desc">綠=正常 / 紅=異常</div><div class="demo"><div class="card status"><div class="statusBig">✓ 服務運行中</div><div class="sub">正在接聽 LINE 通知</div></div></div></div>
+    <div class="cell"><div class="nm">白卡 <small>Card</small></div><div class="desc">白底圓角，裝設定/內容</div><div class="demo"><div class="card white"><div class="secTtl">設定</div><div class="sub">（裡面放各種「列」）</div></div></div></div>
+    <div class="cell"><div class="nm">灰卡 <small>Card · surfaceVariant</small></div><div class="desc">灰底，常用於進階/次要</div><div class="demo"><div class="card gray"><div class="secTtl">進階功能　　　　⌄</div></div></div></div>
+    <div class="cell"><div class="nm">置中資訊卡 <small>Card · Center</small></div><div class="desc">內容水平置中</div><div class="demo"><div class="card center"><div class="tt">LINE Notify+</div><div class="sub">v1.1.0</div></div></div></div>
+    <div class="cell"><div class="nm">捲動內容框 <small>Scroll Box</small></div><div class="desc">有界高度、框內可捲</div><div class="demo"><div class="scrollBox">v1.1.0 …<br>v1.0.6 …<br>v1.0.5 …<br>v1.0.4 …</div></div></div>
+  </div>
+
+  <h2>🇩 列（卡片裡的「一行」）</h2>
+  <div class="grid">
+    <div class="cell"><div class="nm">開關列 <small>Toggle Row</small></div><div class="desc">標題+說明 … 右側開關</div><div class="demo"><div class="rowLine"><div class="grow"><div class="tt">啟用增強通知</div><div class="sub">攔截 LINE 通知並堆疊</div></div><span class="sw"></span></div></div></div>
+    <div class="cell"><div class="nm">導航列 <small>Entry Row</small></div><div class="desc">點了進子頁，右側 ›</div><div class="demo"><div class="rowLine"><div class="grow tt">管理個別聊天室</div><span class="chev">›</span></div></div></div>
+    <div class="cell"><div class="nm">單選列 <small>Radio Row</small></div><div class="desc">標題+說明 … 右側單選鈕</div><div class="demo"><div class="rowLine"><div class="grow"><div class="tt">對話串模式</div><div class="sub">合併成一則對話串</div></div><span class="radio on"></span></div></div></div>
+    <div class="cell"><div class="nm">聊天室列 <small>Avatar Row</small></div><div class="desc">頭像+名稱+類型+開關+🗑️</div><div class="demo"><div class="rowLine"><span class="ava">家</span><div class="grow"><div class="tt">家族群組</div><div class="sub">群組</div></div><span class="sw"></span><span style="font-size:15px;color:#9aa0ac">🗑️</span></div></div></div>
+  </div>
+
+  <h2>🇪 其他元素</h2>
+  <div class="grid">
+    <div class="cell"><div class="nm">頂列 <small>Top App Bar</small></div><div class="desc">最上方標題列 + 圖示按鈕</div><div class="demo"><div class="topbar"><span>LINE Notify+</span><span class="sp"></span><span class="ic">↗</span><span class="ic">ⓘ</span></div></div></div>
+    <div class="cell"><div class="nm">小節標題 <small>Section Label</small></div><div class="desc">卡片內分組的灰色小標</div><div class="demo"><span class="secLabel">通知風格</span></div></div>
+    <div class="cell"><div class="nm">頭像圈 <small>Avatar</small></div><div class="desc">圓形頭照 / 字首彩色圈</div><div class="demo"><span class="ava" style="background:#06C755">媽</span><span class="ava" style="background:#EA4C89">F</span><span class="ava" style="background:#00A3BF">王</span></div></div>
+    <div class="cell"><div class="nm">確認對話框 <small>Dialog</small></div><div class="desc">跳出視窗問 是/否</div><div class="demo"><div class="dialog"><div class="dt">從清單移除？</div><div class="db">「家族群組」會從清單移除</div><div class="da"><span class="btnText">取消</span>　<span class="btnText">刪除</span></div></div></div></div>
+    <div class="cell"><div class="nm">空狀態 <small>Empty State</small></div><div class="desc">沒資料時的提示</div><div class="demo"><div class="empty">還沒有收到任何 LINE 通知<br><span style="font-size:11px">收到訊息後會自動出現在這裡</span></div></div></div>
+  </div>
+</body>
+</html>

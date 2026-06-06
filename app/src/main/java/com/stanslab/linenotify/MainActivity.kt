@@ -13,8 +13,10 @@ import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
 import androidx.appcompat.app.AppCompatDelegate
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
@@ -24,13 +26,19 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.outlined.Info
+import androidx.compose.material.icons.outlined.Share
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
@@ -41,6 +49,7 @@ import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.material3.windowsizeclass.ExperimentalMaterial3WindowSizeClassApi
@@ -51,12 +60,18 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.rotate
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.booleanResource
 import androidx.compose.ui.res.dimensionResource
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.content.ContextCompat
@@ -64,6 +79,7 @@ import androidx.core.os.LocaleListCompat
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LifecycleEventEffect
 import com.stanslab.linenotify.service.LineNotificationListener
+import com.stanslab.linenotify.ui.theme.Green40
 import com.stanslab.linenotify.ui.theme.LineNotifyTheme
 
 class MainActivity : AppCompatActivity() {
@@ -139,6 +155,41 @@ fun MainScreen(windowWidthSizeClass: WindowWidthSizeClass) {
         mutableStateOf(prefs.getBoolean(LineNotificationListener.KEY_CLEAR_AFTER_READ, true))
     }
 
+    val onServiceEnabledChange: (Boolean) -> Unit = {
+        serviceEnabled = it
+        prefs.edit().putBoolean(LineNotificationListener.KEY_SERVICE_ENABLED, it).apply()
+    }
+    val onReplaceOriginalChange: (Boolean) -> Unit = {
+        replaceOriginal = it
+        prefs.edit().putBoolean(LineNotificationListener.KEY_REPLACE_ORIGINAL, it).apply()
+    }
+    val onNotificationStyleChange: (String) -> Unit = {
+        notifStyle = it
+        prefs.edit().putString(LineNotificationListener.KEY_NOTIFICATION_STYLE, it).apply()
+    }
+    val onClearAfterReplyChange: (Boolean) -> Unit = {
+        clearAfterReply = it
+        prefs.edit().putBoolean(LineNotificationListener.KEY_CLEAR_AFTER_REPLY, it).apply()
+    }
+    val onClearAfterReadChange: (Boolean) -> Unit = {
+        clearAfterRead = it
+        prefs.edit().putBoolean(LineNotificationListener.KEY_CLEAR_AFTER_READ, it).apply()
+    }
+    val onLanguageChange: (String) -> Unit = {
+        languageTag = it
+        AppCompatDelegate.setApplicationLocales(LocaleListCompat.forLanguageTags(it))
+    }
+
+    val onOpenPermissionSettings = {
+        context.startActivity(Intent(Settings.ACTION_NOTIFICATION_LISTENER_SETTINGS))
+    }
+    val onOpenChatManagement = {
+        context.startActivity(Intent(context, ChatManagementActivity::class.java))
+    }
+    val onOpenHelp = {
+        context.startActivity(Intent(context, HelpActivity::class.java))
+    }
+
     val twoPaneFromResources = booleanResource(R.bool.use_two_pane_layout)
     val useTwoPane = twoPaneFromResources ||
         windowWidthSizeClass == WindowWidthSizeClass.Medium ||
@@ -154,8 +205,28 @@ fun MainScreen(windowWidthSizeClass: WindowWidthSizeClass) {
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text(stringResource(R.string.main_title)) },
+                title = {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Image(
+                            painter = painterResource(R.drawable.app_logo),
+                            contentDescription = null,
+                            modifier = Modifier
+                                .size(28.dp)
+                                .clip(RoundedCornerShape(6.dp))
+                        )
+                        Spacer(Modifier.size(8.dp))
+                        Text(stringResource(R.string.main_title))
+                    }
+                },
                 actions = {
+                    IconButton(onClick = { context.shareLineNotifyPlus() }) {
+                        Icon(
+                            Icons.Outlined.Share,
+                            contentDescription = stringResource(R.string.main_share_content_description),
+                            modifier = Modifier.size(26.dp),
+                            tint = MaterialTheme.colorScheme.onPrimaryContainer
+                        )
+                    }
                     IconButton(onClick = {
                         context.startActivity(Intent(context, AboutActivity::class.java))
                     }) {
@@ -199,19 +270,16 @@ fun MainScreen(windowWidthSizeClass: WindowWidthSizeClass) {
                         isListenerEnabled = isListenerEnabled,
                         serviceEnabled = serviceEnabled
                     )
-                    MainActions(
-                        isListenerEnabled = isListenerEnabled,
-                        onOpenPermissionSettings = {
-                            context.startActivity(Intent(Settings.ACTION_NOTIFICATION_LISTENER_SETTINGS))
-                        },
-                        onOpenChatManagement = {
-                            context.startActivity(Intent(context, ChatManagementActivity::class.java))
-                        },
-                        onOpenHelp = {
-                            context.startActivity(Intent(context, HelpActivity::class.java))
-                        },
-                        onShare = { context.shareLineNotifyPlus() }
-                    )
+                    if (isListenerEnabled) {
+                        SettingsCard(
+                            serviceEnabled = serviceEnabled,
+                            replaceOriginal = replaceOriginal,
+                            onServiceEnabledChange = onServiceEnabledChange,
+                            onReplaceOriginalChange = onReplaceOriginalChange
+                        )
+                    } else {
+                        PermissionButton(onClick = onOpenPermissionSettings)
+                    }
                 }
 
                 Column(
@@ -221,54 +289,23 @@ fun MainScreen(windowWidthSizeClass: WindowWidthSizeClass) {
                     verticalArrangement = Arrangement.spacedBy(16.dp)
                 ) {
                     if (isListenerEnabled) {
-                        SettingsCard(
-                            serviceEnabled = serviceEnabled,
-                            replaceOriginal = replaceOriginal,
+                        ManageChatsRow(onClick = onOpenChatManagement)
+                        AdvancedSettingsCard(
                             notifStyle = notifStyle,
-                            languageTag = languageTag,
                             clearAfterReply = clearAfterReply,
                             clearAfterRead = clearAfterRead,
-                            onServiceEnabledChange = {
-                                serviceEnabled = it
-                                prefs.edit()
-                                    .putBoolean(LineNotificationListener.KEY_SERVICE_ENABLED, it)
-                                    .apply()
-                            },
-                            onReplaceOriginalChange = {
-                                replaceOriginal = it
-                                prefs.edit()
-                                    .putBoolean(LineNotificationListener.KEY_REPLACE_ORIGINAL, it)
-                                    .apply()
-                            },
-                            onNotificationStyleChange = {
-                                notifStyle = it
-                                prefs.edit()
-                                    .putString(LineNotificationListener.KEY_NOTIFICATION_STYLE, it)
-                                    .apply()
-                            },
-                            onClearAfterReplyChange = {
-                                clearAfterReply = it
-                                prefs.edit()
-                                    .putBoolean(LineNotificationListener.KEY_CLEAR_AFTER_REPLY, it)
-                                    .apply()
-                            },
-                            onClearAfterReadChange = {
-                                clearAfterRead = it
-                                prefs.edit()
-                                    .putBoolean(LineNotificationListener.KEY_CLEAR_AFTER_READ, it)
-                                    .apply()
-                            },
-                            onLanguageChange = {
-                                languageTag = it
-                                AppCompatDelegate.setApplicationLocales(
-                                    LocaleListCompat.forLanguageTags(it)
-                                )
-                            }
+                            languageTag = languageTag,
+                            featuresEnabled = serviceEnabled,
+                            onNotificationStyleChange = onNotificationStyleChange,
+                            onClearAfterReplyChange = onClearAfterReplyChange,
+                            onClearAfterReadChange = onClearAfterReadChange,
+                            onLanguageChange = onLanguageChange
                         )
                     }
-                    HelpSummaryCard()
-                    FeatureCard()
-                    OfficialAccountButton()
+                    HelpEntryButton(onClick = onOpenHelp)
+                    if (isListenerEnabled) {
+                        OfficialAccountButton()
+                    }
                 }
             }
         } else {
@@ -284,70 +321,31 @@ fun MainScreen(windowWidthSizeClass: WindowWidthSizeClass) {
                     isListenerEnabled = isListenerEnabled,
                     serviceEnabled = serviceEnabled
                 )
-                MainActions(
-                    isListenerEnabled = isListenerEnabled,
-                    onOpenPermissionSettings = {
-                        context.startActivity(Intent(Settings.ACTION_NOTIFICATION_LISTENER_SETTINGS))
-                    },
-                    onOpenChatManagement = {
-                        context.startActivity(Intent(context, ChatManagementActivity::class.java))
-                    },
-                    onOpenHelp = {
-                        context.startActivity(Intent(context, HelpActivity::class.java))
-                    },
-                    onShare = { context.shareLineNotifyPlus() }
-                )
 
                 if (isListenerEnabled) {
                     SettingsCard(
                         serviceEnabled = serviceEnabled,
                         replaceOriginal = replaceOriginal,
+                        onServiceEnabledChange = onServiceEnabledChange,
+                        onReplaceOriginalChange = onReplaceOriginalChange
+                    )
+                    ManageChatsRow(onClick = onOpenChatManagement)
+                    AdvancedSettingsCard(
                         notifStyle = notifStyle,
-                        languageTag = languageTag,
                         clearAfterReply = clearAfterReply,
                         clearAfterRead = clearAfterRead,
-                        onServiceEnabledChange = {
-                            serviceEnabled = it
-                            prefs.edit()
-                                .putBoolean(LineNotificationListener.KEY_SERVICE_ENABLED, it)
-                                .apply()
-                        },
-                        onReplaceOriginalChange = {
-                            replaceOriginal = it
-                            prefs.edit()
-                                .putBoolean(LineNotificationListener.KEY_REPLACE_ORIGINAL, it)
-                                .apply()
-                        },
-                        onNotificationStyleChange = {
-                            notifStyle = it
-                            prefs.edit()
-                                .putString(LineNotificationListener.KEY_NOTIFICATION_STYLE, it)
-                                .apply()
-                        },
-                        onClearAfterReplyChange = {
-                            clearAfterReply = it
-                            prefs.edit()
-                                .putBoolean(LineNotificationListener.KEY_CLEAR_AFTER_REPLY, it)
-                                .apply()
-                        },
-                        onClearAfterReadChange = {
-                            clearAfterRead = it
-                            prefs.edit()
-                                .putBoolean(LineNotificationListener.KEY_CLEAR_AFTER_READ, it)
-                                .apply()
-                        },
-                        onLanguageChange = {
-                            languageTag = it
-                            AppCompatDelegate.setApplicationLocales(
-                                LocaleListCompat.forLanguageTags(it)
-                            )
-                        }
+                        languageTag = languageTag,
+                        featuresEnabled = serviceEnabled,
+                        onNotificationStyleChange = onNotificationStyleChange,
+                        onClearAfterReplyChange = onClearAfterReplyChange,
+                        onClearAfterReadChange = onClearAfterReadChange,
+                        onLanguageChange = onLanguageChange
                     )
-                    HelpSummaryCard()
-                    FeatureCard()
+                    HelpEntryButton(onClick = onOpenHelp)
                     OfficialAccountButton()
                 } else {
-                    HelpSummaryCard()
+                    PermissionButton(onClick = onOpenPermissionSettings)
+                    HelpEntryButton(onClick = onOpenHelp)
                 }
             }
         }
@@ -397,41 +395,16 @@ private fun ServiceStatusCard(isListenerEnabled: Boolean, serviceEnabled: Boolea
 }
 
 @Composable
-private fun MainActions(
-    isListenerEnabled: Boolean,
-    onOpenPermissionSettings: () -> Unit,
-    onOpenChatManagement: () -> Unit,
-    onOpenHelp: () -> Unit,
-    onShare: () -> Unit
-) {
-    if (!isListenerEnabled) {
-        Button(
-            onClick = onOpenPermissionSettings,
-            modifier = Modifier.fillMaxWidth()
-        ) {
-            Text(stringResource(R.string.open_notification_access), fontSize = 16.sp)
-        }
-    } else {
-        OutlinedButton(
-            onClick = onOpenChatManagement,
-            modifier = Modifier.fillMaxWidth()
-        ) {
-            Text(stringResource(R.string.manage_chats), fontSize = 16.sp)
-        }
-    }
-
-    OutlinedButton(
-        onClick = onOpenHelp,
-        modifier = Modifier.fillMaxWidth()
+private fun PermissionButton(onClick: () -> Unit) {
+    Button(
+        onClick = onClick,
+        modifier = Modifier.fillMaxWidth(),
+        colors = ButtonDefaults.buttonColors(
+            containerColor = Green40,
+            contentColor = Color.White
+        )
     ) {
-        Text(stringResource(R.string.open_help), fontSize = 16.sp)
-    }
-
-    OutlinedButton(
-        onClick = onShare,
-        modifier = Modifier.fillMaxWidth()
-    ) {
-        Text(stringResource(R.string.action_share_app), fontSize = 16.sp)
+        Text(stringResource(R.string.open_notification_access), fontSize = 16.sp)
     }
 }
 
@@ -439,16 +412,8 @@ private fun MainActions(
 private fun SettingsCard(
     serviceEnabled: Boolean,
     replaceOriginal: Boolean,
-    notifStyle: String,
-    languageTag: String,
-    clearAfterReply: Boolean,
-    clearAfterRead: Boolean,
     onServiceEnabledChange: (Boolean) -> Unit,
-    onReplaceOriginalChange: (Boolean) -> Unit,
-    onNotificationStyleChange: (String) -> Unit,
-    onClearAfterReplyChange: (Boolean) -> Unit,
-    onClearAfterReadChange: (Boolean) -> Unit,
-    onLanguageChange: (String) -> Unit
+    onReplaceOriginalChange: (Boolean) -> Unit
 ) {
     Card(modifier = Modifier.fillMaxWidth()) {
         Column(modifier = Modifier.padding(20.dp)) {
@@ -475,66 +440,170 @@ private fun SettingsCard(
                 enabled = serviceEnabled,
                 onCheckedChange = onReplaceOriginalChange
             )
+        }
+    }
+}
 
-            HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
+@Composable
+private fun ManageChatsRow(onClick: () -> Unit) {
+    OutlinedButton(
+        onClick = onClick,
+        modifier = Modifier.fillMaxWidth()
+    ) {
+        Text(stringResource(R.string.manage_chats), fontSize = 16.sp)
+    }
+}
 
-            SectionLabel(stringResource(R.string.clear_timing_title))
-            SettingToggle(
-                title = stringResource(R.string.clear_after_reply_title),
-                subtitle = stringResource(R.string.clear_after_reply_subtitle),
-                checked = clearAfterReply,
-                enabled = serviceEnabled,
-                onCheckedChange = onClearAfterReplyChange
-            )
-            SettingToggle(
-                title = stringResource(R.string.clear_after_read_title),
-                subtitle = stringResource(R.string.clear_after_read_subtitle),
-                checked = clearAfterRead,
-                enabled = serviceEnabled,
-                onCheckedChange = onClearAfterReadChange
-            )
+@Composable
+private fun AdvancedSettingsCard(
+    notifStyle: String,
+    clearAfterReply: Boolean,
+    clearAfterRead: Boolean,
+    languageTag: String,
+    featuresEnabled: Boolean,
+    onNotificationStyleChange: (String) -> Unit,
+    onClearAfterReplyChange: (Boolean) -> Unit,
+    onClearAfterReadChange: (Boolean) -> Unit,
+    onLanguageChange: (String) -> Unit
+) {
+    var expanded by remember { mutableStateOf(false) }
+    var infoDialog by remember { mutableStateOf<Pair<String, String>?>(null) }
 
-            HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
+    val threadTitle = stringResource(R.string.style_thread_title)
+    val threadBody = stringResource(R.string.style_help_thread_body)
+    val appleTitle = stringResource(R.string.style_apple_title)
+    val appleBody = stringResource(R.string.style_help_apple_body)
+    val clearReplyTitle = stringResource(R.string.clear_after_reply_title)
+    val clearReplySubtitle = stringResource(R.string.clear_after_reply_subtitle)
+    val demoPending = stringResource(R.string.info_demo_pending)
 
-            SectionLabel(stringResource(R.string.notification_style_title))
-            StyleOption(
-                title = stringResource(R.string.style_thread_title),
-                subtitle = stringResource(R.string.style_thread_subtitle),
-                selected = notifStyle == "thread",
-                enabled = serviceEnabled,
-                onClick = { onNotificationStyleChange("thread") }
-            )
-            StyleOption(
-                title = stringResource(R.string.style_apple_title),
-                subtitle = stringResource(R.string.style_apple_subtitle),
-                selected = notifStyle == "apple",
-                enabled = serviceEnabled,
-                onClick = { onNotificationStyleChange("apple") }
-            )
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surfaceVariant
+        )
+    ) {
+        Column(modifier = Modifier.padding(horizontal = 20.dp, vertical = 6.dp)) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clickable { expanded = !expanded }
+                    .padding(vertical = 14.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = stringResource(R.string.advanced_section_title),
+                    fontSize = 16.sp,
+                    fontWeight = FontWeight.Bold,
+                    modifier = Modifier.weight(1f)
+                )
+                Icon(
+                    Icons.Filled.KeyboardArrowDown,
+                    contentDescription = null,
+                    modifier = Modifier.rotate(if (expanded) 180f else 0f),
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
 
-            HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
+            if (expanded) {
+                HorizontalDivider(modifier = Modifier.padding(bottom = 4.dp))
 
-            SectionLabel(stringResource(R.string.language_title))
+                SectionLabel(stringResource(R.string.notification_style_title))
+                StyleOption(
+                    title = threadTitle,
+                    subtitle = stringResource(R.string.style_thread_subtitle),
+                    selected = notifStyle == "thread",
+                    enabled = featuresEnabled,
+                    onClick = { onNotificationStyleChange("thread") },
+                    onInfo = { infoDialog = threadTitle to "$threadBody\n\n$demoPending" }
+                )
+                StyleOption(
+                    title = appleTitle,
+                    subtitle = stringResource(R.string.style_apple_subtitle),
+                    selected = notifStyle == "apple",
+                    enabled = featuresEnabled,
+                    onClick = { onNotificationStyleChange("apple") },
+                    onInfo = { infoDialog = appleTitle to "$appleBody\n\n$demoPending" }
+                )
+
+                HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
+
+                SettingToggle(
+                    title = clearReplyTitle,
+                    subtitle = clearReplySubtitle,
+                    checked = clearAfterReply,
+                    enabled = featuresEnabled,
+                    onCheckedChange = onClearAfterReplyChange,
+                    onInfo = { infoDialog = clearReplyTitle to "$clearReplySubtitle\n\n$demoPending" }
+                )
+
+                HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
+
+                SectionLabel(stringResource(R.string.language_title))
+                LanguageDropdown(
+                    languageTag = languageTag,
+                    onLanguageChange = onLanguageChange
+                )
+                Spacer(modifier = Modifier.size(8.dp))
+            }
+        }
+    }
+
+    if (infoDialog != null) {
+        AlertDialog(
+            onDismissRequest = { infoDialog = null },
+            title = { Text(infoDialog!!.first) },
+            text = { Text(infoDialog!!.second) },
+            confirmButton = {
+                TextButton(onClick = { infoDialog = null }) {
+                    Text(stringResource(android.R.string.ok))
+                }
+            }
+        )
+    }
+}
+
+@Composable
+private fun LanguageDropdown(
+    languageTag: String,
+    onLanguageChange: (String) -> Unit
+) {
+    var expanded by remember { mutableStateOf(false) }
+    val label = when {
+        languageTag.isEmpty() -> stringResource(R.string.language_follow_system)
+        languageTag.startsWith("zh") -> stringResource(R.string.language_zh_tw)
+        languageTag.startsWith("en") -> stringResource(R.string.language_en)
+        else -> stringResource(R.string.language_follow_system)
+    }
+
+    Box {
+        OutlinedButton(
+            onClick = { expanded = true },
+            modifier = Modifier.fillMaxWidth()
+        ) {
             Text(
-                text = stringResource(R.string.language_subtitle),
-                fontSize = 12.sp,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.padding(bottom = 4.dp)
+                text = label,
+                modifier = Modifier.weight(1f),
+                textAlign = TextAlign.Start,
+                fontSize = 15.sp
             )
-            LocaleOption(
-                title = stringResource(R.string.language_follow_system),
-                selected = languageTag.isEmpty(),
-                onClick = { onLanguageChange("") }
+            Icon(Icons.Filled.KeyboardArrowDown, contentDescription = null)
+        }
+        DropdownMenu(
+            expanded = expanded,
+            onDismissRequest = { expanded = false }
+        ) {
+            DropdownMenuItem(
+                text = { Text(stringResource(R.string.language_follow_system)) },
+                onClick = { onLanguageChange(""); expanded = false }
             )
-            LocaleOption(
-                title = stringResource(R.string.language_zh_tw),
-                selected = languageTag == "zh-TW",
-                onClick = { onLanguageChange("zh-TW") }
+            DropdownMenuItem(
+                text = { Text(stringResource(R.string.language_zh_tw)) },
+                onClick = { onLanguageChange("zh-TW"); expanded = false }
             )
-            LocaleOption(
-                title = stringResource(R.string.language_en),
-                selected = languageTag == "en",
-                onClick = { onLanguageChange("en") }
+            DropdownMenuItem(
+                text = { Text(stringResource(R.string.language_en)) },
+                onClick = { onLanguageChange("en"); expanded = false }
             )
         }
     }
@@ -557,7 +626,8 @@ private fun SettingToggle(
     subtitle: String,
     checked: Boolean,
     enabled: Boolean = true,
-    onCheckedChange: (Boolean) -> Unit
+    onCheckedChange: (Boolean) -> Unit,
+    onInfo: (() -> Unit)? = null
 ) {
     Row(
         modifier = Modifier
@@ -566,7 +636,20 @@ private fun SettingToggle(
         horizontalArrangement = Arrangement.SpaceBetween
     ) {
         Column(modifier = Modifier.weight(1f)) {
-            Text(text = title, fontSize = 16.sp, fontWeight = FontWeight.Medium)
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(text = title, fontSize = 16.sp, fontWeight = FontWeight.Medium)
+                if (onInfo != null) {
+                    Spacer(modifier = Modifier.size(4.dp))
+                    Icon(
+                        imageVector = Icons.Outlined.Info,
+                        contentDescription = stringResource(R.string.info_icon_desc),
+                        modifier = Modifier
+                            .size(18.dp)
+                            .clickable { onInfo() },
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            }
             Text(text = subtitle, fontSize = 13.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
         Spacer(modifier = Modifier.size(12.dp))
@@ -580,7 +663,8 @@ private fun StyleOption(
     subtitle: String,
     selected: Boolean,
     enabled: Boolean = true,
-    onClick: () -> Unit
+    onClick: () -> Unit,
+    onInfo: (() -> Unit)? = null
 ) {
     Row(
         modifier = Modifier
@@ -590,7 +674,20 @@ private fun StyleOption(
         horizontalArrangement = Arrangement.SpaceBetween
     ) {
         Column(modifier = Modifier.weight(1f)) {
-            Text(text = title, fontSize = 15.sp, fontWeight = FontWeight.Medium)
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(text = title, fontSize = 15.sp, fontWeight = FontWeight.Medium)
+                if (onInfo != null) {
+                    Spacer(modifier = Modifier.size(4.dp))
+                    Icon(
+                        imageVector = Icons.Outlined.Info,
+                        contentDescription = stringResource(R.string.info_icon_desc),
+                        modifier = Modifier
+                            .size(18.dp)
+                            .clickable { onInfo() },
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            }
             Text(text = subtitle, fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
         Spacer(modifier = Modifier.size(12.dp))
@@ -599,60 +696,12 @@ private fun StyleOption(
 }
 
 @Composable
-private fun LocaleOption(
-    title: String,
-    selected: Boolean,
-    onClick: () -> Unit
-) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clickable(onClick = onClick)
-            .padding(vertical = 2.dp),
-        horizontalArrangement = Arrangement.SpaceBetween
+private fun HelpEntryButton(onClick: () -> Unit) {
+    OutlinedButton(
+        onClick = onClick,
+        modifier = Modifier.fillMaxWidth()
     ) {
-        Text(text = title, fontSize = 15.sp, fontWeight = FontWeight.Medium)
-        RadioButton(selected = selected, onClick = onClick)
-    }
-}
-
-@Composable
-private fun HelpSummaryCard() {
-    Card(modifier = Modifier.fillMaxWidth()) {
-        Column(
-            modifier = Modifier.padding(20.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp)
-        ) {
-            Text(
-                text = stringResource(R.string.help_card_title),
-                fontSize = 18.sp,
-                fontWeight = FontWeight.Bold
-            )
-            Text(
-                text = stringResource(R.string.help_card_body),
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-        }
-    }
-}
-
-@Composable
-private fun FeatureCard() {
-    Card(modifier = Modifier.fillMaxWidth()) {
-        Column(
-            modifier = Modifier.padding(20.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp)
-        ) {
-            Text(
-                text = stringResource(R.string.feature_title),
-                fontSize = 18.sp,
-                fontWeight = FontWeight.Bold
-            )
-            Text(stringResource(R.string.feature_dual_modes))
-            Text(stringResource(R.string.feature_quick_reply))
-            Text(stringResource(R.string.feature_jump))
-            Text(stringResource(R.string.feature_chat_management))
-        }
+        Text(stringResource(R.string.open_help), fontSize = 16.sp)
     }
 }
 
@@ -666,7 +715,8 @@ private fun OfficialAccountButton() {
         },
         modifier = Modifier.fillMaxWidth(),
         colors = ButtonDefaults.buttonColors(
-            containerColor = MaterialTheme.colorScheme.primary
+            containerColor = Green40,
+            contentColor = Color.White
         )
     ) {
         Text(stringResource(R.string.join_official_account), fontSize = 16.sp)

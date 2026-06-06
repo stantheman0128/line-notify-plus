@@ -1,5 +1,6 @@
 package com.stanslab.linenotify.service
 
+import android.app.Notification
 import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.app.PendingIntent
@@ -35,6 +36,9 @@ class LineNotificationListener : NotificationListenerService() {
         const val KEY_NOTIFICATION_STYLE = "notification_style"
         const val KEY_CLEAR_AFTER_REPLY = "clear_after_reply"
         const val KEY_CLEAR_AFTER_READ = "clear_after_read"
+        const val KEY_CHAT_LAST_ACTIVE = "chat_last_active"   // JSON {聊天室名: epochMillis}
+        const val KEY_CHAT_SORT = "chat_sort"                 // "recent" | "name" | "type"
+        private const val AVATAR_DIR = "chat_avatars"
 
         // roomKey 分隔字元：profileKey 是純數字（hashCode），用 ":" 即保證 (profile,聊天室) 唯一對應
         private const val KEY_SEP = ":"
@@ -51,6 +55,21 @@ class LineNotificationListener : NotificationListenerService() {
         private const val SUMMARY_ID_BASE = 8000
         private const val MESSAGE_ID_BASE = 9000
         private const val THREAD_ID_BASE = 7000
+
+        /** 某聊天室頭貼的本機檔案（用名字 hash 當檔名，避開 emoji/特殊字元）。 */
+        fun avatarFile(context: Context, chatName: String): java.io.File =
+            java.io.File(java.io.File(context.filesDir, AVATAR_DIR), "${chatName.hashCode()}.png")
+
+        /** 讀「最後活躍時間」表（聊天室名 → epochMillis）。 */
+        fun readLastActive(prefs: SharedPreferences): Map<String, Long> {
+            val raw = prefs.getString(KEY_CHAT_LAST_ACTIVE, null) ?: return emptyMap()
+            return try {
+                val obj = org.json.JSONObject(raw)
+                buildMap { obj.keys().forEach { k -> put(k, obj.optLong(k)) } }
+            } catch (e: Exception) {
+                emptyMap()
+            }
+        }
     }
 
     // 以下所有 map 的 key 都是 roomKey = profileKey + 聊天室名（雙開帳號各自獨立）
@@ -93,11 +112,40 @@ class LineNotificationListener : NotificationListenerService() {
     private fun profileKeyOf(sbn: StatusBarNotification): String =
         (sbn.user?.hashCode() ?: 0).toString()
 
+    /**
+     * 是否為「通話類」通知（來電 / 通話中 / 未接）。
+     * 只認通話專屬訊號，避免誤判一般訊息：
+     *  - category == CATEGORY_CALL（來電 / 通話中，CallStyle）
+     *  - category == "missed_call"（未接；用字串避開 API level 疑慮）
+     *  - fullScreenIntent != null（來電全螢幕 UI）
+     * 刻意不看 FLAG_ONGOING_EVENT —— 太廣，可能誤殺其他常駐通知。
+     */
+    private fun isCallNotification(n: Notification): Boolean {
+        val category = n.category
+        if (category == Notification.CATEGORY_CALL) return true
+        if (category == "missed_call") return true
+        if (n.fullScreenIntent != null) return true
+        return false
+    }
+
     override fun onNotificationPosted(sbn: StatusBarNotification) {
         if (sbn.packageName !in LINE_PACKAGES) return
         if (!prefs.getBoolean(KEY_SERVICE_ENABLED, true)) return
 
         val notification = sbn.notification
+
+        // 通話類守門：LINE 的來電 / 通話中 / 未接通知，title = 對方名字、subText = null，
+        // 跟「個人訊息」長得一模一樣 → 會被誤存進聊天室清單；而且取代模式下會被我們一起
+        // cancel 掉，可能干擾來電。命中就直接放行：不存清單、不堆疊、不取消，原通知留給系統/手錶。
+        if (isCallNotification(notification)) {
+            Log.d(
+                TAG,
+                "略過通話類通知 category=${notification.category} " +
+                    "fullScreenIntent=${notification.fullScreenIntent != null}"
+            )
+            return
+        }
+
         val extras = notification.extras
 
         val title = extras.getString("android.title") ?: return
@@ -252,7 +300,7 @@ class LineNotificationListener : NotificationListenerService() {
             }
         }
 
-        saveKnownChat(chatTitle, chatType)
+        recordChat(chatTitle, chatType, largeIcon, sbn.postTime)
 
         // 先發我們的通知
         val style = prefs.getString(KEY_NOTIFICATION_STYLE, "thread") ?: "thread"
@@ -286,8 +334,7 @@ class LineNotificationListener : NotificationListenerService() {
 
         // 非取代模式下不同步清除（兩邊通知獨立）
         if (!prefs.getBoolean(KEY_REPLACE_ORIGINAL, true)) return
-        // 「已讀後自動清除」開關
-        if (!prefs.getBoolean(KEY_CLEAR_AFTER_READ, true)) return
+        // 「已讀後清除」已固定為永遠開啟（移除使用者開關）
 
         val extras = sbn.notification.extras
         val title = extras.getString("android.title") ?: return
@@ -533,6 +580,37 @@ class LineNotificationListener : NotificationListenerService() {
         val known = prefs.getStringSet(key, mutableSetOf())?.toMutableSet() ?: mutableSetOf()
         if (known.add(chatTitle)) {
             prefs.edit().putStringSet(key, known).apply()
+        }
+    }
+
+    /** 收錄聊天室：名稱（分類）+ 最後活躍時間 + 頭貼，給「管理個別聊天室」顯示用。 */
+    private fun recordChat(chatTitle: String, chatType: String, avatar: Bitmap?, timestamp: Long) {
+        saveKnownChat(chatTitle, chatType)
+        updateLastActive(chatTitle, timestamp)
+        if (avatar != null) saveAvatar(chatTitle, avatar)
+    }
+
+    private fun updateLastActive(chatTitle: String, timestamp: Long) {
+        val obj = try {
+            prefs.getString(KEY_CHAT_LAST_ACTIVE, null)?.let { org.json.JSONObject(it) }
+                ?: org.json.JSONObject()
+        } catch (e: Exception) {
+            org.json.JSONObject()
+        }
+        obj.put(chatTitle, timestamp)
+        prefs.edit().putString(KEY_CHAT_LAST_ACTIVE, obj.toString()).apply()
+    }
+
+    /** 把該聊天室最近一次的頭貼存成 PNG（覆蓋舊的，保持最新）。 */
+    private fun saveAvatar(chatTitle: String, bitmap: Bitmap) {
+        try {
+            val file = avatarFile(this, chatTitle)
+            file.parentFile?.mkdirs()
+            java.io.FileOutputStream(file).use {
+                bitmap.compress(Bitmap.CompressFormat.PNG, 90, it)
+            }
+        } catch (e: Exception) {
+            Log.w(TAG, "存頭貼失敗：$chatTitle", e)
         }
     }
 

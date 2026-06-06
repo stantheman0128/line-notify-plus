@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<title>LINE Notify+ 新版預覽 (B)</title>
+<style>
+  :root{
+    --green:#06C755; --greenDk:#059B43;
+    --bar:#DCE6EC;            /* 頂列/狀態列 淺藍灰(動態取色approx) */
+    --statusCard:#DCE7DF;     /* 狀態卡 淺灰綠 */
+    --card:#E7E8EC;           /* 卡片/導航列 淺灰 */
+    --slate:#5B6B7A;          /* 動態主色(這台=藍灰):開關ON/選中chip/選中radio */
+    --ink:#1a1c1e; --dim:#5a6470; --line:#d6dade;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:#0f1115;font-family:"Microsoft JhengHei",system-ui,sans-serif;color:#e6e8ec;padding:24px}
+  h1{font-size:20px;margin:0 0 4px}
+  .lead{color:#9aa0ac;font-size:13px;margin:0 0 20px}
+  .row{display:flex;gap:20px;flex-wrap:wrap;align-items:flex-start}
+  .col{display:flex;flex-direction:column;align-items:center;gap:8px}
+  .cap{font-size:12px;color:#9aa0ac;font-weight:600}
+  .phone{width:288px;height:600px;background:#F6F7F8;border-radius:30px;border:8px solid #0a0c10;overflow:hidden;position:relative;box-shadow:0 14px 40px rgba(0,0,0,.5)}
+  .sbar{height:24px;background:var(--bar);display:flex;align-items:center;justify-content:space-between;padding:0 14px;font-size:9px;color:#26323a;font-weight:600}
+  .top{height:50px;background:var(--bar);display:flex;align-items:center;padding:0 12px;color:#22303a;gap:8px}
+  .top .logo{width:24px;height:24px;border-radius:6px;background:var(--green);display:flex;align-items:center;justify-content:center;color:#fff;font-size:13px;font-weight:800}
+  .top .ttl{font-size:16px;font-weight:700;flex:1}
+  .top .ic{width:22px;height:22px;display:flex;align-items:center;justify-content:center;font-size:15px;color:#3a4a54}
+  .top .back{font-size:18px;color:#3a4a54;width:22px}
+  .body{padding:12px;height:calc(100% - 74px);overflow:auto;display:flex;flex-direction:column;gap:10px}
+  .body::-webkit-scrollbar{width:0}
+  /* cards */
+  .card{background:var(--card);border-radius:14px;padding:13px 15px}
+  .card.status{background:var(--statusCard)}
+  .card.white{background:#fff;border:1px solid #eceef1}
+  .statusBig{font-size:15px;font-weight:700;color:#1f3a29}
+  .sub{font-size:10.5px;color:var(--dim);margin-top:2px;line-height:1.4}
+  .secTtl{font-size:13px;font-weight:700;color:var(--ink);margin-bottom:8px}
+  .slabel{font-size:11px;font-weight:600;color:var(--dim);margin:4px 0 6px}
+  /* toggle row */
+  .tog{display:flex;align-items:center;gap:8px;padding:5px 0}
+  .tog .grow{flex:1}
+  .tt{font-size:13px;font-weight:600;color:var(--ink)}
+  .sw{width:36px;height:20px;border-radius:12px;background:var(--slate);position:relative;flex:none}
+  .sw::after{content:"";position:absolute;top:2.5px;right:2.5px;width:15px;height:15px;border-radius:50%;background:#fff}
+  .sw.off{background:#c4c9d0}.sw.off::after{right:auto;left:2.5px}
+  .divg{height:1px;background:#dcdfe3;margin:7px 0}
+  .info{display:inline-flex;width:16px;height:16px;border-radius:50%;border:1.4px solid var(--slate);color:var(--slate);font-size:10px;align-items:center;justify-content:center;font-style:italic;font-weight:700;margin-left:6px;flex:none}
+  /* nav row */
+  .nav{background:var(--card);border-radius:14px;padding:15px;display:flex;align-items:center;font-size:14px;font-weight:600;color:var(--ink)}
+  .nav .chev{margin-left:auto;color:#9aa0ac;font-size:18px}
+  /* radio row */
+  .radio{width:18px;height:18px;border-radius:50%;border:2px solid var(--slate);flex:none;display:flex;align-items:center;justify-content:center}
+  .radio.on::after{content:"";width:9px;height:9px;border-radius:50%;background:var(--slate)}
+  /* buttons */
+  .btnFill{background:var(--green);border-radius:22px;padding:12px;text-align:center;font-size:14px;color:#fff;font-weight:700;margin-top:2px}
+  .btnText{color:var(--slate);font-weight:600;font-size:13px;padding:8px 4px}
+  /* chips */
+  .chips{display:flex;gap:6px;overflow:hidden}
+  .chip{padding:4px 11px;border-radius:15px;border:1.4px solid #c4c9d0;background:#fff;font-size:11px;color:#333;white-space:nowrap}
+  .chip.on{background:var(--slate);color:#fff;border-color:var(--slate)}
+  .sortBtn{margin-left:auto;border:1.4px solid #c4c9d0;border-radius:8px;background:#fff;font-size:10.5px;padding:3px 8px;white-space:nowrap;flex:none}
+  .chatRow{display:flex;align-items:center;gap:10px;background:#fff;border-radius:12px;padding:9px 11px}
+  .ava{width:38px;height:38px;border-radius:50%;flex:none;display:flex;align-items:center;justify-content:center;color:#fff;font-size:14px;font-weight:700}
+  .ty{font-size:10px;color:#999}
+  /* about */
+  .center{background:#fff;border:1px solid #eceef1;border-radius:14px;padding:16px;text-align:center}
+  .clog{background:#fff;border:1px solid #eceef1;border-radius:14px;padding:13px 15px}
+  .clog .e{font-size:11px;color:#444;margin:2px 0}
+  .clogScroll{max-height:120px;overflow:hidden;position:relative}
+  .clogScroll::after{content:"";position:absolute;right:0;top:4px;width:3px;height:30px;border-radius:3px;background:#c4c9d0}
+  /* faq */
+  .faq{background:#fff;border:1px solid #eceef1;border-radius:12px;padding:11px 13px;font-size:12px;font-weight:600;color:var(--ink);display:flex;align-items:center}
+  .faq .q{flex:1}.faq .ar{color:#9aa0ac}
+  .faqOpen{background:#fff;border:1px solid #eceef1;border-radius:12px;padding:11px 13px}
+  .faqOpen .qh{display:flex;font-size:12px;font-weight:700;color:var(--ink)}
+  .faqOpen .a{font-size:11px;color:var(--dim);margin-top:6px;line-height:1.5}
+</style>
+</head>
+<body>
+  <h1>📱 LINE Notify+ — 新版預覽（B 模型：乾淨首頁 + 子頁）</h1>
+  <p class="lead">配色＝實機動態取色(藍灰) + 混合決策「主按鈕鎖品牌綠」。實際每台手機藍灰色調會依桌布略不同。</p>
+
+  <div class="row">
+
+    <!-- 首頁 -->
+    <div class="col"><div class="cap">① 首頁（乾淨）</div>
+    <div class="phone">
+      <div class="sbar"><span>5:00</span><span>📶 100%</span></div>
+      <div class="top"><span class="logo">+</span><span class="ttl">LINE Notify+</span><span class="ic">↗</span><span class="ic">ⓘ</span></div>
+      <div class="body">
+        <div class="card status"><div class="statusBig">✓ 服務運行中</div><div class="sub">正在接聽 LINE 通知</div></div>
+        <div class="card">
+          <div class="secTtl">設定</div>
+          <div class="tog"><div class="grow"><div class="tt">啟用增強通知</div><div class="sub">攔截 LINE 通知，並將訊息堆疊顯示</div></div><span class="sw"></span></div>
+          <div class="divg"></div>
+          <div class="tog"><div class="grow"><div class="tt">取代原始通知</div><div class="sub">隱藏 LINE 原本的通知，僅顯示堆疊版本</div></div><span class="sw"></span></div>
+        </div>
+        <div class="nav">管理個別聊天室<span class="chev">›</span></div>
+        <div class="nav">進階設定<span class="chev">›</span></div>
+        <div class="nav">教學與 FAQ<span class="chev">›</span></div>
+        <div class="btnFill">加入 LINE Notify+ 官方帳號</div>
+      </div>
+    </div></div>
+
+    <!-- 進階設定 -->
+    <div class="col"><div class="cap">② 進階設定（子頁）</div>
+    <div class="phone">
+      <div class="sbar"><span>5:00</span><span>📶 100%</span></div>
+      <div class="top"><span class="back">←</span><span class="ttl">進階設定</span></div>
+      <div class="body">
+        <div class="card">
+          <div class="slabel">通知風格</div>
+          <div class="tog"><div class="grow"><div class="tt">對話串模式<span class="info">i</span></div><div class="sub">同聊天室合併成一則，顯示完整對話串</div></div><span class="radio on"></span></div>
+          <div class="tog"><div class="grow"><div class="tt">Apple 分組模式<span class="info">i</span></div><div class="sub">每則訊息獨立顯示，同聊天室自動收合</div></div><span class="radio"></span></div>
+          <div class="divg"></div>
+          <div class="slabel">清除時機</div>
+          <div class="tog"><div class="grow"><div class="tt">回覆後清除通知<span class="info">i</span></div><div class="sub">在通知上回覆後過一秒，該則通知就會被清除</div></div><span class="sw"></span></div>
+          <div class="divg"></div>
+          <div class="slabel">語言</div>
+          <div class="tog"><div class="grow"><div class="tt">跟隨系統</div></div><span class="radio on"></span></div>
+          <div class="tog"><div class="grow"><div class="tt">繁體中文</div></div><span class="radio"></span></div>
+          <div class="tog"><div class="grow"><div class="tt">English</div></div><span class="radio"></span></div>
+        </div>
+        <div class="sub" style="padding:0 4px">※「已讀後自動清除」已移除 → 改成永遠開啟</div>
+      </div>
+    </div></div>
+
+    <!-- 聊天室 -->
+    <div class="col"><div class="cap">③ 聊天室（搜尋+說明、無刪除）</div>
+    <div class="phone">
+      <div class="sbar"><span>5:00</span><span>📶 100%</span></div>
+      <div class="top"><span class="back">←</span><span class="ttl">聊天室管理</span><span class="ic">🔍</span><span class="ic">ⓘ</span></div>
+      <div class="body">
+        <div style="display:flex;align-items:center;gap:6px">
+          <div class="chips"><span class="chip on">全部</span><span class="chip">好友</span><span class="chip">群組</span><span class="chip">社群</span></div>
+          <span class="sortBtn">最新訊息 ⌄</span>
+        </div>
+        <div class="chatRow"><span class="ava" style="background:#7B61FF">家</span><div class="grow"><div class="tt">家族群組</div><div class="ty">群組</div></div><span class="sw"></span></div>
+        <div class="chatRow"><span class="ava" style="background:#EA4C89">媽</span><div class="grow"><div class="tt">媽媽</div><div class="ty">好友</div></div><span class="sw"></span></div>
+        <div class="chatRow"><span class="ava" style="background:#06C755">攝</span><div class="grow"><div class="tt">攝影同好社</div><div class="ty">社群</div></div><span class="sw off"></span></div>
+        <div class="chatRow"><span class="ava" style="background:#00A3BF">王</span><div class="grow"><div class="tt">王經理</div><div class="ty">好友</div></div><span class="sw"></span></div>
+        <div class="sub" style="padding:0 4px">※ 長按進入多選；🗑️刪除已移除，只留開關</div>
+      </div>
+    </div></div>
+
+    <!-- 教學FAQ -->
+    <div class="col"><div class="cap">④ 教學與 FAQ（子頁）</div>
+    <div class="phone">
+      <div class="sbar"><span>5:00</span><span>📶 100%</span></div>
+      <div class="top"><span class="back">←</span><span class="ttl">教學與 FAQ</span></div>
+      <div class="body">
+        <div class="card white"><div class="secTtl">LINE Notify+ 做什麼？</div><div class="sub">讀取 LINE 原始通知，把同一聊天室的訊息「堆疊」起來 —— 你能一直看到通知、並讀完整個聊天室的所有新訊息，而不像 LINE 只顯示最新一條。</div></div>
+        <div class="card white"><div class="secTtl">新手教學</div>
+          <div class="sub" style="margin-top:0"><b>1.</b> 開啟通知存取權限<br><b>2.</b> 啟用增強通知<br><b>3.</b> 選擇通知風格<br><b>4.</b> 管理個別聊天室</div>
+        </div>
+        <div class="slabel" style="padding:0 4px">常見問題（點開）</div>
+        <div class="faqOpen"><div class="qh"><span style="flex:1">為什麼需要通知存取權限？</span><span class="ar">▾</span></div><div class="a">App 只能透過讀取 LINE 通知內容來重組堆疊，全程在本機處理。</div></div>
+        <div class="faq"><span class="q">App 會上傳我的訊息嗎？</span><span class="ar">▸</span></div>
+        <div class="faq"><span class="q">手機通知設定要怎麼調？</span><span class="ar">▸</span></div>
+        <div class="faq"><span class="q">快速回覆送不出去怎麼辦？</span><span class="ar">▸</span></div>
+      </div>
+    </div></div>
+
+    <!-- 關於 -->
+    <div class="col"><div class="cap">⑤ 關於（更新紀錄改白底）</div>
+    <div class="phone">
+      <div class="sbar"><span>5:00</span><span>📶 100%</span></div>
+      <div class="top"><span class="back">←</span><span class="ttl">App 資訊</span></div>
+      <div class="body">
+        <div class="center"><div style="font-size:18px;font-weight:700;color:var(--ink)">LINE Notify+</div><div class="sub">v1.1.0</div><div class="sub">LINE 通知堆疊版本工具</div></div>
+        <div class="clog"><div class="secTtl">更新紀錄</div>
+          <div class="clogScroll">
+            <div class="e"><b>v1.1.0</b> · 全新圖示、改走 Play 更新</div>
+            <div class="e"><b>v1.0.6</b> · 一鍵更新、修正返回鍵</div>
+            <div class="e"><b>v1.0.5</b> · 堆疊上限 50、修閃現</div>
+            <div class="e"><b>v1.0.4</b> · 新增 App 資訊頁</div>
+            <div class="e"><b>v1.0.3</b> · 已讀後自動消失</div>
+          </div>
+        </div>
+        <div class="card white"><div class="secTtl">關於</div><div class="btnText">GitHub 原始碼</div><div class="btnText">LINE 官方帳號 — 回報問題與功能建議</div></div>
+      </div>
+    </div></div>
+
+  </div>
+</body>
+</html>

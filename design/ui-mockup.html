@@ -1,0 +1,576 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>LINE Notify+ UI Mockup</title>
+<style>
+  :root{
+    --bg:#16181d; --panel:#1e2128; --panel2:#252934; --line:#333845;
+    --txt:#e6e8ec; --dim:#9aa0ac; --accent:#06C755; --accentDk:#059B43;
+    --chip:#2c313c; --danger:#ff6b6b;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;font-family:system-ui,"Microsoft JhengHei",sans-serif;background:var(--bg);color:var(--txt);}
+  header{padding:14px 20px;border-bottom:1px solid var(--line);display:flex;align-items:center;gap:14px;flex-wrap:wrap}
+  header h1{font-size:16px;margin:0;font-weight:700}
+  header .sub{color:var(--dim);font-size:12px}
+  .tabs{display:flex;gap:6px;margin-left:auto}
+  .tab{padding:6px 14px;border-radius:8px;background:var(--panel2);color:var(--dim);cursor:pointer;font-size:13px;border:1px solid transparent}
+  .tab.active{background:var(--accent);color:#04210f;font-weight:700;border-color:var(--accent)}
+  .wrap{display:grid;grid-template-columns:minmax(380px,1fr) 420px;gap:0;height:calc(100vh - 56px)}
+  @media(max-width:1000px){.wrap{grid-template-columns:1fr}}
+  .controls{padding:18px 20px;overflow:auto;border-right:1px solid var(--line)}
+  .previewPane{padding:24px;overflow:auto;display:flex;flex-direction:column;align-items:center;gap:16px;background:#0f1115}
+  .presetRow{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:16px}
+  .preset{padding:6px 12px;border-radius:20px;background:var(--chip);border:1px solid var(--line);color:var(--txt);font-size:12px;cursor:pointer}
+  .preset:hover{border-color:var(--accent)}
+  .sectionLabel{font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--dim);margin:18px 0 8px}
+  .blockRow{background:var(--panel);border:1px solid var(--line);border-radius:10px;margin-bottom:8px;overflow:hidden}
+  .blockRow.dragging{opacity:.4}
+  .blockRow.hidden .bMain{opacity:.4}
+  .bMain{display:flex;align-items:center;gap:8px;padding:10px 12px}
+  .grip{cursor:grab;color:var(--dim);font-size:16px;user-select:none;padding:0 2px}
+  .bName{flex:1;font-size:14px;font-weight:600}
+  .ord{display:flex;flex-direction:column;gap:2px}
+  .ord button{background:var(--panel2);border:1px solid var(--line);color:var(--txt);border-radius:5px;width:24px;height:17px;line-height:1;cursor:pointer;font-size:10px;padding:0}
+  .ord button:hover{border-color:var(--accent)}
+  .vis{display:flex;align-items:center;gap:6px;font-size:12px;color:var(--dim);cursor:pointer;user-select:none}
+  details.edit{border-top:1px solid var(--line);background:var(--panel2)}
+  details.edit summary{padding:7px 12px;font-size:12px;color:var(--accent);cursor:pointer;list-style:none}
+  details.edit summary::-webkit-details-marker{display:none}
+  details.edit summary::before{content:"✎ 編輯文字";}
+  details[open].edit summary::before{content:"▾ 收起";}
+  .fld{display:flex;flex-direction:column;gap:3px;padding:4px 12px 10px}
+  .fld label{font-size:11px;color:var(--dim)}
+  .fld input{background:var(--bg);border:1px solid var(--line);color:var(--txt);border-radius:6px;padding:6px 8px;font-size:13px;font-family:inherit}
+  .fld input:focus{outline:none;border-color:var(--accent)}
+  .ctlGroup{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:12px 14px;margin-bottom:10px}
+  .ctlGroup .row{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:6px 0;font-size:13px}
+  .ctlGroup select,.ctlGroup input[type=text]{background:var(--bg);border:1px solid var(--line);color:var(--txt);border-radius:6px;padding:5px 8px;font-size:13px;font-family:inherit}
+  .sw{position:relative;width:40px;height:22px;flex:none}
+  .sw input{display:none}
+  .sw span{position:absolute;inset:0;background:#3a4150;border-radius:20px;transition:.15s}
+  .sw span::after{content:"";position:absolute;top:3px;left:3px;width:16px;height:16px;border-radius:50%;background:#fff;transition:.15s}
+  .sw input:checked+span{background:var(--accent)}
+  .sw input:checked+span::after{transform:translateX(18px)}
+
+  /* ===== phone preview ===== */
+  .phoneWrap{display:flex;flex-direction:column;align-items:center;gap:6px}
+  .phoneLabel{font-size:11px;color:var(--dim)}
+  .phone{width:300px;height:620px;background:#fff;border-radius:34px;border:9px solid #0a0c10;box-shadow:0 18px 50px rgba(0,0,0,.5);overflow:hidden;position:relative}
+  .pStatus{height:26px;background:#F0F9F2;display:flex;align-items:center;justify-content:space-between;padding:0 16px;font-size:10px;color:#1B3A21;font-weight:600}
+  .pBar{height:46px;background:#F0F9F2;display:flex;align-items:center;padding:0 12px;color:#1B3A21}
+  .pBar .ttl{font-size:16px;font-weight:700;flex:1}
+  .pBar .ic{width:22px;height:22px;margin-left:6px;display:flex;align-items:center;justify-content:center;font-size:15px}
+  .pBody{padding:12px;height:calc(100% - 72px);overflow:auto;display:flex;flex-direction:column;gap:11px;background:#fafafa}
+  .pBody::-webkit-scrollbar{width:5px}.pBody::-webkit-scrollbar-thumb{background:#ccc;border-radius:3px}
+  .card{background:#fff;border-radius:13px;box-shadow:0 1px 3px rgba(0,0,0,.10);padding:14px}
+  .card.status{background:#E7F6EC}
+  .card.settings{background:#E8E8EA;box-shadow:0 1px 3px rgba(0,0,0,.07)}
+  .card.adv{background:#E7E0EC}
+  .ttlBold{font-weight:700;font-size:14px;color:#1a1a1a}
+  .statusBig{font-size:15px;font-weight:700;color:#0b7a37}
+  .sub{font-size:11px;color:#5f6368;margin-top:2px}
+  .secTtl{font-size:13px;font-weight:700;color:#1a1a1a;margin-bottom:8px}
+  .tog{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:5px 0}
+  .tog .tt{font-size:13px;font-weight:600;color:#1a1a1a}
+  .pSwitch{width:34px;height:19px;border-radius:12px;background:var(--accent);position:relative;flex:none}
+  .pSwitch::after{content:"";position:absolute;top:2.5px;right:2.5px;width:14px;height:14px;border-radius:50%;background:#fff}
+  .pSwitch.off{background:#c4c9d0}.pSwitch.off::after{right:auto;left:2.5px}
+  .divg{height:1px;background:#eee;margin:8px 0}
+  .rowCard{background:#fff;border-radius:13px;box-shadow:0 1px 3px rgba(0,0,0,.10);padding:15px 16px;display:flex;align-items:center;font-size:14px;font-weight:600;color:#1a1a1a}
+  .rowCard .chev{margin-left:auto;color:#9aa0ac}
+  .advHead{display:flex;align-items:center;font-size:14px;font-weight:700;color:#1a1a1a}
+  .btnOutline{border:1.5px solid #c4c9d0;border-radius:20px;padding:11px;text-align:center;font-size:14px;color:#0b7a37;font-weight:600;background:#fff}
+  .btnFill{background:var(--accent);border-radius:20px;padding:12px;text-align:center;font-size:14px;color:#fff;font-weight:700}
+  .miniItem{font-size:12px;color:#444;padding:3px 0;display:flex;align-items:center;gap:6px}
+  .miniItem .rb{width:13px;height:13px;border-radius:50%;border:2px solid var(--accent);flex:none}
+  .miniItem .rb.fill{background:var(--accent)}
+
+  /* chat mgmt preview */
+  .chipBar{display:flex;align-items:center;overflow-x:auto;gap:6px;padding-bottom:2px;scrollbar-width:none}
+  .chipBar::-webkit-scrollbar{display:none}
+  .chip{display:inline-flex;align-items:center;padding:4px 12px;border-radius:16px;font-size:11px;background:#fff;border:1.5px solid #c4c9d0;color:#333;white-space:nowrap;cursor:pointer;flex-none}
+  .chip.on{background:#06C755;color:#fff;border-color:#06C755}
+  .sortBtn{margin-left:auto;flex:none;background:#fff;border:1.5px solid #c4c9d0;border-radius:8px;padding:3px 9px;font-size:11px;color:#333;white-space:nowrap}
+  .filterRow{display:flex;align-items:center;gap:6px;margin-bottom:8px}
+  .chatRow{display:flex;align-items:center;gap:10px;background:#fff;border-radius:12px;box-shadow:0 1px 3px rgba(0,0,0,.09);padding:10px 12px;margin-bottom:6px}
+  .ava{width:40px;height:40px;border-radius:50%;flex:none;display:flex;align-items:center;justify-content:center;color:#fff;font-size:14px;font-weight:700}
+  .chatRow .nm{font-size:13px;font-weight:700;color:#1a1a1a}
+  .chatRow .ty{font-size:10px;color:#888;margin-top:2px}
+  .chatTrash{margin-left:6px;font-size:15px;color:#bbb;flex:none}
+  .grpTtl{font-size:12px;font-weight:700;color:var(--accentDk);margin:6px 0 2px}
+
+  /* ===== save/load panel ===== */
+  details.savePanel{margin-bottom:14px;background:var(--panel);border:1px solid var(--line);border-radius:10px;overflow:hidden}
+  details.savePanel>summary{padding:10px 14px;font-size:13px;font-weight:700;color:var(--txt);cursor:pointer;list-style:none;display:flex;align-items:center;gap:6px;user-select:none}
+  details.savePanel>summary::-webkit-details-marker{display:none}
+  details.savePanel>summary::after{content:"▸";margin-left:auto;color:var(--dim);font-size:11px}
+  details[open].savePanel>summary::after{content:"▾"}
+  .saveBody{padding:10px 14px 14px;display:flex;flex-direction:column;gap:10px;border-top:1px solid var(--line)}
+  .saveBtnRow{display:flex;gap:6px;flex-wrap:wrap}
+  .saveBtn{padding:7px 12px;border-radius:8px;background:var(--panel2);border:1px solid var(--line);color:var(--txt);font-size:12px;cursor:pointer;font-family:inherit;white-space:nowrap}
+  .saveBtn:hover{border-color:var(--accent)}
+  .saveBtn.accent{background:var(--accent);color:#04210f;border-color:var(--accent);font-weight:700}
+  .saveBtn.accent:hover{background:#05b34c}
+  .saveStatus{font-size:11px;color:var(--dim);min-height:16px;transition:color .3s}
+  .saveStatus.ok{color:var(--accent)}
+  .autoSaveIndicator{font-size:11px;color:var(--accent);opacity:0;transition:opacity .5s;position:absolute;right:0;bottom:100%;margin-bottom:4px}
+  .autoSaveIndicator.show{opacity:1}
+  .designsSection{border-top:1px solid var(--line);padding-top:10px;margin-top:2px}
+  .designsSection .dsLabel{font-size:11px;color:var(--dim);letter-spacing:.05em;text-transform:uppercase;margin-bottom:6px}
+  .designInputRow{display:flex;gap:6px}
+  .designInputRow input{flex:1;background:var(--bg);border:1px solid var(--line);color:var(--txt);border-radius:6px;padding:6px 8px;font-size:12px;font-family:inherit}
+  .designInputRow input:focus{outline:none;border-color:var(--accent)}
+  .designList{display:flex;flex-direction:column;gap:4px;margin-top:6px;max-height:160px;overflow-y:auto}
+  .designItem{display:flex;align-items:center;gap:6px;background:var(--panel2);border:1px solid var(--line);border-radius:7px;padding:5px 8px;font-size:12px}
+  .designItem .dName{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--txt)}
+  .designItem button{background:none;border:1px solid var(--line);color:var(--dim);border-radius:5px;padding:2px 7px;font-size:11px;cursor:pointer;font-family:inherit}
+  .designItem button:hover{border-color:var(--accent);color:var(--txt)}
+  .designItem button.del:hover{border-color:var(--danger);color:var(--danger)}
+</style>
+</head>
+<body>
+<header>
+  <h1>🎨 LINE Notify+ · UI 排版 Mockup</h1>
+  <span class="sub">拖曳排序 / 改名 / 隱藏 → 底部自動產生 spec → 複製貼回給 Claude</span>
+  <div class="tabs">
+    <div class="tab active" data-tab="main" onclick="switchTab('main')">主畫面</div>
+    <div class="tab" data-tab="chat" onclick="switchTab('chat')">管理聊天室</div>
+  </div>
+</header>
+
+<div class="wrap">
+  <div class="controls">
+    <!-- SAVE / LOAD PANEL (always visible, above tabs) -->
+    <details class="savePanel" id="savePanelDetails">
+      <summary>💾 存檔 / 我的設計</summary>
+      <div class="saveBody">
+        <!-- row 1: file system + download/load -->
+        <div class="saveBtnRow">
+          <button class="saveBtn" id="btnLinkFile" onclick="linkFile()">🔗 連結存檔檔案</button>
+          <button class="saveBtn" onclick="downloadState()">💾 下載存檔</button>
+          <button class="saveBtn" onclick="document.getElementById('loadFileInput').click()">📂 載入存檔</button>
+          <input type="file" id="loadFileInput" accept=".json" style="display:none" onchange="loadFromFile(event)">
+        </div>
+        <div class="saveStatus" id="fileStatus"></div>
+
+        <!-- named designs -->
+        <div class="designsSection">
+          <div class="dsLabel">我的設計</div>
+          <div class="designInputRow">
+            <input type="text" id="designNameInput" placeholder="輸入設計名稱…" maxlength="40">
+            <button class="saveBtn accent" onclick="saveDesign()">儲存目前設計</button>
+          </div>
+          <div class="designList" id="designList"></div>
+        </div>
+      </div>
+    </details>
+
+    <span class="autoSaveIndicator" id="autoSaveIndicator" style="position:relative;display:block;text-align:right;height:16px;margin-bottom:4px">已自動儲存 ✓</span>
+    <!-- MAIN tab controls -->
+    <div id="ctlMain">
+      <div class="presetRow" id="presets"></div>
+      <div class="ctlGroup">
+        <div class="row"><span>頂列標題</span><input type="text" id="topTitle" oninput="state.topbar.title=this.value;updateAll()"></div>
+        <div class="row"><span>分享 icon ↗️</span><label class="sw"><input type="checkbox" id="topShare" onchange="state.topbar.share=this.checked;updateAll()"><span></span></label></div>
+        <div class="row"><span>資訊 icon ℹ️</span><label class="sw"><input type="checkbox" id="topInfo" onchange="state.topbar.info=this.checked;updateAll()"><span></span></label></div>
+      </div>
+      <div class="sectionLabel">區塊順序（由上而下）</div>
+      <div id="blockList"></div>
+    </div>
+    <!-- CHAT tab controls -->
+    <div id="ctlChat" style="display:none">
+      <div class="ctlGroup">
+        <div class="row"><span>預設分類</span>
+          <select id="cCategory" onchange="state.chat.category=this.value;updateAll()">
+            <option value="all">全部</option>
+            <option value="community">社群</option>
+            <option value="group">群組</option>
+            <option value="personal">個人</option>
+          </select>
+        </div>
+        <div class="row"><span>預設排序</span>
+          <select id="cSort" onchange="state.chat.sort=this.value;updateAll()">
+            <option value="recent">最新訊息</option>
+            <option value="name">名稱</option>
+          </select>
+        </div>
+        <div class="row"><span>顯示頭像</span><label class="sw"><input type="checkbox" id="cAva" onchange="state.chat.avatars=this.checked;updateAll()"><span></span></label></div>
+        <div class="row"><span>首次使用說明卡</span><label class="sw"><input type="checkbox" id="cOnboard" onchange="state.chat.onboard=this.checked;updateAll()"><span></span></label></div>
+      </div>
+    </div>
+
+  </div>
+
+  <div class="previewPane">
+    <div class="phoneWrap">
+      <div class="phoneLabel" id="phoneLabel">主畫面預覽</div>
+      <div class="phone">
+        <div class="pStatus"><span>11:51</span><span>📶 96%</span></div>
+        <div id="phoneTop"></div>
+        <div class="pBody" id="phoneBody"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+const DEFAULTS = {
+  topbar:{ title:'LINE Notify+', share:true, info:true },
+  blocks:[
+    {id:'status',  name:'服務狀態卡',          visible:true, f:{title:'✓ 服務運行中', subtitle:'正在接聽 LINE 通知'}},
+    {id:'settings',name:'設定卡（2 開關）',      visible:true, f:{section:'設定', t1:'啟用增強通知', s1:'攔截 LINE 通知，並將訊息堆疊顯示', t2:'取代原始通知', s2:'隱藏 LINE 原本的通知，僅顯示堆疊版本'}},
+    {id:'manage',  name:'管理個別聊天室',        visible:true, f:{label:'管理個別聊天室'}},
+    {id:'advanced',name:'進階功能（灰色摺疊）',  visible:true, f:{header:'進階功能', i1:'通知風格', i2:'回覆後自動清除通知', i3:'已讀後自動清除通知', i4:'語言'}},
+    {id:'help',    name:'新手教學與 FAQ',        visible:true, f:{label:'新手教學與 FAQ'}},
+    {id:'official',name:'加入官方帳號',          visible:true, f:{label:'加入 LINE Notify+ 官方帳號'}},
+  ],
+  chat:{ category:'all', sort:'recent', avatars:true, onboard:true },
+};
+const clone = o => JSON.parse(JSON.stringify(o));
+
+/* =========================================================
+   AUTO-RESTORE from localStorage (before first render)
+   ========================================================= */
+let state = clone(DEFAULTS);
+try {
+  const saved = localStorage.getItem('linenotify_ui_state');
+  if (saved) {
+    const parsed = JSON.parse(saved);
+    if (parsed && parsed.topbar && parsed.blocks && parsed.chat) {
+      state = parsed;
+    }
+  }
+} catch(e) { /* corrupt / missing — keep defaults */ }
+
+let curTab = 'main';
+
+/* =========================================================
+   FILE SYSTEM ACCESS API
+   ========================================================= */
+let fileHandle = null;
+let fsDebounceTimer = null;
+const fsSupported = typeof window.showSaveFilePicker === 'function';
+
+function initFileUI() {
+  const btnLink = document.getElementById('btnLinkFile');
+  const statusEl = document.getElementById('fileStatus');
+  if (!fsSupported) {
+    btnLink.disabled = true;
+    btnLink.style.opacity = '0.45';
+    btnLink.title = '此瀏覽器不支援 File System Access API';
+    statusEl.textContent = '此瀏覽器不支援自動存檔，請用「下載存檔」';
+  }
+}
+
+async function linkFile() {
+  if (!fsSupported) return;
+  try {
+    fileHandle = await window.showSaveFilePicker({
+      suggestedName: 'ui-state.json',
+      types: [{ description: 'JSON', accept: { 'application/json': ['.json'] } }]
+    });
+    document.getElementById('fileStatus').textContent = '自動存到：' + fileHandle.name;
+    // Write immediately after linking
+    await writeToFile();
+  } catch(e) {
+    if (e.name !== 'AbortError') {
+      document.getElementById('fileStatus').textContent = '連結失敗：' + e.message;
+    }
+    // AbortError = user cancelled — silently ignore
+  }
+}
+
+async function writeToFile() {
+  if (!fileHandle) return;
+  try {
+    const text = JSON.stringify(state, null, 2);
+    const w = await fileHandle.createWritable();
+    await w.write(text);
+    await w.close();
+  } catch(e) {
+    if (e.name !== 'AbortError') {
+      document.getElementById('fileStatus').textContent = '存檔失敗：' + e.message;
+    }
+  }
+}
+
+function scheduleFileWrite() {
+  if (!fileHandle) return;
+  clearTimeout(fsDebounceTimer);
+  fsDebounceTimer = setTimeout(writeToFile, 400);
+}
+
+/* =========================================================
+   LOCALSTORAGE AUTO-SAVE
+   ========================================================= */
+let autoSaveIndicatorTimer = null;
+function saveToLocalStorage() {
+  try {
+    localStorage.setItem('linenotify_ui_state', JSON.stringify(state));
+    // Flash indicator
+    const el = document.getElementById('autoSaveIndicator');
+    el.classList.add('show');
+    clearTimeout(autoSaveIndicatorTimer);
+    autoSaveIndicatorTimer = setTimeout(() => el.classList.remove('show'), 1500);
+  } catch(e) { /* quota exceeded or private mode — ignore */ }
+}
+
+/* =========================================================
+   DOWNLOAD / LOAD (fallback)
+   ========================================================= */
+function downloadState() {
+  const text = JSON.stringify(state, null, 2);
+  const blob = new Blob([text], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = 'linenotify-ui-state.json';
+  document.body.appendChild(a);
+  a.click();
+  setTimeout(() => { URL.revokeObjectURL(url); a.remove(); }, 500);
+}
+
+function loadFromFile(evt) {
+  const file = evt.target.files && evt.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = function(e) {
+    try {
+      const parsed = JSON.parse(e.target.result);
+      if (parsed && parsed.topbar && parsed.blocks && parsed.chat) {
+        state = parsed;
+        syncInputs(); renderBlocks(); updateAll();
+      } else {
+        alert('JSON 格式不符，無法載入。');
+      }
+    } catch(err) {
+      alert('檔案解析失敗：' + err.message);
+    }
+    // reset input so the same file can be loaded again if needed
+    evt.target.value = '';
+  };
+  reader.readAsText(file);
+}
+
+/* =========================================================
+   NAMED DESIGNS
+   ========================================================= */
+const DESIGNS_KEY = 'linenotify_designs';
+
+function loadDesigns() {
+  try {
+    const raw = localStorage.getItem(DESIGNS_KEY);
+    if (raw) return JSON.parse(raw);
+  } catch(e) {}
+  return {};
+}
+
+function saveDesigns(map) {
+  try { localStorage.setItem(DESIGNS_KEY, JSON.stringify(map)); } catch(e) {}
+}
+
+function saveDesign() {
+  const nameEl = document.getElementById('designNameInput');
+  const name = nameEl.value.trim();
+  if (!name) { nameEl.focus(); return; }
+  const map = loadDesigns();
+  map[name] = clone(state);
+  saveDesigns(map);
+  nameEl.value = '';
+  renderDesignList();
+}
+
+function loadDesign(name) {
+  const map = loadDesigns();
+  if (!map[name]) return;
+  state = clone(map[name]);
+  syncInputs(); renderBlocks(); updateAll();
+}
+
+function deleteDesign(name) {
+  const map = loadDesigns();
+  delete map[name];
+  saveDesigns(map);
+  renderDesignList();
+}
+
+function renderDesignList() {
+  const map = loadDesigns();
+  const keys = Object.keys(map);
+  const container = document.getElementById('designList');
+  if (!keys.length) {
+    container.innerHTML = '<div style="font-size:11px;color:var(--dim);padding:4px 0">（尚無儲存的設計）</div>';
+    return;
+  }
+  container.innerHTML = keys.map((k, idx) => {
+    const safeDisplay = k.replace(/</g,'&lt;').replace(/>/g,'&gt;');
+    return `<div class="designItem" data-didx="${idx}">
+      <span class="dName" title="${safeDisplay}">${safeDisplay}</span>
+      <button onclick="loadDesignByIdx(${idx})">載入</button>
+      <button class="del" onclick="deleteDesignByIdx(${idx})">刪除</button>
+    </div>`;
+  }).join('');
+}
+
+function _getDesignKeys() { return Object.keys(loadDesigns()); }
+function loadDesignByIdx(idx) { loadDesign(_getDesignKeys()[idx]); }
+function deleteDesignByIdx(idx) { deleteDesign(_getDesignKeys()[idx]); }
+
+/* =========================================================
+   EXISTING LOGIC (unchanged)
+   ========================================================= */
+const PRESETS = {
+  '目前版本':()=>{ state=clone(DEFAULTS); },
+  '設定優先':()=>{ state=clone(DEFAULTS); move('settings',0); move('status',1); },
+  '極簡（藏進階+教學）':()=>{ state=clone(DEFAULTS); setVis('advanced',false); setVis('help',false); },
+  '新手友善（教學上移）':()=>{ state=clone(DEFAULTS); move('help',1); },
+};
+function move(id,to){ const i=state.blocks.findIndex(b=>b.id===id); const [b]=state.blocks.splice(i,1); state.blocks.splice(to,0,b); }
+function setVis(id,v){ const b=state.blocks.find(b=>b.id===id); if(b)b.visible=v; }
+
+function switchTab(t){
+  curTab=t;
+  document.querySelectorAll('.tab').forEach(e=>e.classList.toggle('active',e.dataset.tab===t));
+  document.getElementById('ctlMain').style.display = t==='main'?'':'none';
+  document.getElementById('ctlChat').style.display = t==='chat'?'':'none';
+  document.getElementById('phoneLabel').textContent = t==='main'?'主畫面預覽':'管理聊天室預覽';
+  updateAll();
+}
+
+/* ---------- control panel render ---------- */
+function renderPresets(){
+  document.getElementById('presets').innerHTML = Object.keys(PRESETS).map(k=>
+    `<div class="preset" onclick="applyPreset('${k}')">${k}</div>`).join('');
+}
+function applyPreset(k){ PRESETS[k](); syncInputs(); renderBlocks(); updateAll(); }
+
+function renderBlocks(){
+  const list = document.getElementById('blockList');
+  list.innerHTML = state.blocks.map((b,i)=>{
+    const fields = Object.entries(b.f).map(([k,v])=>{
+      const lbl = ({title:'狀態標題',subtitle:'狀態說明',section:'區塊標題',t1:'開關1 標題',s1:'開關1 說明',t2:'開關2 標題',s2:'開關2 說明',label:'文字',header:'標題',i1:'項目1',i2:'項目2',i3:'項目3',i4:'項目4'})[k]||k;
+      return `<div class="fld"><label>${lbl}</label><input value="${esc(v)}" oninput="editField('${b.id}','${k}',this.value)"></div>`;
+    }).join('');
+    return `<div class="blockRow ${b.visible?'':'hidden'}" draggable="true" data-i="${i}"
+        ondragstart="dragStart(event,${i})" ondragover="dragOver(event)" ondrop="drop(event,${i})" ondragend="dragEnd(event)">
+      <div class="bMain">
+        <span class="grip">⠿</span>
+        <span class="bName">${b.name}</span>
+        <div class="ord"><button onclick="bump(${i},-1)">▲</button><button onclick="bump(${i},1)">▼</button></div>
+        <label class="vis"><input type="checkbox" ${b.visible?'checked':''} onchange="toggleVis(${i},this.checked)" style="accent-color:var(--accent)"> 顯示</label>
+      </div>
+      <details class="edit"><summary></summary>${fields}</details>
+    </div>`;
+  }).join('');
+}
+function esc(s){ return String(s).replace(/"/g,'&quot;'); }
+function editField(id,k,v){ const b=state.blocks.find(b=>b.id===id); b.f[k]=v; updateAll(); }
+function toggleVis(i,v){ state.blocks[i].visible=v; renderBlocks(); updateAll(); }
+function bump(i,d){ const j=i+d; if(j<0||j>=state.blocks.length)return; [state.blocks[i],state.blocks[j]]=[state.blocks[j],state.blocks[i]]; renderBlocks(); updateAll(); }
+
+let dragI=null;
+function dragStart(e,i){ dragI=i; e.currentTarget.classList.add('dragging'); }
+function dragOver(e){ e.preventDefault(); }
+function drop(e,i){ e.preventDefault(); if(dragI===null||dragI===i)return; const [b]=state.blocks.splice(dragI,1); state.blocks.splice(i,0,b); dragI=null; renderBlocks(); updateAll(); }
+function dragEnd(e){ e.currentTarget.classList.remove('dragging'); dragI=null; }
+
+function syncInputs(){
+  document.getElementById('topTitle').value = state.topbar.title;
+  document.getElementById('topShare').checked = state.topbar.share;
+  document.getElementById('topInfo').checked = state.topbar.info;
+  document.getElementById('cCategory').value = state.chat.category || 'all';
+  document.getElementById('cSort').value = state.chat.sort || 'recent';
+  document.getElementById('cAva').checked = state.chat.avatars !== false;
+  document.getElementById('cOnboard').checked = state.chat.onboard !== false;
+}
+
+/* ---------- preview render ---------- */
+function pSwitch(on){ return `<div class="pSwitch ${on?'':'off'}"></div>`; }
+function renderPreview(){
+  const top = document.getElementById('phoneTop');
+  const body = document.getElementById('phoneBody');
+  top.innerHTML = `<div class="pBar"><span class="ttl">${state.topbar.title}</span>${state.topbar.share?'<span class="ic">↗️</span>':''}${state.topbar.info?'<span class="ic">ⓘ</span>':''}</div>`;
+
+  if(curTab==='chat'){ body.innerHTML = renderChat(); return; }
+
+  body.innerHTML = state.blocks.filter(b=>b.visible).map(b=>{
+    const f=b.f;
+    switch(b.id){
+      case 'status': return `<div class="card status"><div class="statusBig">${f.title}</div><div class="sub">${f.subtitle}</div></div>`;
+      case 'settings': return `<div class="card settings"><div class="secTtl">${f.section}</div>
+          <div class="tog"><div><div class="tt">${f.t1}</div><div class="sub">${f.s1}</div></div>${pSwitch(true)}</div>
+          <div class="divg"></div>
+          <div class="tog"><div><div class="tt">${f.t2}</div><div class="sub">${f.s2}</div></div>${pSwitch(true)}</div></div>`;
+      case 'manage': return `<div class="rowCard">${f.label}<span class="chev">›</span></div>`;
+      case 'advanced': return `<div class="card adv"><div class="advHead">${f.header}<span style="margin-left:auto;color:#888;font-size:15px">⌄</span></div></div>`;
+      case 'help': return `<div class="btnOutline">${f.label}</div>`;
+      case 'official': return `<div class="btnFill">${f.label}</div>`;
+    }
+  }).join('');
+}
+
+const SAMPLE=[
+  {nm:'家族群組',ty:'群組',c:'#06C755',cat:'group'},
+  {nm:'大學同學會',ty:'群組',c:'#7B61FF',cat:'group'},
+  {nm:'攝影同好社',ty:'社群',c:'#FF8A00',cat:'community'},
+  {nm:'媽媽',ty:'個人',c:'#EA4C89',cat:'personal'},
+  {nm:'王經理',ty:'個人',c:'#00A3BF',cat:'personal'},
+];
+function renderChat(){
+  const cat = state.chat.category || 'all';
+  const sort = state.chat.sort || 'recent';
+  const catLabels = {all:'全部',community:'社群',group:'群組',personal:'個人'};
+  const sortLabel = sort==='name' ? '名稱 ▾' : '最新訊息 ▾';
+
+  // Category filter chip bar + sort button in same row
+  let html = `<div class="filterRow">
+    <div class="chipBar" style="flex:1">
+      ${['all','community','group','personal'].map(c=>`<span class="chip${cat===c?' on':''}">${catLabels[c]}</span>`).join('')}
+    </div>
+    <div class="sortBtn">${sortLabel}</div>
+  </div>`;
+
+  // Onboard card above list
+  if(state.chat.onboard){
+    html += `<div class="card status" style="margin-bottom:8px"><div class="ttlBold">這份清單是什麼？</div><div class="sub">這裡是「曾收到通知」的聊天室。開關 = 要不要幫這個聊天室做堆疊通知。</div></div>`;
+  }
+
+  // Filter items by category
+  let items = cat==='all' ? SAMPLE.slice() : SAMPLE.filter(s=>s.cat===cat);
+
+  // Sort
+  if(sort==='name') items = items.slice().sort((a,b)=>a.nm.localeCompare(b.nm,'zh-Hant'));
+
+  // Render rows
+  html += items.map(s=>`<div class="chatRow">
+    ${state.chat.avatars!==false?`<div class="ava" style="background:${s.c}">${s.nm[0]}</div>`:''}
+    <div style="flex:1"><div class="nm">${s.nm}</div><div class="ty">${s.ty}</div></div>
+    ${pSwitch(true)}
+    <span class="chatTrash">🗑</span>
+  </div>`).join('');
+
+  return html;
+}
+
+/* ---------- updateAll (enhanced with auto-save) ---------- */
+function updateAll(){
+  renderPreview();
+  saveToLocalStorage();
+  scheduleFileWrite();
+}
+
+/* =========================================================
+   INIT
+   ========================================================= */
+initFileUI();
+renderPresets();
+renderBlocks();
+syncInputs();
+renderDesignList();
+updateAll();
+</script>
+</body>
+</html>
