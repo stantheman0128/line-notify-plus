@@ -9,7 +9,7 @@
     <string name="share_chooser_title">分享 LINE Notify+</string>
     <string name="play_store_url_placeholder">https://play.google.com/store/apps/details?id=com.stanslab.linenotify</string>
     <string name="github_url">https://github.com/stantheman0128/line-notify-plus</string>
-    <string name="line_official_url">https://line.me/ti/p/@687yglbr</string>
+    <string name="line_official_url">https://line.me/ti/p/@260gansj</string>
     <string name="share_message">我在用 LINE Notify+，可以把 LINE 訊息堆疊成對話串，也能用 Apple 分組顯示。下載連結：%1$s</string>
 
     <string name="main_title">LINE Notify+</string>
@@ -18,13 +18,13 @@
     <string name="service_disabled">✗ 服務未啟用</string>
     <string name="service_listening">正在接聽 LINE 通知</string>
     <string name="service_needs_permission">需要授權通知存取權限才能運作</string>
-    <string name="service_stack_disabled">堆疊版本通知已關閉</string>
+    <string name="service_stack_disabled">完整通知已關閉</string>
     <string name="open_notification_access">開啟通知存取權限</string>
     <string name="settings_title">設定</string>
-    <string name="enable_stack_notifications_title">啟用增強通知</string>
-    <string name="enable_stack_notifications_subtitle">攔截 LINE 通知，並將訊息堆疊顯示</string>
+    <string name="enable_stack_notifications_title">啟用完整通知</string>
+    <string name="enable_stack_notifications_subtitle">攔截 LINE 通知，把訊息整理成完整對話顯示</string>
     <string name="replace_original_title">取代原始通知</string>
-    <string name="replace_original_subtitle">隱藏 LINE 原本的通知，僅顯示堆疊版本</string>
+    <string name="replace_original_subtitle">隱藏 LINE 原本的通知，僅顯示完整通知</string>
     <string name="clear_timing_title">通知清除時機</string>
     <string name="clear_after_reply_title">回覆後清除通知</string>
     <string name="clear_after_reply_subtitle">在通知上回覆後過一秒，自動清除該則通知</string>
@@ -53,11 +53,15 @@
 
     <string name="about_title">App 資訊</string>
     <string name="app_version_format">v%1$s</string>
-    <string name="app_tagline">LINE 通知堆疊版本工具</string>
+    <string name="app_tagline">LINE 完整通知工具</string>
     <string name="changelog_title">更新紀錄</string>
     <string name="about_links_title">關於</string>
     <string name="github_source">GitHub 原始碼</string>
     <string name="official_account_report">LINE 官方帳號 — 回報問題與功能建議</string>
+    <string name="changelog_1_2_0_reply">修正狀態欄快速回覆送不出、卡轉圈的問題</string>
+    <string name="changelog_1_2_0_clear">新增回覆後、已讀後自動清除通知的設定</string>
+    <string name="changelog_1_2_0_dual">雙開 LINE 時可以區分不同帳號的訊息來源</string>
+    <string name="changelog_1_2_0_ui">介面改版，文案調整讓功能更好懂</string>
     <string name="changelog_1_1_0_icon">全新 App 圖示，準備上架 Google Play</string>
     <string name="changelog_1_1_0_play">改為透過 Google Play 更新（移除 App 內手動更新）</string>
     <string name="changelog_1_1_0_stability">內部清理與穩定性提升</string>
@@ -93,10 +97,10 @@
     <string name="chat_type_personal">好友</string>
     <string name="chat_detail_title">聊天室詳情</string>
     <string name="chat_detail_empty_title">選擇一個聊天室</string>
-    <string name="chat_detail_empty_body">在左側選擇聊天室，就能查看類型並切換堆疊版本通知。</string>
-    <string name="chat_status_enabled">已啟用堆疊版本通知</string>
-    <string name="chat_status_disabled">已關閉堆疊版本通知</string>
-    <string name="chat_toggle_title">這個聊天室使用堆疊版本</string>
+    <string name="chat_detail_empty_body">在左側選擇聊天室，就能查看類型並切換完整通知。</string>
+    <string name="chat_status_enabled">已啟用完整通知</string>
+    <string name="chat_status_disabled">已關閉完整通知</string>
+    <string name="chat_toggle_title">這個聊天室使用完整通知</string>
     <string name="chat_filter_all">全部</string>
     <string name="chat_sort_label">排序</string>
     <string name="chat_sort_recent">最新訊息</string>
@@ -110,7 +114,7 @@
     <string name="chat_search_content_description">搜尋</string>
     <string name="chat_info_content_description">說明</string>
     <string name="chat_info_title">關於聊天室管理</string>
-    <string name="chat_info_body">這裡可以針對每個聊天室，單獨決定要不要做增強通知（堆疊）。關掉某個聊天室，它就只會收到 LINE 原本的通知。\n\n• 只有「曾收到訊息」的聊天室才會出現在這裡。\n• 若頭像沒顯示、或某個聊天室沒出現，通常是該聊天室的通知還沒進來、或尚未被抓取。</string>
+    <string name="chat_info_body">這裡可以針對每個聊天室，單獨決定要不要做完整通知。關掉某個聊天室，它就只會收到 LINE 原本的通知。\n\n• 只有「曾收到訊息」的聊天室才會出現在這裡。\n• 若頭像沒顯示、或某個聊天室沒出現，通常是該聊天室的通知還沒進來、或尚未被抓取。</string>
     <string name="chat_info_privacy_link">🔒 我們如何處理你的資料</string>
     <string name="chat_info_privacy_body">我們不會收集你的聊天室資料。只有在訊息傳入時，才會在「本機」抓取該聊天室的名稱與頭像，用來顯示這份清單。App 沒有網路權限，資料不會上傳。</string>
     <string name="chat_select_all">全選</string>
@@ -124,22 +128,22 @@
 
     <string name="help_title">教學與 FAQ</string>
     <string name="help_intro_title">LINE Notify+ 是什麼</string>
-    <string name="help_intro_body">它會讀取 LINE 的原始通知，把同一個聊天室的訊息「堆疊」在一起，再由 App 發出整理後的通知。這樣你能持續看到通知、並一次讀完整個聊天室的所有新訊息，而不像 LINE 原本只顯示最新一條。</string>
+    <string name="help_intro_body">它會讀取 LINE 的原始通知，把同一個聊天室的訊息整理成完整的一則，再發出通知。這樣你能持續看到通知、並一次讀完整個聊天室的所有新訊息，而不像 LINE 原本只顯示最新一條。</string>
     <string name="onboarding_title">使用說明</string>
     <string name="onboarding_step_1_title">1. 開啟通知存取權限</string>
     <string name="onboarding_step_1_body">進入 Android 通知存取設定，允許 LINE Notify+ 讀取 LINE 通知。</string>
-    <string name="onboarding_step_2_title">2. 啟用堆疊版本通知</string>
-    <string name="onboarding_step_2_body">回到設定頁打開開關，App 才會把 LINE 訊息堆疊起來。</string>
+    <string name="onboarding_step_2_title">2. 啟用完整通知</string>
+    <string name="onboarding_step_2_body">回到設定頁打開開關，App 才會把 LINE 訊息整理成完整通知。</string>
     <string name="onboarding_step_3_title">3. 選擇通知風格</string>
     <string name="onboarding_step_3_body">對話串模式適合追連續對話；Apple 分組模式適合保留每則訊息的獨立通知。</string>
     <string name="onboarding_step_4_title">4. 管理個別聊天室</string>
-    <string name="onboarding_step_4_body">收到通知後，聊天室會出現在管理頁，可單獨開啟或關閉堆疊版本。</string>
+    <string name="onboarding_step_4_body">收到通知後，聊天室會出現在管理頁，可單獨開啟或關閉完整通知。</string>
     <string name="style_help_title">通知風格說明</string>
     <string name="style_help_thread_body">同一個聊天室只顯示一則通知，內容像聊天記錄一樣往下堆疊。適合群組、社群或連續聊天。</string>
     <string name="style_help_apple_body">每則訊息都是獨立通知，Android 會依聊天室分組收合。適合想保留每則訊息通知狀態的人。</string>
     <string name="faq_title">FAQ</string>
     <string name="faq_q_permission">為什麼需要通知存取權限？</string>
-    <string name="faq_a_permission">App 只能透過 NotificationListenerService 讀到 LINE 通知內容，才能重新組成堆疊版本通知。</string>
+    <string name="faq_a_permission">App 只能透過 NotificationListenerService 讀到 LINE 通知內容，才能重新組成完整通知。</string>
     <string name="faq_q_network">App 會上傳我的訊息嗎？</string>
     <string name="faq_a_network">不會。App 沒有 INTERNET 權限，也沒有 analytics、後端或自我更新功能。</string>
     <string name="faq_q_original">取代原始通知是什麼？</string>
@@ -161,5 +165,5 @@
     <string name="notification_reply_action">回覆</string>
     <string name="notification_summary_text">%1$d 則訊息</string>
     <string name="notification_group_title">%1$s — %2$s</string>
-    <string name="notification_channel_description">LINE Notify+ 堆疊版本通知</string>
+    <string name="notification_channel_description">LINE Notify+ 完整通知</string>
 </resources>

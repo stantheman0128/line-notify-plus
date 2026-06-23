@@ -18,13 +18,13 @@
     <string name="service_disabled">✗ Service disabled</string>
     <string name="service_listening">Listening for LINE notifications</string>
     <string name="service_needs_permission">Notification access permission is required</string>
-    <string name="service_stack_disabled">Stack version notifications are turned off</string>
+    <string name="service_stack_disabled">Complete notifications are turned off</string>
     <string name="open_notification_access">Open notification access</string>
     <string name="settings_title">Settings</string>
-    <string name="enable_stack_notifications_title">Enable enhanced notifications</string>
-    <string name="enable_stack_notifications_subtitle">Intercept LINE notifications and stack the messages</string>
+    <string name="enable_stack_notifications_title">Enable complete notifications</string>
+    <string name="enable_stack_notifications_subtitle">Intercept LINE notifications and combine messages into complete conversations</string>
     <string name="replace_original_title">Replace original notifications</string>
-    <string name="replace_original_subtitle">Hide the original LINE notification and show only the stack version</string>
+    <string name="replace_original_subtitle">Hide the original LINE notification and show only the complete notification</string>
     <string name="clear_timing_title">When to clear notifications</string>
     <string name="clear_after_reply_title">Clear after reply</string>
     <string name="clear_after_reply_subtitle">About a second after you reply from the notification, that notification is cleared</string>
@@ -53,11 +53,15 @@
 
     <string name="about_title">App info</string>
     <string name="app_version_format">v%1$s</string>
-    <string name="app_tagline">LINE notification stack version tool</string>
+    <string name="app_tagline">Complete notifications for LINE</string>
     <string name="changelog_title">Changelog</string>
     <string name="about_links_title">About</string>
     <string name="github_source">GitHub source</string>
     <string name="official_account_report">LINE official account — report issues and suggest features</string>
+    <string name="changelog_1_2_0_reply">Fixed quick replies that failed to send or kept spinning</string>
+    <string name="changelog_1_2_0_clear">Added settings to auto-clear notifications after replying or reading</string>
+    <string name="changelog_1_2_0_dual">Tell apart different accounts when running dual LINE</string>
+    <string name="changelog_1_2_0_ui">Refreshed interface with clearer wording</string>
     <string name="changelog_1_1_0_icon">New app icon for Google Play</string>
     <string name="changelog_1_1_0_play">Updates now go through Google Play, with in-app manual updates removed</string>
     <string name="changelog_1_1_0_stability">Internal cleanup and stability improvements</string>
@@ -93,10 +97,10 @@
     <string name="chat_type_personal">Friends</string>
     <string name="chat_detail_title">Chat details</string>
     <string name="chat_detail_empty_title">Select a chat</string>
-    <string name="chat_detail_empty_body">Choose a chat on the left to view its type and toggle stack version notifications.</string>
-    <string name="chat_status_enabled">Stack version notifications enabled</string>
-    <string name="chat_status_disabled">Stack version notifications disabled</string>
-    <string name="chat_toggle_title">Use stack version for this chat</string>
+    <string name="chat_detail_empty_body">Choose a chat on the left to view its type and toggle complete notifications.</string>
+    <string name="chat_status_enabled">Complete notifications enabled</string>
+    <string name="chat_status_disabled">Complete notifications disabled</string>
+    <string name="chat_toggle_title">Use complete notifications for this chat</string>
     <string name="chat_filter_all">All</string>
     <string name="chat_sort_label">Sort</string>
     <string name="chat_sort_recent">Latest message</string>
@@ -110,7 +114,7 @@
     <string name="chat_search_content_description">Search</string>
     <string name="chat_info_content_description">Info</string>
     <string name="chat_info_title">About chat management</string>
-    <string name="chat_info_body">Here you can decide, per chat, whether to enhance (stack) its notifications. Turn a chat off and it only gets LINE\'s original notification.\n\n• Only chats that have received a message appear here.\n• If an avatar is missing or a chat is absent, its notification probably hasn\'t arrived or been captured yet.</string>
+    <string name="chat_info_body">Here you can decide, per chat, whether to give it complete notifications. Turn a chat off and it only gets LINE\'s original notification.\n\n• Only chats that have received a message appear here.\n• If an avatar is missing or a chat is absent, its notification probably hasn\'t arrived or been captured yet.</string>
     <string name="chat_info_privacy_link">🔒 How we handle your data</string>
     <string name="chat_info_privacy_body">We do not collect your chat data. Only when a message arrives do we read the chat\'s name and avatar locally, to show this list. The app has no network permission, so nothing is uploaded.</string>
     <string name="chat_select_all">Select all</string>
@@ -124,12 +128,12 @@
 
     <string name="help_title">Guide &amp; FAQ</string>
     <string name="help_intro_title">What is LINE Notify+</string>
-    <string name="help_intro_body">It reads LINE\'s original notifications and stacks messages from the same chat together, then posts a tidied notification. You keep seeing notifications and can read all new messages in a chat at once — unlike LINE, which only shows the latest one.</string>
+    <string name="help_intro_body">It reads LINE\'s original notifications and combines messages from the same chat into one complete notification. You keep seeing notifications and can read all new messages in a chat at once — unlike LINE, which only shows the latest one.</string>
     <string name="onboarding_title">How to use</string>
     <string name="onboarding_step_1_title">1. Enable notification access</string>
     <string name="onboarding_step_1_body">Open Android notification access settings and allow LINE Notify+ to read LINE notifications.</string>
-    <string name="onboarding_step_2_title">2. Enable stack version notifications</string>
-    <string name="onboarding_step_2_body">Return to settings and turn on the switch so LINE messages can be stacked.</string>
+    <string name="onboarding_step_2_title">2. Enable complete notifications</string>
+    <string name="onboarding_step_2_body">Return to settings and turn on the switch so LINE messages are combined into complete notifications.</string>
     <string name="onboarding_step_3_title">3. Choose a notification style</string>
     <string name="onboarding_step_3_body">Thread mode is better for continuous conversations. Apple grouping mode preserves each message as an individual notification.</string>
     <string name="onboarding_step_4_title">4. Manage individual chats</string>
@@ -161,5 +165,5 @@
     <string name="notification_reply_action">Reply</string>
     <string name="notification_summary_text">%1$d messages</string>
     <string name="notification_group_title">%1$s — %2$s</string>
-    <string name="notification_channel_description">LINE Notify+ stack version notifications</string>
+    <string name="notification_channel_description">LINE Notify+ complete notifications</string>
 </resources>
