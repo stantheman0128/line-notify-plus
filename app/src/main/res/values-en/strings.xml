@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="app_name">LINE Notify+</string>
+    <string name="app_name">Notify+</string>
     <string name="unknown_version">unknown</string>
     <string name="action_back">Back</string>
     <string name="action_share_app">Share app</string>

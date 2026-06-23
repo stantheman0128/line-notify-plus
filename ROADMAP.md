@@ -82,7 +82,7 @@
 - [預期，不處理] **無 deobfuscation 檔（R8 mapping）**：因 `isMinifyEnabled = false`（鐵則 6，故意關 R8 怕 release crash），沒混淆就沒對照表可傳，這警告本來就會出現。crash 的 stack trace 不混淆、本來就可讀，直接忽略即可。除非哪天決定開 R8，才需要連 mapping 一起傳。
 
 ## 長期 (v2.0)
-- [~] 上架 Google Play（v1.2.0 / vc12 進行中：closed testing 已過，signed AAB 待上 Production 審核）
+- [~] 上架 Google Play（v1.2.0 / vc13 進行中：2026-06-23 vc12 因 Impersonation policy 退件 → 已改名「Notify+」、重做 feature graphic、商店描述去 LINE 主打，待重交 Production；詳見 play-store-assets/play-console-progress.md）
 - [ ] 訊息搜尋（跨聊天室搜尋通知歷史）
 - [ ] 自訂通知音效 / 震動模式
 - [ ] Widget（桌面小工具顯示最近訊息）

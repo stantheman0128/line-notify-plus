@@ -4,6 +4,14 @@
 App ID: 4975318820563729104 (com.stanslab.linenotify)
 Dev account ID: 7824252807370180483（URL 用得到）
 
+## ⚠️ 2026-06-23 Impersonation 退件 → 改名 Notify+（vc13）
+
+- vc12 (1.2.0) 上傳 Production 後被 **Impersonation policy** 退件。證據：App name「LINE Notify+」（撞 LINE 官方舊服務名 LINE Notify）+ feature graphic 模仿 LINE 識別（綠氣泡 icon + LINE 綠 + LINE 字 + 「重新定義你的 LINE 通知體驗」）。
+- 處置：App 改名 **Notify+**（app_name 中英已改 + 待改 Console「App name」欄位）；feature graphic 重做（靛藍中性、堆疊通知卡、無任何 LINE 元素）；商店描述去 LINE 主打、開頭即聲明第三方非官方、刪掉過時的「安裝套件權限」段。
+- 新 AAB：vc13 / 1.2.0，signed，權限仍只有 2 個。
+- ⚠️ 殘餘風險：icon 還是綠氣泡（Stan 選暫不改），二次提交可能再被抓 icon；「Notify+」名稱通用，留意是否撞到別人已用的名稱。
+- Console 待辦：改 App name 欄位、換 feature graphic、貼新描述、重傳 vc13 AAB、重新送審。
+
 ## 帳號狀態
 - ✅ Google identity verification 通過
 - ✅ App entry 已建立（Free, 繁中 zh-TW）
