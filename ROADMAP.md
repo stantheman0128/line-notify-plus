@@ -75,8 +75,14 @@
       `roomKey = profileKey(getUser()) + 聊天室名`；本人頭貼每帳號一張；偵測到 >1 帳號時通知標題前綴帳號來源。
 - [ ] **收回訊息保留**（在通知中顯示已被收回的訊息）
 
+## 建置 / 上架雜項（Play Console 警告，低優先）
+> 來源：2026-06-23 上傳 vc12 (1.2.0) 到 Play Console 時跳的 2 個 warning。兩個都是「建議」非 error，不擋上架。
+
+- [ ] **native debug symbols**：AAB 夾帶 androidx 依賴帶進來的 `libandroidx.graphics.path.so`，Console 建議上傳 native debug symbols，方便分析原生層 crash/ANR。下一版（vc13+）在 `app/build.gradle.kts` 的 `release {}` 加一行 `ndk { debugSymbolLevel = "FULL" }` 即可消除。投報率低（這種小工具幾乎不會在原生層當機），有空再做。
+- [預期，不處理] **無 deobfuscation 檔（R8 mapping）**：因 `isMinifyEnabled = false`（鐵則 6，故意關 R8 怕 release crash），沒混淆就沒對照表可傳，這警告本來就會出現。crash 的 stack trace 不混淆、本來就可讀，直接忽略即可。除非哪天決定開 R8，才需要連 mapping 一起傳。
+
 ## 長期 (v2.0)
-- [~] 上架 Google Play（v1.1.0 進行中：closed testing 階段）
+- [~] 上架 Google Play（v1.2.0 / vc12 進行中：closed testing 已過，signed AAB 待上 Production 審核）
 - [ ] 訊息搜尋（跨聊天室搜尋通知歷史）
 - [ ] 自訂通知音效 / 震動模式
 - [ ] Widget（桌面小工具顯示最近訊息）
