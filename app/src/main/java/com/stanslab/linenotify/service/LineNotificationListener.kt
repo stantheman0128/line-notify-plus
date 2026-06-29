@@ -173,26 +173,20 @@ class LineNotificationListener : NotificationListenerService() {
         val subText = extras.getCharSequence("android.subText")?.toString()
         val channelId = sbn.notification.channelId ?: ""
         val tag = sbn.tag ?: ""
-        val shortcutId = extras.getString("android.shortcutId") ?: ""
 
         // 判斷聊天類型：個人 / 群組 / 社群
-        // 社群(OpenChat) 的 shortcutId 通常以 "c" 開頭，群組以 "g" 開頭，個人以 "u" 開頭
-        val chatType: String
-        val sender: String
-        val chatTitle: String
-
-        if (subText != null) {
-            sender = title
-            chatTitle = subText
-            chatType = when {
-                shortcutId.startsWith("c") -> "community"
-                else -> "group"
-            }
-        } else {
-            sender = title
-            chatTitle = title
-            chatType = "personal"
+        // 社群(LINE OpenChat / Square)：LINE 帶私有 extra line.square.notification=true，
+        // 這是唯一可靠的社群標記。社群訊息跟群組同走 NewMessages 頻道、shortcutId 也讀不到
+        // （android.shortcutId 不在 extras，頂層 shortcutId 又常是群組 chat id），故一律改看此旗標。
+        // 實機 dumpsys 驗證：社群帶 line.square.notification=true，群組沒有。
+        val isSquare = extras.getBoolean("line.square.notification", false)
+        val chatType: String = when {
+            isSquare -> "community"
+            subText != null -> "group"
+            else -> "personal"
         }
+        val sender: String = title
+        val chatTitle: String = subText ?: title
         val isGroup = chatType != "personal"
 
         // 雙開帳號區分：把帳號(profile)納入 key
@@ -201,7 +195,7 @@ class LineNotificationListener : NotificationListenerService() {
         knownProfiles.add(profileKey)
 
         // Debug: 記錄通知結構幫助分析
-        Log.v(TAG, "通知結構 channelId=$channelId tag=$tag shortcutId=$shortcutId chatType=$chatType profile=$profileKey")
+        Log.v(TAG, "通知結構 channelId=$channelId tag=$tag square=$isSquare chatType=$chatType profile=$profileKey")
 
         // 去重
         val timeSeconds = sbn.postTime / 1000
@@ -577,10 +571,24 @@ class LineNotificationListener : NotificationListenerService() {
             "group" -> "known_groups"
             else -> "known_chats"
         }
+        // 一個聊天室只該屬於一個類別。先把它從另兩個 set 移除，
+        // 自動修正過去誤分類的殘留（例如社群之前被當群組存進 known_groups）。
+        val editor = prefs.edit()
+        var changed = false
+        for (other in listOf("known_communities", "known_groups", "known_chats")) {
+            if (other == key) continue
+            val s = prefs.getStringSet(other, emptySet())?.toMutableSet() ?: continue
+            if (s.remove(chatTitle)) {
+                editor.putStringSet(other, s)
+                changed = true
+            }
+        }
         val known = prefs.getStringSet(key, mutableSetOf())?.toMutableSet() ?: mutableSetOf()
         if (known.add(chatTitle)) {
-            prefs.edit().putStringSet(key, known).apply()
+            editor.putStringSet(key, known)
+            changed = true
         }
+        if (changed) editor.apply()
     }
 
     /** 收錄聊天室：名稱（分類）+ 最後活躍時間 + 頭貼，給「管理個別聊天室」顯示用。 */
