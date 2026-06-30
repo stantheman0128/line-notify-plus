@@ -42,6 +42,10 @@ android {
     buildTypes {
         release {
             isMinifyEnabled = false
+            // 打包原生 debug symbols（androidx 依賴帶進來的 .so），方便 Play Console 分析原生層 crash/ANR。
+            ndk {
+                debugSymbolLevel = "FULL"
+            }
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
