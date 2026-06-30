@@ -415,6 +415,10 @@ private fun SettingsCard(
     onServiceEnabledChange: (Boolean) -> Unit,
     onReplaceOriginalChange: (Boolean) -> Unit
 ) {
+    var infoDialog by remember { mutableStateOf<Pair<String, String>?>(null) }
+    val replaceInfoTitle = stringResource(R.string.replace_original_info_title)
+    val replaceInfoBody = stringResource(R.string.replace_original_info_body)
+
     Card(modifier = Modifier.fillMaxWidth()) {
         Column(modifier = Modifier.padding(20.dp)) {
             Text(
@@ -438,9 +442,23 @@ private fun SettingsCard(
                 subtitle = stringResource(R.string.replace_original_subtitle),
                 checked = replaceOriginal,
                 enabled = serviceEnabled,
-                onCheckedChange = onReplaceOriginalChange
+                onCheckedChange = onReplaceOriginalChange,
+                onInfo = { infoDialog = replaceInfoTitle to replaceInfoBody }
             )
         }
+    }
+
+    if (infoDialog != null) {
+        AlertDialog(
+            onDismissRequest = { infoDialog = null },
+            title = { Text(infoDialog!!.first) },
+            text = { Text(infoDialog!!.second) },
+            confirmButton = {
+                TextButton(onClick = { infoDialog = null }) {
+                    Text(stringResource(android.R.string.ok))
+                }
+            }
+        )
     }
 }
 

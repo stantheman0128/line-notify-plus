@@ -6,13 +6,13 @@
     <string name="action_share_app">分享 App</string>
     <string name="main_share_content_description">分享 App</string>
     <string name="advanced_section_title">進階功能</string>
-    <string name="share_chooser_title">分享 LINE Notify+</string>
+    <string name="share_chooser_title">分享 Notify+</string>
     <string name="play_store_url_placeholder">https://play.google.com/store/apps/details?id=com.stanslab.linenotify</string>
     <string name="github_url">https://github.com/stantheman0128/line-notify-plus</string>
     <string name="line_official_url">https://line.me/ti/p/@260gansj</string>
-    <string name="share_message">我在用 LINE Notify+，可以把 LINE 訊息堆疊成對話串，也能用 Apple 分組顯示。下載連結：%1$s</string>
+    <string name="share_message">我在用 Notify+，可以把 LINE 訊息堆疊成對話串，也能用 Apple 分組顯示。下載連結：%1$s</string>
 
-    <string name="main_title">LINE Notify+</string>
+    <string name="main_title">Notify+</string>
     <string name="main_info_content_description">App 資訊</string>
     <string name="service_running">✓ 服務運行中</string>
     <string name="service_disabled">✗ 服務未啟用</string>
@@ -25,6 +25,8 @@
     <string name="enable_stack_notifications_subtitle">攔截 LINE 通知，把訊息整理成完整對話顯示</string>
     <string name="replace_original_title">取代原始通知</string>
     <string name="replace_original_subtitle">隱藏 LINE 原本的通知，僅顯示完整通知</string>
+    <string name="replace_original_info_title">「取代原始通知」說明</string>
+    <string name="replace_original_info_body">關閉時：LINE 原本的通知照常出現，你會看到兩則。好處是你在 LINE 裡把訊息讀掉時，這則會自動跟著消失。\n\n開啟時：用一則完整通知取代 LINE 原本的，畫面只留一則，比較乾淨。\n\n注意：開啟時，如果你直接在 LINE 裡讀掉訊息，這則不會自動消失，這是 Android 的限制，不是故障。手動滑掉、或點它進 LINE 就好。</string>
     <string name="clear_timing_title">通知清除時機</string>
     <string name="clear_after_reply_title">回覆後清除通知</string>
     <string name="clear_after_reply_subtitle">在通知上回覆後過一秒，自動清除該則通知</string>
@@ -47,7 +49,7 @@
     <string name="feature_quick_reply">• 快速回覆：直接在通知上回覆訊息</string>
     <string name="feature_jump">• 點擊即開：點通知跳轉 LINE 並自動清除</string>
     <string name="feature_chat_management">• 個別管理：每個聊天室可獨立開關</string>
-    <string name="join_official_account">加入 LINE Notify+ 官方帳號</string>
+    <string name="join_official_account">加入 Notify+ 官方帳號</string>
     <string name="help_card_title">第一次使用</string>
     <string name="help_card_body">先授權通知存取權限，再選擇通知風格。需要對照兩種風格或排查問題時，可打開說明頁。</string>
 
@@ -127,11 +129,11 @@
     <string name="info_icon_desc">說明</string>
 
     <string name="help_title">教學與 FAQ</string>
-    <string name="help_intro_title">LINE Notify+ 是什麼</string>
+    <string name="help_intro_title">Notify+ 是什麼</string>
     <string name="help_intro_body">它會讀取 LINE 的原始通知，把同一個聊天室的訊息整理成完整的一則，再發出通知。這樣你能持續看到通知、並一次讀完整個聊天室的所有新訊息，而不像 LINE 原本只顯示最新一條。</string>
     <string name="onboarding_title">使用說明</string>
     <string name="onboarding_step_1_title">1. 開啟通知存取權限</string>
-    <string name="onboarding_step_1_body">進入 Android 通知存取設定，允許 LINE Notify+ 讀取 LINE 通知。</string>
+    <string name="onboarding_step_1_body">進入 Android 通知存取設定，允許 Notify+ 讀取 LINE 通知。</string>
     <string name="onboarding_step_2_title">2. 啟用完整通知</string>
     <string name="onboarding_step_2_body">回到設定頁打開開關，App 才會把 LINE 訊息整理成完整通知。</string>
     <string name="onboarding_step_3_title">3. 選擇通知風格</string>
@@ -147,23 +149,23 @@
     <string name="faq_q_network">App 會上傳我的訊息嗎？</string>
     <string name="faq_a_network">不會。App 沒有 INTERNET 權限，也沒有 analytics、後端或自我更新功能。</string>
     <string name="faq_q_original">取代原始通知是什麼？</string>
-    <string name="faq_a_original">開啟後會隱藏 LINE 原本的通知，只留下 LINE Notify+ 重新整理後的通知。</string>
+    <string name="faq_a_original">開啟後會隱藏 LINE 原本的通知，只留下 Notify+ 重新整理後的通知。</string>
     <string name="faq_q_reply">快速回覆送不出去怎麼辦？</string>
     <string name="faq_a_reply">這是 closed testing 期間仍在追的行為類 bug。請保留當下通知，回報手機型號、Android 版本與 LINE 版本。</string>
     <string name="faq_q_xiaomi">小米手機如何設定後台常駐？</string>
-    <string name="faq_a_xiaomi">1. 設定 → 應用程式 → 權限 → 自動啟動，開啟 LINE Notify+\n2. 應用程式 → LINE Notify+ → 省電策略 → 選「無限制」\n3. 關閉「暫停閒置應用程式活動」\n4. 完成後建議重新啟動手機</string>
+    <string name="faq_a_xiaomi">1. 設定 → 應用程式 → 權限 → 自動啟動，開啟 Notify+\n2. 應用程式 → Notify+ → 省電策略 → 選「無限制」\n3. 關閉「暫停閒置應用程式活動」\n4. 完成後建議重新啟動手機</string>
     <string name="faq_q_oppo">OPPO 手機如何設定後台常駐？</string>
-    <string name="faq_a_oppo">1. 手機管家 → 權限隱私 → 自動啟動管理 → 開啟 LINE Notify+\n2. 長按桌面圖示 → 耗電細節 → 允許背景執行\n3. 多工鍵找到 LINE Notify+，往下拉鎖定\n4. 完全關閉 App 後再重新開啟</string>
+    <string name="faq_a_oppo">1. 手機管家 → 權限隱私 → 自動啟動管理 → 開啟 Notify+\n2. 長按桌面圖示 → 耗電細節 → 允許背景執行\n3. 多工鍵找到 Notify+，往下拉鎖定\n4. 完全關閉 App 後再重新開啟</string>
     <string name="faq_q_vivo">vivo 手機如何設定後台常駐？</string>
-    <string name="faq_a_vivo">1. i 管家 → 應用管理 → 權限管理 → 自啟動 → 開啟 LINE Notify+\n2. i 管家 → 電池管理 → 設為正常模式\n3. 多工後台下拉鎖定 LINE Notify+\n4. 完成後建議重新啟動 App</string>
+    <string name="faq_a_vivo">1. i 管家 → 應用管理 → 權限管理 → 自啟動 → 開啟 Notify+\n2. i 管家 → 電池管理 → 設為正常模式\n3. 多工後台下拉鎖定 Notify+\n4. 完成後建議重新啟動 App</string>
     <string name="faq_q_samsung">三星手機如何設定後台常駐？</string>
-    <string name="faq_a_samsung">1. 設定 → 應用程式 → LINE Notify+ → 電池 → 選「不受限制」\n2. 設定 → 電池 → 背景使用限制，確認 LINE Notify+ 不在休眠清單\n3. 關閉「讓未使用的應用程式進入休眠」對本 App 的限制</string>
+    <string name="faq_a_samsung">1. 設定 → 應用程式 → Notify+ → 電池 → 選「不受限制」\n2. 設定 → 電池 → 背景使用限制，確認 Notify+ 不在休眠清單\n3. 關閉「讓未使用的應用程式進入休眠」對本 App 的限制</string>
     <string name="faq_q_huawei">華為手機如何設定後台常駐？</string>
-    <string name="faq_a_huawei">1. 設定 → 應用程式 → LINE Notify+ → 電池 → 改「手動管理」，允許自動啟動與背景活動\n2. 設定 → 電池 → App 啟動 → LINE Notify+ 設為手動管理（全開）\n3. 多工後台鎖定 LINE Notify+</string>
+    <string name="faq_a_huawei">1. 設定 → 應用程式 → Notify+ → 電池 → 改「手動管理」，允許自動啟動與背景活動\n2. 設定 → 電池 → App 啟動 → Notify+ 設為手動管理（全開）\n3. 多工後台鎖定 Notify+</string>
 
     <string name="notification_self_person">我</string>
     <string name="notification_reply_action">回覆</string>
     <string name="notification_summary_text">%1$d 則訊息</string>
     <string name="notification_group_title">%1$s — %2$s</string>
-    <string name="notification_channel_description">LINE Notify+ 完整通知</string>
+    <string name="notification_channel_description">Notify+ 完整通知</string>
 </resources>
