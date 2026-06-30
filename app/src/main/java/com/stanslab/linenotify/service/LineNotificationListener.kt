@@ -89,9 +89,6 @@ class LineNotificationListener : NotificationListenerService() {
     // 看過的帳號 profile；>1 才在通知標題標出帳號來源。
     private val knownProfiles = mutableSetOf<String>()
 
-    // 記錄最近處理過的 roomKey，用於 onNotificationRemoved 判斷是否為連鎖反應
-    private val recentlyProcessed = mutableMapOf<String, Long>()
-
     private lateinit var prefs: SharedPreferences
     private val handler = Handler(Looper.getMainLooper())
 
@@ -306,7 +303,6 @@ class LineNotificationListener : NotificationListenerService() {
         // 延遲取消 LINE 原通知（確保我們的 contentIntent 不會因為 LINE 通知被取消而失效）
         if (prefs.getBoolean(KEY_REPLACE_ORIGINAL, true)) {
             val key = sbn.key
-            recentlyProcessed[roomKey] = System.currentTimeMillis()
             handler.postDelayed({ cancelNotification(key) }, 200)
         }
     }
@@ -326,9 +322,17 @@ class LineNotificationListener : NotificationListenerService() {
 
         if (sbn.packageName !in LINE_PACKAGES) return
 
-        // 非取代模式下不同步清除（兩邊通知獨立）
-        if (!prefs.getBoolean(KEY_REPLACE_ORIGINAL, true)) return
-        // 「已讀後清除」已固定為永遠開啟（移除使用者開關）
+        // 已讀同步只在「非取代模式」做：取代模式下 LINE 原通知已被我們在 200ms 殺掉，
+        // 等不到它被移除，自然判不了已讀（先天限制，不是 bug）。
+        if (prefs.getBoolean(KEY_REPLACE_ORIGINAL, true)) return
+
+        // 只有「使用者真的在 LINE 端把原通知處理掉」才同步清我們的，靠移除原因 reason 分流：
+        //   8 APP_CANCEL：LINE 自己收掉（在 LINE 內已讀，最主要）  9 APP_CANCEL_ALL：一次清光（開 App/全部已讀）
+        //   1 CLICK：點了 LINE 那則   2 CANCEL：滑掉 LINE 那則
+        // 排掉系統打掃（群組摘要連鎖、頻道變更）與我們自己取消，避免誤清。
+        if (reason != REASON_APP_CANCEL && reason != REASON_APP_CANCEL_ALL &&
+            reason != REASON_CLICK && reason != REASON_CANCEL
+        ) return
 
         val extras = sbn.notification.extras
         val title = extras.getString("android.title") ?: return
@@ -336,13 +340,9 @@ class LineNotificationListener : NotificationListenerService() {
         val chatTitle = subText ?: title
         val roomKey = profileKeyOf(sbn) + KEY_SEP + chatTitle
 
-        // 最近 2 秒內我們處理過 = 我們自己取消 LINE 原通知的連鎖反應，不做任何事
-        val processedTime = recentlyProcessed[roomKey]
-        if (processedTime != null && System.currentTimeMillis() - processedTime < 2000) return
-
-        // 用戶在 LINE 裡讀了訊息 → 同步清除我們的通知
+        // 使用者在 LINE 端讀掉/處理掉原通知 → 同步清除我們這則
         clearChatGroup(roomKey)
-        Log.d(TAG, "用戶已讀，同步清除 [$chatTitle] 的通知")
+        Log.d(TAG, "LINE 已讀同步(reason=$reason)，清除 [$chatTitle]")
     }
 
     /**
