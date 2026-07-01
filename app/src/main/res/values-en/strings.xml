@@ -64,6 +64,9 @@
     <string name="changelog_1_2_0_clear">Added settings to auto-clear notifications after replying or reading</string>
     <string name="changelog_1_2_0_dual">Tell apart different accounts when running dual LINE</string>
     <string name="changelog_1_2_0_ui">Refreshed interface with clearer wording</string>
+    <string name="changelog_1_2_1_readsync">With Replace original notifications off, the notification clears automatically after you read the message in LINE</string>
+    <string name="changelog_1_2_1_info">Added an info icon next to Replace original notifications explaining both modes</string>
+    <string name="changelog_1_2_1_rename">Interface name and detail tweaks</string>
     <string name="changelog_1_1_0_icon">New app icon for Google Play</string>
     <string name="changelog_1_1_0_play">Updates now go through Google Play, with in-app manual updates removed</string>
     <string name="changelog_1_1_0_stability">Internal cleanup and stability improvements</string>

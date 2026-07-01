@@ -64,6 +64,9 @@
     <string name="changelog_1_2_0_clear">新增回覆後、已讀後自動清除通知的設定</string>
     <string name="changelog_1_2_0_dual">雙開 LINE 時可以區分不同帳號的訊息來源</string>
     <string name="changelog_1_2_0_ui">介面改版，文案調整讓功能更好懂</string>
+    <string name="changelog_1_2_1_readsync">關閉「取代原始通知」時，在 LINE 讀完訊息，通知會自動跟著消失</string>
+    <string name="changelog_1_2_1_info">「取代原始通知」旁新增說明圖示，點一下就懂兩種模式差異</string>
+    <string name="changelog_1_2_1_rename">介面名稱與細節調整</string>
     <string name="changelog_1_1_0_icon">全新 App 圖示，準備上架 Google Play</string>
     <string name="changelog_1_1_0_play">改為透過 Google Play 更新（移除 App 內手動更新）</string>
     <string name="changelog_1_1_0_stability">內部清理與穩定性提升</string>
