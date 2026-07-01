@@ -12,7 +12,11 @@ Package `com.stanslab.linenotify`，Kotlin + Jetpack Compose，minSdk 26 / targe
 
 ## ⛔ 鐵則（違反 = 上架被拒 / App 永久壞掉，先讀這段）
 
-1. **versionCode 一旦上傳 Play Console 就永久燒掉、不能重用。** 每次要上傳就 `app/build.gradle.kts` 裡 +1。目前 vc11，下一個 vc12。
+1. **每次上傳 Play 的新版本，版本「三件套」一起改、同一次 commit。** 漏改過雷：只 bump `versionCode`、App 內版號卻停在舊的 v1.2.0（2026-06-30）。
+   - **① `versionCode` +1**（`app/build.gradle.kts`）——一旦上傳 Play 就永久燒掉、不能重用（草稿/退件也算）。目前已到 **vc15**。
+   - **② `versionName` 也要 bump**——App「關於」頁顯示的就是它（`AboutActivity` 讀 `getPackageInfo().versionName`），不改的話 App 內會一直顯示舊版號。
+   - **③ `AboutActivity.kt` 加一條 `ChangelogEntry("vX.Y.Z", …)` + 對應 `changelog_*` 中英字串**——App 內更新紀錄要反映這次改了什麼。
+   - （何時發版由 Stan 決定，見下方 autonomous 守則；但只要真的要出版本，三件套就得同時到位。）
 2. **權限只能有兩個**：`BIND_NOTIFICATION_LISTENER_SERVICE` + `POST_NOTIFICATIONS`。加任何敏感權限（尤其 `REQUEST_INSTALL_PACKAGES`、`INTERNET`）都會害 Play Console 退件。
 3. **絕不加 AccessibilityService。** 本 App 用 `NotificationListenerService` 讀通知（正解），不是無障礙。加無障礙 = 觸發 Google 嚴格審查。
 4. **App 完全無網路存取**（沒有 `INTERNET` 權限）。別加任何網路呼叫 / analytics / 自我更新——會打破 Play Console「No data collected / shared」的聲明。in-app updater 就是為此被移除的。
