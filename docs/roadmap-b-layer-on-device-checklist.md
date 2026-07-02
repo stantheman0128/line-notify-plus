@@ -60,3 +60,50 @@
 - 讓兩個帳號收到同名聊天室或同一人傳來的訊息。
 - 確認 LINE Notify+ 通知標題可區分來源，兩邊訊息不合併，聊天室管理頁也能分別開關。
 - 分別測 thread mode 與 Apple grouping mode。
+
+## 5. 權限提示返回後不更新
+
+候選修法：
+
+- `MainActivity` 已在 `Lifecycle.Event.ON_RESUME` 重新讀取 notification listener 狀態；若實機仍重現，下一步應加入短期診斷 log，確認從系統設定返回時是否真的觸發 `ON_RESUME`。
+- 若 `Settings.Secure.enabled_notification_listeners` 在返回當下有延遲，可在 `ON_RESUME` 後用 condition polling 重新讀取 1-2 秒，直到狀態改變或逾時。
+- 若使用者在設定頁授權後，系統尚未 bind listener，可補一個「已授權，等待系統啟動服務」狀態，避免 UI 仍顯示成未授權。
+
+實機測試：
+
+- 清掉 App 資料後首次開啟，確認顯示需要通知存取權限。
+- 點「開啟通知存取權限」，在 Android 設定中授權 LINE Notify+。
+- 直接返回 App，觀察主畫面是否自動切成服務狀態與設定區，不需要殺 App 重開。
+- 重複測試取消授權再返回 App，確認 UI 也會回到未授權狀態。
+
+## 6. 通知處理邏輯可自選
+
+候選修法：
+
+- 先不要直接改 cancel 行為；新增設定前要把現有「取代原始通知」「回覆後清除」「已讀同步清除」「點擊後清除」拆成可描述的策略。
+- 候選設定可分為三個開關：回覆成功後清除通知、從通知點進 LINE 後清除通知、LINE 內已讀後同步清除通知。
+- 每個開關都應只影響 LINE Notify+ 自己發出的通知，不應阻止 LINE 原始 PendingIntent 執行。
+- 需要實機確認 LINE 不同版本的 `contentIntent` / reply `PendingIntent` 是否在通知被取消後仍能穩定送出。
+
+實機測試：
+
+- Thread mode 與 Apple grouping mode 各測一次。
+- 分別切換三個候選開關，對每個開關測：收到訊息、點通知、inline reply、進 LINE 已讀。
+- 確認關閉某項自動清除時，對應通知保留；開啟時，child / summary / thread notification 都清除。
+- 確認不論開關狀態，點擊跳轉與 inline reply 都仍會送到 LINE。
+
+## 7. 收回訊息保留
+
+候選修法：
+
+- 先記錄 LINE 收回訊息時的 `StatusBarNotification` extras，確認是否會送出「已收回訊息」類型的新通知、或只是原訊息被移除。
+- 若 LINE 送出收回事件，候選做法是在原訊息 text 上標記「已收回」但保留原 notification history 中已堆疊的文字。
+- 若 LINE 只是移除通知，必須避免把 `onNotificationRemoved` 誤判成使用者已讀並清空整個聊天室 buffer。
+- 此功能涉及隱私預期，實作前應在 FAQ 說明「收回訊息可能仍出現在通知歷史」並提供關閉選項。
+
+實機測試：
+
+- 個人聊天室、群組、社群各測一次：對方傳訊息後收回。
+- 確認 LINE Notify+ 通知是否保留原訊息，並以明確標籤表示該訊息已被收回。
+- 確認關閉此候選功能時，收回訊息不再保留。
+- 確認收回事件不會清掉同聊天室中其他未讀訊息。
