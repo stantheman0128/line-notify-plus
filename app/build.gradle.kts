@@ -83,4 +83,7 @@ dependencies {
     implementation(libs.androidx.material3.window.size)
 
     debugImplementation(libs.androidx.ui.tooling)
+
+    // JVM 單元測試（純邏輯，不依賴 Android framework）。用字串座標避免動 libs.versions.toml。
+    testImplementation("junit:junit:4.13.2")
 }
