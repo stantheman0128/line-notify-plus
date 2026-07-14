@@ -1,6 +1,80 @@
 # Project Handoff — Notify+
 
-## Latest Session: 2026-07-14（Claude Code → 交接給 Codex：收編懸空分支）
+## Latest Session: 2026-07-14（Codex：使用者通知回饋與實機稽核）
+
+### 狀態
+
+- branch：`fix/notification-feedback-2026-07-14`
+- repo 版本維持 `versionName 1.2.1 / versionCode 15`；**沒有 bump、commit、push、merge 或上傳 Play**。
+- 所有修改仍在 working tree，包含新測試目錄 `app/src/test/java/com/stanslab/linenotify/model/`。
+- 使用者既有 untracked 檔完全保留：`.claude/`、`build-install.bat`、`design/.claude/`、
+  `design/editor-advanced.png`、`design/editor-preview.png`、`design/text-editor.html`、`tools/`。
+
+### 本輪完成
+
+1. **Android 私密通知占位字**
+   - 精確辨識 Android framework 的「系統已隱藏含有私密資訊的通知內容」clone。
+   - 不建立假聊天室、不重發占位字、不取消 LINE 原通知；Notify+ 自己的通知改為 private visibility，
+     public version 只顯示通用內容。
+   - FAQ 補 OPPO／realme 排查與隱私取捨。Android 在 listener callback 前移除的原文，App 無法還原。
+2. **聊天室完全靜音**
+   - 新版關閉聊天室會清除 Notify+ 與可辨識的 LINE 原通知，包含 `@all` 和直接標註本人。
+   - 舊 `disabled_chats` 維持「不增強、保留 LINE 原通知」，避免升級後無預警漏訊息；使用者先開再關才遷移到
+     `fully_muted_chats_v2`。
+   - 若 framework 已遮蔽聊天室名稱，或 OEM 在 listener 撤掉前先顯示，仍是平台限制；UI 已明確說明。
+3. **社群分類**
+   - production 統一走受測 classifier；`line.square.notification=true` 會 sticky 確認社群，不因下一則缺 extra 降回群組。
+   - 聊天室列可手動固定「好友／群組／社群」，並標示「手動」。
+4. **通知安全與穩定性**
+   - 只處理 LINE `NewMessages`，通話／付款／好友邀請等 fail-open 保留。
+   - 只有確認 Notify+ replacement 已 active 才取消原 LINE；active query 失敗一律保留原通知。
+   - Apple 模式每房 8、全域 24 個 child，以 transaction/rollback 方式提交 eviction；沒有安全 victim 時保留 LINE。
+   - 快速回覆只有 LINE PendingIntent 成功後才更新 UI；thread active query 失敗不清 buffer。
+   - 2026-07-14 實機抓到 LINE 26.10.1 對同一私訊於 24ms 內送出 tagged conversation + legacy 兩個 callback。
+     現在只合併 exact tagged-first 形狀、完整 MessagingStyle／interaction fingerprint、500ms 內且來源仍 active 的配對；
+     任一條件不符就保留兩則，優先避免漏訊息。對抗性 review 無 P1/P2 blocker。
+   - ChatRoom buffer 上限 25，移除手動 recycle，補 exact object identity／cap 測試。
+5. **隱私與文件**
+   - `allowBackup=false`；隱私政策與商店文案修正為實際資料生命週期。
+   - `ROADMAP.md`、`README.md`、`AGENTS.md` 更新為 38 個測試；權限返回 bug 已在實機驗證完成。
+
+### 驗證結果（目前 source）
+
+- `lintDebug testDebugUnitTest assembleDebug assembleRelease bundleRelease --rerun-tasks`：`BUILD SUCCESSFUL`。
+- JVM：**38 passed / 0 failed / 0 errors / 0 skipped**；lint：**0 errors / 60 warnings**。
+- release APK：`7,595,943 bytes`，SHA-256
+  `69500B611EE10AA3D4E6E361C6EF16096139B1EBA2046E1BB8B0B4A09C7D2D3E`。
+- release AAB：`7,113,665 bytes`，SHA-256
+  `7769C4A073E111790E153BB44A977117C8767AA34899B3F0831F60A1E7C22CFE`；`jarsigner -verify` exit 0。
+- APK manifest：minSdk 26 / targetSdk 35、`allowBackup=false`、權限只有
+  `BIND_NOTIFICATION_LISTENER_SERVICE` + `POST_NOTIFICATIONS`。
+- APK：16K zipalign 驗證成功；v2 signature=true、1 signer。
+- ADB：Nothing A059P、Android 16 / API 36、serial `001701527000969`。
+  - 最新 debug `install -r` 成功，listener 已恢復 enabled/bound。
+  - 關閉 listener → 首頁立即顯示「服務未啟用／需要授權」；恢復 →「服務運行中／正在接聽」。
+  - Help 敏感通知 FAQ、聊天室管理說明皆可見；Help／ChatManagement／About 連跑 2 輪，共 6/6 導覽成功。
+  - 本輪 logcat：0 fatal exception、0 app ANR、0 app process error；導覽後 PSS 約 100 MB。
+
+### 尚未完成／不可誤報
+
+- 最終 debug 安裝後尚未再收到一則真實 LINE 訊息，所以 strict mirror 合併只有純函式測試、對抗性 review，及
+  修正前抓到的真實雙 callback 結構；後續收到測試訊息時確認 log 有「合併 LINE conversation/legacy mirror callback」且只留一則。
+- 沒有 OPPO Find X8 Ultra／realme GT8 Pro 實機；私密通知只能確認平台根因、fail-open 與 Nothing UI，仍需兩台回歸。
+- 「只擋 `@all`、保留直接 `@我`」刻意未用可見文字猜。需 Nothing／OPPO／realme 各抓兩種真實 extras 後再設獨立開關。
+- 持久設定多數仍以顯示名稱為 key，同名聊天室可能碰撞；listener 很大、頭貼 PNG 仍在 callback 同步寫入，
+  thread 模式也缺全域 room budget。見 `ROADMAP.md`。
+- LINE 沒提供 stable message ID，且 Android 沒有 query-and-cancel 原子 API；極端完全相同 payload 仍只能 fail-open。
+- GitHub Pages 線上隱私政策尚未部署；不要把 repo 已更新誤寫成線上已更新。
+
+### 上架 blocker
+
+- launcher／512 icon 仍像 LINE 綠＋白氣泡，屬再次 Impersonation 退件風險。
+- 4 張手機圖有舊品牌／舊功能／私密內容／debug 痕跡且 3 張比例不合；8 張 tablet 圖是假平板畫面；全部重做。
+- `line-oa-cover.png` 仍是舊品牌；feature graphic 可保留，但換 icon 後需再確認整套一致。
+- 發版前先部署/複查 Pages、確認 vc15 是否已被 Console 使用，再由 Stan 決定版號三件套；目前產物只供驗證，
+  **不是可直接上傳的 release**。
+
+## Previous Session: 2026-07-14（Claude Code → 交接給 Codex：收編懸空分支）
 
 > 給接手的 AI（Codex）：**先讀 `AGENTS.md`（鐵則，你會自動載入），再讀這一節。**
 > 本節取代 2026-06-07 那份的「下一步」，舊記錄保留在下方僅供追溯，**它的待辦已經全部過期，別照著做。**

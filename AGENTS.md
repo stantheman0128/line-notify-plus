@@ -1,4 +1,4 @@
-# AGENTS.md — LINE Notify+
+# AGENTS.md — Notify+
 
 給 AI agent 的工作守則（Claude Code、ChatGPT/Codex 等通用）。
 人類向的結構說明在 `README.md`；規劃與已知 bug 在 `ROADMAP.md`。
@@ -54,10 +54,13 @@ export JAVA_HOME="/c/Program Files/Android/Android Studio/jbr"
 ./gradlew.bat assembleRelease      # 出 APK（本機驗證用）
 ```
 
-- Android SDK: `C:\Users\stans\AppData\Local\Android\Sdk`（已寫在 `local.properties`，git-ignored）。
-- **有 JVM 單元測試**：`app/src/test/java/.../service/NotificationClassifierTest.kt`（19 個案例，測通知分類邏輯：
-  好友/群組/社群/官方帳號的判別）。跑 `./gradlew.bat testDebugUnitTest`，**改動 `NotificationClassifier.kt`
-  或任何分類邏輯後必跑**。2026-07-14 實測 19 passed / 0 failed。
+- Android SDK: `C:\Users\stans\AppData\Local\Android\Sdk`（已寫在 `local.properties`；雖有 ignore 規則，
+  目前仍是歷史 tracked 檔，日後應另開清理變更停止追蹤）。
+- **有 JVM 單元測試**：`app/src/test/java/...`（38 個案例，涵蓋
+  聊天分類、社群 sticky/手動 override、敏感通知辨識、legacy/mute migration、頻道過濾、
+  LINE conversation/legacy mirror 配對與 ChatRoom 邊界）。
+  跑 `./gradlew.bat testDebugUnitTest`，**改動 `NotificationClassifier.kt` 或通知核心邏輯後必跑**。
+  2026-07-14 實測 38 passed / 0 failed / 0 errors / 0 skipped。
   - ⚠️ Gradle 會對沒變動的 task 回 `UP-TO-DATE` 直接跳過、卻仍印 `BUILD SUCCESSFUL`——**那不代表測試跑過**。
     要拿真結果加 `--rerun`，或直接讀 `app/build/test-results/testDebugUnitTest/*.xml` 裡的
     `tests=" " failures=" "` 數字。
@@ -68,10 +71,10 @@ export JAVA_HOME="/c/Program Files/Android/Android Studio/jbr"
 
 | 檔案 | 職責 |
 |---|---|
-| `app/src/main/java/.../service/LineNotificationListener.kt` | ⭐核心：攔截 LINE 通知、重組成對話串、發新通知（636 行，最大的服務檔） |
+| `app/src/main/java/.../service/LineNotificationListener.kt` | ⭐核心：攔截 LINE 通知、重組成對話串、發新通知 |
 | `app/src/main/java/.../service/NotificationClassifier.kt` | 通知分類（好友/群組/社群/官方帳號）。**有單元測試罩著，改這裡必跑 `testDebugUnitTest`** |
 | `app/src/main/java/.../service/ReplyRelayReceiver.kt` | 快速回覆的 RemoteInput 中繼 |
-| `app/src/main/java/.../MainActivity.kt` | 主畫面、權限開關、設定（751 行，最大的檔） |
+| `app/src/main/java/.../MainActivity.kt` | 主畫面、權限開關、設定 |
 | `app/src/main/java/.../ChatManagementActivity.kt` | 個別聊天室開關、搜尋、長按多選 |
 | `app/src/main/java/.../AboutActivity.kt` | 關於頁 + **App 內更新紀錄**（發版三件套的第 ③ 項改這裡） |
 | `app/src/main/java/.../HelpActivity.kt` | 教學 / FAQ 頁。⚠️ master 的 `309cf52` 已移除「通知風格說明」卡，**別把它加回來** |
@@ -93,4 +96,5 @@ export JAVA_HOME="/c/Program Files/Android/Android Studio/jbr"
 1. **`HANDOFF.md`** — 當前這一輪要做什麼、branch 現況、已驗證過的事實。**先讀這份。**
 2. `ROADMAP.md` — 功能規劃與已知 bug。注意：2026-06-01 那批 tester 回報的行為 bug
    （浮窗回覆卡住 / 我的頭貼不顯示 / 回覆後通知不消失 / 雙開 LINE 無法區分）**已於 2026-06-03 全部實機修復**，
-   別再去修一次。目前唯一未解的行為 bug 是「權限提示返回後不更新」（`ROADMAP.md:32`，需實機重現才能確診）。
+   別再去修一次。現有待辦以 `ROADMAP.md` 為準，包括 `@all` 與直接標註分流、同名/雙開聊天室設定隔離，
+   以及 OPPO/realme 的真機回歸；不要再用「唯一未解」描述。

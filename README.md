@@ -1,6 +1,8 @@
-# LINE Notify+
+# Notify+
 
-Nothing Phone 上的 LINE 通知替代 App — 攔截原始 LINE 通知並重新組合（對話串 / Apple 分組），支援狀態欄快速回覆、個別聊天室開關、取代原始通知。
+Android 上的 LINE 通知整理工具：攔截原始訊息通知並重新組合（對話串 / Apple 分組），支援狀態欄快速回覆、個別聊天室開關與取代原始通知。
+
+> Notify+ 是獨立開發的第三方工具，與 LINE Corporation、LY Corporation 無關，亦非官方產品。
 
 | | |
 |---|---|
@@ -25,7 +27,7 @@ line-notify/
 │       │       ├── drawable/ic_launcher_foreground.xml  ← ⭐ icon 向量唯一正解（0.80 縮放、齒輪不裁切）
 │       │       ├── values/ · values-en/          ← i18n（繁中 / 英，新字串兩份都要加）
 │       │       └── values-sw600dp/ · values-sw720dp/  ← 平板 layout
-│       └── test/             ← JVM 單元測試：NotificationClassifierTest.kt（19 案例）
+│       └── test/             ← JVM 單元測試：分類／偏好／mirror 配對／ChatRoom 回歸（38 案例）
 │                                跑 ./gradlew.bat testDebugUnitTest
 ├── docs/                     ← GitHub Pages：privacy-policy.html（Play Console 用的隱私權 URL）
 ├── play-store-assets/        ← 上架素材（見下方說明）
@@ -44,9 +46,9 @@ line-notify/
 
 | 檔案 | 用途 |
 |---|---|
-| `play-store-icon-512.png` | ⭐ 上架用 512 icon（唯一正確，從 app foreground 渲染） |
+| `play-store-icon-512.png` | ⚠️ 目前仍是 LINE 綠＋氣泡輪廓，重新送審前必須與 launcher icon 一起重設計 |
 | `feature-graphic.png` | 1024×500 功能圖 |
-| `screenshots/` | 手機截圖（≥2 張必填；平板 optional） |
+| `screenshots/` | ⚠️ 現有手機／平板圖均為舊品牌或不合規素材，送審前必須重拍（平板 optional） |
 | `store-listing.md` | 短描述 / 完整描述 / release notes 文案 |
 | `play-console-progress.md` | ⭐ 上架進度 + App content 答案卡 + tester 流程 |
 | `*.mjs` / `*.py` | 一次性產生器（產物已 commit）。⚠️ `render_play_store_icon.mjs` 的 resvg-js 依賴原在 `index/`、已隨 archive 移出 → 要重跑先 `npm i @resvg/resvg-js` |
@@ -71,6 +73,7 @@ line-notify/
 
 - 🔒 **keystore 弄丟 = 永遠無法更新此 App**。密碼 + .jks 備份在 1Password。務必啟用 Play App Signing 當保險。
 - 🐛 **已知問題看 `ROADMAP.md`**。2026-06-01 那批 tester 回報的行為 bug（浮窗回覆卡住、回覆後通知不消失、
-  雙開 LINE 無法區分、本人頭貼不顯示）**已於 2026-06-03 全部實機修復**。目前唯一未解的是「權限提示返回後不更新」。
+  雙開 LINE 無法區分、本人頭貼不顯示）**已於 2026-06-03 全部實機修復**。目前待辦與限制請直接看 `ROADMAP.md`。
 - 🤖 **AI agent 接手看 `AGENTS.md`（鐵則）+ `HANDOFF.md`（當前任務與分支現況）**。`CLAUDE.md` 只是指向 `AGENTS.md` 的指標。
 - 🌐 App **完全無網路存取**（v1.1.0 已移除 in-app updater）→ Data safety 可誠實填「No data collected / shared」。
+- 🔴 repo 的 `docs/` 隱私政策已更新，但 GitHub Pages 線上版尚未部署；送審前必須先部署並實際複查 URL。
