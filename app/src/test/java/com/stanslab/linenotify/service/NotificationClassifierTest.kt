@@ -316,6 +316,70 @@ class NotificationClassifierTest {
         assertTrue(first != changed)
     }
 
+    // ---- mirrorFingerprint：配對指紋只能由「兩個 callback 必然相同」的欄位組成 ----
+
+    /** 實機抓到的欄位值（2026-07-15，LINE 26.10.1 / Android 16 / Nothing A059P）。 */
+    private fun realWorldFingerprint(
+        roomKey: String = "jp.naver.line.android@999:小明",
+        sender: String = "小明",
+        text: String = "在嗎",
+        whenMs: Long = 1_784_045_407_475L,
+    ) = NotificationClassifier.mirrorFingerprint(
+        roomKey = roomKey,
+        sender = sender,
+        text = text,
+        packageName = "jp.naver.line.android",
+        sourceUid = 99910325,
+        shortcutId = "ue167562bee560788ce94939ad722b34c",
+        groupKey = "999|jp.naver.line.android|g:NOTIFICATION_GROUP_MESSAGE",
+        channelId = "jp.naver.line.android.notification.NewMessages",
+        whenMs = whenMs,
+    )
+
+    /**
+     * 回歸測試（真實 bug）：舊版把 `contentIntent.hashCode()` 與 MessagingStyle 內容算進指紋，
+     * 而那兩者在 tagged 與 legacy mirror 兩邊必然不同 → 指紋永遠對不上 → 合併從未生效 →
+     * 每則訊息跳兩張卡、群組跳四張。
+     *
+     * 現在指紋只吃兩邊一致的結構欄位，所以「同一則訊息的兩個 callback」必然算出同一個指紋。
+     * 那些會變動的欄位（contentIntent、sbn.id/tag/key、MessagingStyle）根本傳不進來——
+     * 參數列就是白名單，這是型別層面的保證。
+     */
+    @Test
+    fun mirror_fingerprint_matches_across_tagged_and_legacy_callbacks() {
+        // tagged (id=1279858477, tag=NOTIFICATION_TAG_MESSAGE, contentIntent hash 250458503)
+        val tagged = realWorldFingerprint()
+        // legacy mirror (id=16880000, tag=null, contentIntent hash 131309470)
+        val legacyMirror = realWorldFingerprint()
+        assertEquals(tagged, legacyMirror)
+    }
+
+    @Test
+    fun mirror_fingerprint_separates_different_messages() {
+        val base = realWorldFingerprint()
+        // 不同訊息 = 不同時間戳（when 是訊息的毫秒時間戳）
+        assertTrue(base != realWorldFingerprint(whenMs = 1_784_045_407_476L))
+        // 同時間戳但不同內容也要分得開
+        assertTrue(base != realWorldFingerprint(text = "不在"))
+        // 不同聊天室要分得開
+        assertTrue(base != realWorldFingerprint(roomKey = "jp.naver.line.android@999:小華"))
+    }
+
+    @Test
+    fun mirror_fingerprint_does_not_retain_plaintext() {
+        val fingerprint = realWorldFingerprint(text = "我的密碼是 hunter2")
+        assertFalse(fingerprint.contains("hunter2"))
+        assertFalse(fingerprint.contains("小明"))
+    }
+
+    /** 長度前綴防止欄位邊界被內容偽造（"ab"+"c" 不可與 "a"+"bc" 撞在一起）。 */
+    @Test
+    fun mirror_fingerprint_resists_field_boundary_collision() {
+        val a = realWorldFingerprint(sender = "ab", text = "c")
+        val b = realWorldFingerprint(sender = "a", text = "bc")
+        assertTrue(a != b)
+    }
+
     // ---- LINE conversation + legacy mirror（Nothing OS 實機 fixture）----
 
     private fun mirrorPrimary(

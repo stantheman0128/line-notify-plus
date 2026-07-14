@@ -170,6 +170,56 @@ object NotificationClassifier {
     }
 
     /**
+     * LINE 對同一則訊息會送兩個 callback（tagged conversation + legacy mirror `id=16880000`），
+     * 這個指紋用來把它們配成一對、只留一張卡。
+     *
+     * ⛔ **參數列就是白名單。** 想加欄位，必須先在實機證明它在 tagged 與 legacy mirror 兩邊
+     * 一模一樣，否則指紋兩邊算出來不同、配對永遠失敗、使用者就會看到同一則訊息跳兩張卡。
+     * 這裡刻意做成純函式而不是直接吃 `StatusBarNotification`：**傳不進 `PendingIntent`、
+     * 傳不進 `MessagingStyle`**，型別層面就擋掉舊的失效模式。
+     *
+     * 實機實測後排除的欄位（2026-07-15，LINE 26.10.1 / Android 16 / Nothing A059P）：
+     * - `contentIntent.hashCode()`：兩邊必然不同（實測 250458503 vs 131309470，且是兩者
+     *   唯一不同的欄位）。舊版把它算進指紋，導致合併**從未生效過**——每則訊息跳兩張卡，
+     *   群組甚至四張。
+     * - `MessagingStyle` 內容：legacy mirror **有時整個抽不出來**，強行納入只會退回 null、
+     *   放棄合併。
+     * - `sbn.key` / `sbn.id` / `sbn.tag`：兩個通知本來就是不同身分。
+     *
+     * `whenMs` 是訊息的毫秒時間戳，配上 roomKey 與 text 已足以唯一識別一則訊息。誤配對由呼叫端
+     * 的形狀護欄擋掉（必須 tagged 先到、legacy 後到）：真正的下一則新訊息以 tagged 身分抵達，
+     * 不會被當成 mirror 吃掉。
+     */
+    fun mirrorFingerprint(
+        roomKey: String,
+        sender: String,
+        text: String,
+        packageName: String,
+        sourceUid: Int,
+        shortcutId: String,
+        groupKey: String?,
+        channelId: String?,
+        whenMs: Long,
+    ): String {
+        val canonical = StringBuilder()
+        fun field(value: String?) {
+            if (value == null) canonical.append("-1:")
+            else canonical.append(value.length).append(':').append(value)
+            canonical.append('|')
+        }
+        field(roomKey)
+        field(sender)
+        field(text)
+        field(packageName)
+        canonical.append(sourceUid).append('|')
+        field(shortcutId)
+        field(groupKey)
+        field(channelId)
+        canonical.append(whenMs).append('|')
+        return dedupeFingerprint(roomKey, canonical.toString(), 0L)
+    }
+
+    /**
      * Android 15+ 交給不受信任 NotificationListener 的敏感通知 clone：title 會改成來源
      * App label、text 會改成 framework 的 redacted 字串，subText 被移除。命中後不能重發、
      * 建立假聊天室或取消原通知，因為原始內容在 callback 前就已不可逆地被移除。

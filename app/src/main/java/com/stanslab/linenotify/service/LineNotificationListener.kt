@@ -167,6 +167,11 @@ class LineNotificationListener : NotificationListenerService() {
      * 只有完整 MessagingStyle payload 可建立可靠 identity；缺 timestamp／style 就不合併。
      * 回傳值是 SHA-256，不把訊息原文留在 cache。
      */
+    /**
+     * 從 [sbn] 抽出 mirror 配對指紋所需的欄位。**指紋的欄位白名單由
+     * [NotificationClassifier.mirrorFingerprint] 的參數列定義**（想加欄位先讀那邊的說明）。
+     * 這裡只負責抽值，抽不到必要欄位就回 null（fail-open：不合併，寧可重複也不漏訊息）。
+     */
     private fun mirroredPayloadFingerprint(
         sbn: StatusBarNotification,
         roomKey: String,
@@ -176,46 +181,6 @@ class LineNotificationListener : NotificationListenerService() {
         val notification = sbn.notification
         val shortcutId = notification.shortcutId ?: return null
         if (notification.`when` <= 0L) return null
-        val style = runCatching {
-            NotificationCompat.MessagingStyle.extractMessagingStyleFromNotification(notification)
-        }.getOrNull() ?: return null
-        val messages = style.messages
-        val historicMessages = style.historicMessages
-        if (messages.isEmpty() || messages.any { it.timestamp <= 0L } ||
-            historicMessages.any { it.timestamp <= 0L }
-        ) return null
-        val latestPerson = messages.last().person
-        if (latestPerson == null ||
-            listOf(latestPerson.key, latestPerson.uri, latestPerson.name?.toString())
-                .all { it.isNullOrBlank() }
-        ) return null
-
-        val canonical = StringBuilder()
-        fun field(value: CharSequence?) {
-            val string = value?.toString()
-            if (string == null) canonical.append("-1:")
-            else canonical.append(string.length).append(':').append(string)
-            canonical.append('|')
-        }
-        fun person(person: Person?) {
-            field(person?.key)
-            field(person?.name)
-            field(person?.uri)
-            canonical.append(person?.isBot ?: false).append('|')
-            canonical.append(person?.isImportant ?: false).append('|')
-        }
-        fun message(kind: Char, message: NotificationCompat.MessagingStyle.Message) {
-            canonical.append(kind).append('|').append(message.timestamp).append('|')
-            person(message.person)
-            field(message.text)
-            field(message.dataMimeType)
-            field(message.dataUri?.toString())
-        }
-
-        field(roomKey)
-        field(sender)
-        field(text)
-        field(sbn.packageName)
         val sourceUid = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
             sbn.uid
         } else {
@@ -223,44 +188,17 @@ class LineNotificationListener : NotificationListenerService() {
             // identity hash keeps work/personal profiles distinct on API 26-28.
             sbn.user?.hashCode() ?: -1
         }
-        canonical.append(sourceUid).append('|')
-        field(shortcutId)
-        field(sbn.groupKey)
-        field(notification.channelId)
-        canonical.append(notification.`when`).append('|')
-        field(style.conversationTitle)
-        canonical.append(style.isGroupConversation).append('|')
-        person(style.user)
-        historicMessages.forEach { message('H', it) }
-        messages.forEach { message('M', it) }
-
-        val contentIntent = notification.contentIntent
-        field(contentIntent?.creatorPackage)
-        canonical.append(contentIntent?.creatorUid ?: -1).append('|')
-        canonical.append(contentIntent?.hashCode() ?: 0).append('|')
-        val actions = notification.actions.orEmpty()
-        canonical.append(actions.size).append('|')
-        actions.forEach { action ->
-            field(action.title)
-            val semanticAction = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
-                action.semanticAction
-            } else {
-                0
-            }
-            canonical.append(semanticAction).append('|')
-            field(action.actionIntent?.creatorPackage)
-            canonical.append(action.actionIntent?.creatorUid ?: -1).append('|')
-            canonical.append(action.actionIntent?.hashCode() ?: 0).append('|')
-            val remoteInputs = action.remoteInputs.orEmpty()
-            canonical.append(remoteInputs.size).append('|')
-            remoteInputs.forEach { input ->
-                field(input.resultKey)
-                field(input.label)
-                canonical.append(input.allowFreeFormInput).append('|')
-                input.choices.orEmpty().forEach(::field)
-            }
-        }
-        return NotificationClassifier.dedupeFingerprint(roomKey, canonical.toString(), 0L)
+        return NotificationClassifier.mirrorFingerprint(
+            roomKey = roomKey,
+            sender = sender,
+            text = text,
+            packageName = sbn.packageName,
+            sourceUid = sourceUid,
+            shortcutId = shortcutId,
+            groupKey = sbn.groupKey,
+            channelId = notification.channelId,
+            whenMs = notification.`when`,
+        )
     }
 
     private fun scheduleOriginalCancellation(

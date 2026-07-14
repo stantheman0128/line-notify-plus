@@ -78,6 +78,7 @@
     <string name="changelog_1_2_0_clear">新增回覆後、已讀後自動清除通知的設定</string>
     <string name="changelog_1_2_0_dual">雙開 LINE 時可以區分不同帳號的訊息來源</string>
     <string name="changelog_1_2_0_ui">介面改版，文案調整讓功能更好懂</string>
+    <string name="changelog_1_3_1_dupe">真正修好同一則訊息跳出兩張通知卡的問題，群組訊息原本甚至會跳四張。v1.3.0 宣稱修好但實際上沒有生效</string>
     <string name="changelog_1_3_0_redacted">修正私密訊息被系統隱藏時，會跑出一個空的「LINE」聊天室、原始通知還被蓋掉的問題</string>
     <string name="changelog_1_3_0_mute">聊天室關閉改為「完全靜音」，連 LINE 原本的通知也一起收掉。舊設定維持原本行為，要重新開啟再關閉才會套用新的靜音方式</string>
     <string name="changelog_1_3_0_type">聊天室分類可以手動更正為好友、群組或社群，自動判斷偶爾會判錯</string>
