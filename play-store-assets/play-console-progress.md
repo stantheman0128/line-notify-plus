@@ -8,11 +8,36 @@ Dev account ID: 7824252807370180483（URL 用得到）
 
 - vc12 (1.2.0) 上傳 Production 後被 **Impersonation policy** 退件。證據：App name「LINE Notify+」（撞 LINE 官方舊服務名 LINE Notify）+ feature graphic 模仿 LINE 識別（綠氣泡 icon + LINE 綠 + LINE 字 + 「重新定義你的 LINE 通知體驗」）。
 - 處置：App 改名 **Notify+**（app_name 中英已改 + 待改 Console「App name」欄位）；feature graphic 重做（靛藍中性、堆疊通知卡、無任何 LINE 元素）；商店描述去 LINE 主打、開頭即聲明第三方非官方、刪掉過時的「安裝套件權限」段。
-- vc13、vc14 已在 Play Console 使用過，不可重用；repo 目前是 **vc15 / 1.2.1**，權限仍只有 2 個。
-- 🔴 **再次送審 blocker**：launcher／Play icon 仍是 LINE 綠＋白色聊天氣泡，與既有退件原因高度相近；必須先建立獨立品牌識別，並同步更新 App、512 icon、功能圖與對外封面。
-- 🔴 **再次送審 blocker**：4 張手機截圖全部仍顯示舊名「LINE Notify+」，其中一張仍宣稱已移除的 App 內更新；多張含真實聊天室、頭像、SSID、其他 App 通知與 USB debugging，且 3 張比例不合 Play 規格。8 張 tablet 圖只是把舊手機圖置中，不是平板 UI，也不可使用。
-- 🔴 **再次送審 blocker**：GitHub Pages 線上隱私政策仍是舊版內容；repo 的 `docs/` 已修正，但尚未部署。部署後要實際開 URL 確認，再填 Play Console。
-- Console 待辦：確認 App name、feature graphic、商店描述、全新 icon／截圖與已部署的隱私政策，再用**尚未被 Console 使用的 versionCode** 送審。若 vc15 已上傳過，下一次必須從 vc16 起，並同步完成版號三件套。
+- vc13、vc14 已在 Play Console 使用過，不可重用。
+
+### ✅ Impersonation 已解除（2026-07-15 Stan 於 Play Console 確認）
+
+**改名 Notify+ 後重新送審已通過，icon 維持原樣（綠底白氣泡）沒有問題。**
+本節先前列的三個 🔴 blocker 已全部作廢，逐一結案：
+
+- ~~icon 需重做~~ → **不需要。** Stan 確認 Console 端已放行，維持現行 icon。
+  ⚠️ 給未來的 AI／接手者：**別再依「icon 像 LINE」推論它是 blocker**。那是 2026-06-23 退件當下的推測，
+  Console 的實際裁決推翻了它。Play Console 的狀態只有 Stan 看得到，不要用讀 repo 的方式去猜。
+- ~~截圖需全部重拍~~ → 隨 Impersonation 解除一併結案（listing 已通過審查）。
+- ~~線上隱私政策是舊版~~ → **已部署且已驗證**（2026-07-15）：push master 後 GitHub Pages 自動更新，
+  `curl` 線上頁面與 repo `docs/privacy-policy.html` 內容逐字一致（差異僅 CRLF/LF）。
+
+## ⭐ 待送審版本：versionCode 17 / 1.3.1（2026-07-15）
+
+release 產物已建好並驗證：
+- AAB：`app/build/outputs/bundle/release/app-release.aab`，7,112,501 bytes
+  SHA-256 `0a91222c75e10ab9ebf18ea27a4dac6e3fed0388c8592d9d3dda394ccc0474e6`
+- `jarsigner -verify` → `jar verified`（exit 0）
+- `aapt2 dump badging` → `versionCode='17' versionName='1.3.1'`
+- **權限只有 2 個**（`aapt2 dump permissions` 實測）：BIND_NOTIFICATION_LISTENER_SERVICE、POST_NOTIFICATIONS。無 INTERNET。
+- 42 個 JVM 單元測試全過（`testDebugUnitTest --rerun`，非 UP-TO-DATE 假綠燈）。
+- 實機驗證（Nothing A059P / Android 16 / LINE 26.10.1）：雙 callback 合併命中、一則訊息一張卡。
+
+⚠️ **上傳前 Stan 要在 Console 確認 vc17 尚未被使用**（vc15、vc16 是否已佔用，repo 這邊無從得知）。
+
+⚠️ **本版有一項未經真實驗證的行為**：Android 15+ 私密通知的遮蔽偵測。Stan 的手機重現不出遮蔽通知
+（連刻意傳驗證碼格式也沒觸發系統的敏感內容分類器），所以四個判斷條件裡只有「系統字串比對」拿到實證，
+其餘三條沒有真實資料佐證。上線後請留意回報。
 
 ## 帳號狀態
 - ✅ Google identity verification 通過

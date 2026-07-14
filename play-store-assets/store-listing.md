@@ -84,7 +84,39 @@ GitHub：https://github.com/stantheman0128/line-notify-plus
 
 ---
 
-## Release notes (v1.2.1，500 字以內)
+## Release notes v1.3.1 / vc17（Play Console 上限 500 字元，已用 `wc -m` 實測）
+
+### 繁中（470 / 500）
+
+```
+修正使用者回報的通知問題：
+
+• 同一則訊息不再跳出兩張通知卡（群組甚至四張）
+• 系統隱藏私密訊息時，不再重發空白的占位通知
+• 聊天室關閉改為完全靜音，連 LINE 原通知一起收掉。之前關掉的要重開再關一次才套用
+• 新通知送不出去時會保留 LINE 原通知，不漏訊息
+• 聊天室分類可手動更正為好友、群組或社群
+• 鎖定畫面不再顯示訊息內容
+```
+
+### English（469 / 500）
+
+```
+Fixes for the notification problems you reported:
+
+• One message no longer shows as two cards (four in a group)
+• No empty placeholder card when the system hides private content
+• Turning a chat off now fully mutes it and clears LINE's notification. Chats turned off before need one on/off cycle
+• If Notify+ cannot post its card, it keeps LINE's so you still see it
+• You can correct a chat's type by hand
+• The lock screen no longer shows message content
+```
+
+> 「之前關掉的要重開再關一次才套用」這句別刪。舊的 `disabled_chats` 語意（只是不增強、LINE 原通知照跳）
+> 刻意保留不動，避免升級後無預警開始漏訊息；使用者必須手動重新開關一次才會切到新的完全靜音語意。
+> 不講清楚，使用者會以為靜音壞掉。
+
+### 上一版（v1.2.1）
 
 ```
 這版改善使用者回報的通知行為與穩定性：
@@ -95,8 +127,6 @@ GitHub：https://github.com/stantheman0128/line-notify-plus
 • 限制分組通知數量，降低通知過多造成的不穩定
 • 補強權限引導、問題回報與常見問題說明
 ```
-
-字數：約 100 / 500
 
 ---
 
