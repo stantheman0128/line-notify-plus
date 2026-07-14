@@ -78,6 +78,13 @@
     <string name="changelog_1_2_0_clear">Added settings to auto-clear notifications after replying or reading</string>
     <string name="changelog_1_2_0_dual">Tell apart different accounts when running dual LINE</string>
     <string name="changelog_1_2_0_ui">Refreshed interface with clearer wording</string>
+    <string name="changelog_1_3_0_redacted">Fixed private messages hidden by the system creating an empty "LINE" chat and hiding the original notification</string>
+    <string name="changelog_1_3_0_mute">Turning a chat off now fully mutes it, clearing LINE\'s own notification too. Existing settings keep the old behaviour until you turn the chat back on and off again</string>
+    <string name="changelog_1_3_0_type">Chat type can now be corrected by hand to friend, group or community when auto-detection gets it wrong</string>
+    <string name="changelog_1_3_0_dupe">Fixed the same message occasionally showing up as two notification cards</string>
+    <string name="changelog_1_3_0_permission">Fixed the screen not refreshing after returning from the permission settings page</string>
+    <string name="changelog_1_3_0_safety">LINE\'s original notification is now kept whenever the replacement cannot be confirmed as posted</string>
+    <string name="changelog_1_3_0_lockscreen">The lock screen no longer shows message content, only that a new message arrived</string>
     <string name="changelog_1_2_1_readsync">With Replace original notifications off, the notification clears automatically after you read the message in LINE</string>
     <string name="changelog_1_2_1_info">Added an info icon next to Replace original notifications explaining both modes</string>
     <string name="changelog_1_2_1_rename">Interface name and detail tweaks</string>
