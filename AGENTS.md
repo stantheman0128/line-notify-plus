@@ -16,11 +16,19 @@ Package `com.stanslab.linenotify`，Kotlin + Jetpack Compose，minSdk 26 / targe
 
 ## ⛔ 鐵則（違反 = 上架被拒 / App 永久壞掉，先讀這段）
 
-1. **每次上傳 Play 的新版本，版本「三件套」一起改、同一次 commit。** 漏改過雷：只 bump `versionCode`、App 內版號卻停在舊的 v1.2.0（2026-06-30）。
-   - **① `versionCode` +1**（`app/build.gradle.kts`）——一旦上傳 Play 就永久燒掉、不能重用（草稿/退件也算）。目前已到 **vc15**。
-   - **② `versionName` 也要 bump**——App「關於」頁顯示的就是它（`AboutActivity` 讀 `getPackageInfo().versionName`），不改的話 App 內會一直顯示舊版號。
-   - **③ `AboutActivity.kt` 加一條 `ChangelogEntry("vX.Y.Z", …)` + 對應 `changelog_*` 中英字串**——App 內更新紀錄要反映這次改了什麼。
-   - （何時發版由 Stan 決定，見下方 autonomous 守則；但只要真的要出版本，三件套就得同時到位。）
+1. **任何會改變 App 行為的一批改動，收工時一定要補版本「三件套」，三件同一個 commit。**
+   Stan 的硬性要求：**他裝到手機上時，必須能在「關於」頁看到版號變了、看到這次改了什麼。**
+   沒有版本足跡的改動 = 沒交付。漏改過兩次雷：(1) 只 bump `versionCode`、App 內版號卻停在舊的
+   v1.2.0（2026-06-30）；(2) 1957 行通知核心改動零版本足裡、連 commit 都沒有（2026-07-14）。
+   - **① `versionCode` +1**（`app/build.gradle.kts`）——一旦**上傳 Play** 就永久燒掉、不能重用
+     （草稿/退件也算）。目前已到 **vc16**。沒上傳過的版號可以自由改。
+   - **② `versionName` 也要 bump**——App「關於」頁顯示的就是它（`AboutActivity` 讀
+     `getPackageInfo().versionName`）。純修 bug 走 patch（1.2.1 → 1.2.2）；改到通知核心行為
+     或加新功能走 minor（1.2.x → 1.3.0）。
+   - **③ `AboutActivity.kt` 加一條 `ChangelogEntry("vX.Y.Z", …)` + 對應 `changelog_*` 中英字串**
+     （`values/` 與 `values-en/` 兩份都要）。**用使用者看得懂的白話寫，不要寫技術術語。**
+   - ⚠️ **「bump 版號」跟「發版到 Play」是兩件事，別混。** 前者是你收工的義務，後者只有 Stan 能做
+     （見下方 autonomous 守則）。**曾經因為把這兩句寫成一句，導致 agent 以為版號不能碰。**
 2. **權限只能有兩個**：`BIND_NOTIFICATION_LISTENER_SERVICE` + `POST_NOTIFICATIONS`。加任何敏感權限（尤其 `REQUEST_INSTALL_PACKAGES`、`INTERNET`）都會害 Play Console 退件。
 3. **絕不加 AccessibilityService。** 本 App 用 `NotificationListenerService` 讀通知（正解），不是無障礙。加無障礙 = 觸發 Google 嚴格審查。
 4. **App 完全無網路存取**（沒有 `INTERNET` 權限）。別加任何網路呼叫 / analytics / 自我更新——會打破 Play Console「No data collected / shared」的聲明。in-app updater 就是為此被移除的。
@@ -34,7 +42,13 @@ Package `com.stanslab.linenotify`，Kotlin + Jetpack Compose，minSdk 26 / targe
   - 前綴：新功能用 `feat/`、修 bug 用 `fix/`、合併既有分支用 `integration/`。
   - ⚠️ 目前 repo 裡殘留一批 **2026-07-02 的舊 `feat/*` 分支正在待刪清單上**（見 `HANDOFF.md`）。
     開新分支時**帶上日期**（例：`feat/xxx-2026-07-14`）避免跟廢分支撞名或被誤刪。
-- **別自己改 versionCode、別自己上傳 Play Console。** 那是 Stan 的發布動作（見鐵則 1）。
+- **邊做邊 commit，別攢著。** 每完成一個可獨立編譯的小主題就 commit 一次（跑得過
+  `assembleDebug` 就可以送）。**禁止把一整批工作留在工作區不 commit。**
+  2026-07-14 踩過：一次交出 1957 行未 commit 的改動，19 個檔糊成一團，8 個主題交錯在同一批
+  函式裡，事後幾乎拆不開（最後只能靠分層硬切）。工作區不是儲存空間。
+- **收工一定要 bump 版本三件套**（鐵則 1）。這不是「發版」，這是讓 Stan 裝到手機時看得出你改了什麼。
+- **但別自己上傳 Play Console、別自己 merge 進 master、別 push master、別刪 branch。**
+  那些是 Stan 的動作。**注意這跟上一條不衝突：bump 版號要做，上傳 Play 不做。**
 - **⚠️ 行為類 bug 在無實機環境「做得到、但驗證不了」。** ROADMAP 的「浮窗回覆卡住 / 我的頭貼不顯示 / 回覆或已讀後通知不消失 / 雙開 LINE 區分」都需要：**實體 Nothing Phone + 已登入的 LINE + 真實收到的訊息**，才能觀察 `NotificationListenerService` 收到的 `StatusBarNotification` 內容與通知行為。雲端 sandbox 沒有手機、沒有 LINE、沒有真實訊息 → **做不到驗證**。對這類任務只能「產出候選修法 + 附 on-device 測試步驟」，**不准宣稱已測試通過**。
 - **無手機也能完成、且能用 build 驗證的**（適合放手讓 agent 做）：i18n 抽字串到 strings.xml、文案改名「增強」→「堆疊版本」、FAQ / onboarding 頁、分享按鈕、平板 layout。完成後跑 `./gradlew.bat assembleDebug` 確認編得過即可。
 - **完成標準**：`assembleDebug` 綠燈 ＋ 沒新增任何權限（鐵則 2）＋ 行為類附 on-device 測試清單交給 Stan 實機驗。
