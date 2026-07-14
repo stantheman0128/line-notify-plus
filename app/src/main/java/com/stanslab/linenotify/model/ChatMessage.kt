@@ -25,7 +25,9 @@ data class ChatRoom(
     var senderIcon: Bitmap? = null, // 最近的發送者頭貼
 ) {
     companion object {
-        const val MAX_MESSAGES = 50
+        // NotificationCompat.MessagingStyle 本身最多保留 25 則；多留只會增加長駐 listener
+        // 的 Bitmap/文字記憶體，畫面也不會顯示。
+        const val MAX_MESSAGES = 25
     }
 
     fun addMessage(msg: ChatMessage) {
@@ -37,8 +39,17 @@ data class ChatRoom(
     }
 
     fun clearMessages() {
-        messages.forEach { it.senderIcon?.recycle() }
+        // 多則訊息與 framework Icon 可能共用同一 Bitmap；手動 recycle 會讓仍在使用的
+        // 通知或下一個 callback 讀到 recycled bitmap。交給 GC 統一管理生命週期。
         messages.clear()
         senderIcon = null
+    }
+
+    fun removeMessage(message: ChatMessage) {
+        // ChatMessage 是 data class；同 sender/text/timestamp 的合法連發可能 value-equal。
+        // rollback 必須移除該 callback 的 instance，不能誤刪第一則相同訊息。
+        val index = messages.indexOfFirst { it === message }
+        if (index >= 0) messages.removeAt(index)
+        senderIcon = messages.lastOrNull()?.senderIcon
     }
 }
