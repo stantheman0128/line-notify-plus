@@ -1,6 +1,164 @@
 # Project Handoff — Notify+
 
-## Latest Session: 2026-07-14（Codex：使用者通知回饋與實機稽核）
+## Latest Session: 2026-07-15（Claude Code：修好「跳兩則」、收編全部工作、vc17 待上架）
+
+> 接手的第一件事：**先讀 `AGENTS.md`（鐵則），再讀本節。** 下面兩節是歷史，僅供追溯。
+
+### 一句話狀態
+
+**master = `ddb5c6c`（已 push，與 origin 同步）。版本 vc17 / 1.3.1。所有工作已收編，工作區乾淨。
+唯一在跑的事：Stan 要把 release AAB 上傳 Play Console。**
+
+### 做了什麼
+
+從 Codex 交出一堆未 commit 的改動開始，到 vc17 可送審為止：
+
+1. **收編 Codex 的 1957 行未 commit 改動**（19 個檔全躺在工作區，沒有版本足跡）。
+   按相依層次切成 7 個 commit（`20febc3`..`9c10a30`），**每一個都 checkout 出來實際編譯 + 跑測試驗過**。
+   不是按「8 個功能主題」切——那 8 個主題交錯在同一批函式裡，真要那樣切得憑空改寫 Codex 的程式碼、
+   生出 8 個從沒被測試過的中間狀態當還原點。那是偽造歷史。
+2. **修好「同一則訊息跳兩張卡」**（`f4f2b46`）。這是本次最實質的修復，詳見下方「關鍵決策」。
+3. **修根因：AGENTS.md 的版本規則**（`e67273c`）。
+4. **合併進 master + push**，並校正 `play-console-progress.md` 裡過期的 Impersonation blocker（`ddb5c6c`）。
+5. 產出 vc17 / 1.3.1 的 release AAB 與中英 release notes（都在 500 字元上限內，已用 `wc -m` 實測）。
+
+### 關鍵決策（附證據，別推翻）
+
+- **雙 callback 去重的指紋不准放 `PendingIntent` 或 `MessagingStyle`。**
+  Codex 的 v1.3.0 宣稱修好了「跳兩則」，**實機上一次都沒生效過**。實機 logcat 逐欄位比對後找到兩個原因：
+  - `contentIntent.hashCode()` 在 tagged 與 legacy mirror 兩邊**必然不同**（實測 250458503 vs 131309470，
+    而且是兩者唯一不同的欄位），卻被算進指紋 → 配對保證失敗。
+  - legacy mirror **有時整個抽不到 MessagingStyle** → 指紋退回 null → 連配對都不試。
+
+  修法是把指紋改由「兩邊必然相同」的結構性身分組成，並把組裝抽成純函式
+  `NotificationClassifier.mirrorFingerprint(...)`——**參數列就是欄位白名單，型別層面傳不進 PendingIntent**。
+  光寫註解擋不住下一個人再犯。**想加欄位，先在實機證明它兩邊一致。**
+
+- **版號 bump 是收工義務，不是發版動作。**
+  舊 AGENTS.md 把「別自己改 versionCode」和「別自己上傳 Play」寫成一句，agent 字面執行的結果是
+  「版號不能碰」，於是 Codex 交出 1957 行零版本足跡的改動，Stan 裝到手機上完全看不出裝了什麼。
+  規則已拆開重寫（`e67273c`）。**Stan 的硬性要求：他裝到手機時必須能在「關於」頁看到版號變了、
+  看到這次改了什麼。**
+
+- **Play Console 的狀態不准用讀 repo 的方式去猜。**
+  我曾照 `play-console-progress.md` 判定「icon 像 LINE = Impersonation blocker」，Stan 說那是錯的:
+  改名後重新送審已通過，icon 維持原樣沒問題。**那份文件的紅燈是 2026-06-23 退件當下的推測，
+  被 Console 的實際裁決推翻了。** Console 只有 Stan 看得到。
+
+### 目前狀態
+
+- **能跑**：`assembleDebug` / `assembleRelease` / `bundleRelease` 全綠。
+- **測試 42 個全過**（40 classifier + 2 ChatRoom）。跑 `./gradlew.bat testDebugUnitTest --rerun`。
+  ⚠️ 不加 `--rerun` 會回 `UP-TO-DATE` 跳過測試卻仍印 `BUILD SUCCESSFUL`，那不是綠燈。
+  拿真數字讀 `app/build/test-results/testDebugUnitTest/*.xml` 的 `tests=` / `failures=`。
+- **實機驗證通過**（Nothing A059P / Android 16 / LINE 26.10.1）：一則訊息一張卡，群組也是。
+  手機上目前裝著 vc17 / 1.3.1。
+- **release 產物已備妥**：`app/build/outputs/bundle/release/app-release.aab`
+  （7,112,501 bytes，SHA-256 `0a91222c75e10ab9…`，`jarsigner -verify` 通過，權限實測只有 2 個）。
+- **線上隱私政策已部署且驗證**：push master 後 GitHub Pages 自動更新，`curl` 線上頁與 repo `docs/` 逐字一致。
+
+### 已知問題 / 未驗證的東西
+
+- 🔴 **Android 15+ 私密通知的遮蔽偵測，從來沒有真正執行過一次。**
+  這是最重要的未結項。`isSystemRedactedNotification()` 有四個判斷條件，**只有「系統字串比對」拿到實證**
+  （實機查到 `Resources.getSystem()` 回傳的繁中字串與用戶截圖逐字相同，且該查詢會跟著系統語系走，
+  所以不需要為英文另外寫程式碼）。其餘三條（`subText == null`、`title == LINE 的 app label`、
+  app label 讀得到）**零真實資料佐證**。
+  **Stan 的手機重現不出遮蔽通知**（連刻意傳驗證碼格式也沒觸發系統的敏感內容分類器）。
+  **唯一驗證路徑：等真的會遇到的用戶裝到 1.3.1 之後回報。**
+  ⚠️ 別因為「程式碼看起來很完美、有單元測試、有詳細註解」就當它會動——Codex 的雙 callback 合併
+  就是這樣，實機上一次都沒命中。**讀程式碼推不出行為。**
+
+- ⚠️ **如果有人回報「私密訊息現在完全看不到通知了」，那不是 bug，是設計。** 遮蔽的訊息 Notify+ 會退場，
+  讓 LINE 自己的通知顯示（LINE 看得到完整內容）。FAQ 裡有寫（`faq_q_sensitive_hidden`）。
+
+- ℹ️ **Play Console 的兩個 warning 不用修**（已在 vc17 上重新驗證）：
+  - *native debug symbols*：AAB 裡唯一的 `.so` 是 androidx 帶進來的 `libandroidx.graphics.path.so`，
+    `file` 顯示它 **stripped**——符號表根本不存在，抽不出東西。`ndk { debugSymbolLevel = "FULL" }`
+    早就設了（`app/build.gradle.kts:47`），AAB 的 `BUNDLE-METADATA/` 裡依然一個 symbol 都沒有。
+    專案零自家原生程式碼，不可能在原生層當機。**修不了也不需要修。**
+  - *沒有 deobfuscation 檔*：因為 R8 故意關著（鐵則 6）。沒混淆就沒對照表，這警告本來就會出現。
+
+### 下一步
+
+1. **Stan：上傳 vc17 到 Play Console。**
+   - ⚠️ **先確認 vc17 沒被 Console 佔用過**（Release → App bundles 看歷史）。文件只確認 vc13、vc14 已燒掉，
+     vc15、vc16 狀態不明。若 vc17 已被用掉，要 bump 到下一個可用號碼並重建 AAB（三件套一起改）。
+   - AAB：`app/build/outputs/bundle/release/app-release.aab`
+   - Release notes（中英，已壓進 500 字元）：`play-store-assets/store-listing.md`
+2. **清掉 11 條殘留 branch**（見下方「branch 清理清單」）。
+3. **上線後盯遮蔽偵測的回報。** 這是唯一能驗證它的路徑。
+
+### branch 清理清單（master = `ddb5c6c` 已含全部內容）
+
+**已完全併入 master，刪掉零風險（`git branch -d` 就會過）：**
+```
+fix/notification-behavior
+fix/notification-feedback-2026-07-14
+integration/rebased-three-2026-07-14
+rebased/notification-style-visual-guide
+rebased/permission-guidance
+rebased/problem-reporting
+test/unit-scaffolding-2026-07-02
+```
+
+**未併入 master，但內容已被 `rebased/*` 取代（過期前身，需 `git branch -D` 強制刪）：**
+```
+feat/notification-style-visual-guide
+feat/permission-guidance
+feat/problem-reporting
+preview/all-three-2026-07-02
+```
+> `feat/*` 落後 master 21 個 commit，合下去會衝突；`feat/notification-style-visual-guide` 解錯衝突
+> 還會把 master 刻意移除的 HelpActivity「通知風格說明」卡復活。`preview/` 是三條的重複預覽。
+> 保險起見刪前可先打 `archive/*` tag。
+
+### 給下一個 AI 的提示
+
+- **行為類改動你驗證不了，不准宣稱測過。** `BUILD SUCCESSFUL` 只證明編得過。這個 repo 有兩次血淋淋的例子：
+  (1) `painterResource(R.mipmap.ic_launcher)` 編譯正常、一啟動就 crash；
+  (2) Codex 的雙 callback 合併程式碼完美、測試齊全、實機一次都沒生效。
+- **要看通知行為，用 logcat 不要用推論**：
+  ```bash
+  export ADB="C:/Users/stans/AppData/Local/Android/Sdk/platform-tools/adb.exe"
+  export MSYS2_ARG_CONV_EXCL="*"        # 不加這行，Git Bash 會把 /system/... 轉成 Windows 路徑
+  "$ADB" logcat -c
+  "$ADB" logcat -v time LineNotify:V "*:S"
+  ```
+  關鍵 log：`收到訊息`（每則訊息應只出現一次）、`對話串通知 count=`（應只到 1）、
+  `合併 LINE conversation/legacy mirror callback`（每則訊息應命中一次）、
+  `系統已遮蔽敏感通知`（遮蔽偵測命中）。
+- **`install -r` 之後一定要重綁 listener**，否則訊息不會跳：
+  ```bash
+  COMP="com.stanslab.linenotify/com.stanslab.linenotify.service.LineNotificationListener"
+  "$ADB" shell cmd notification disallow_listener "$COMP"
+  "$ADB" shell cmd notification allow_listener "$COMP"
+  ```
+  驗證有沒有綁上：`"$ADB" shell settings get secure enabled_notification_listeners | grep linenotify`
+  （`cmd notification allowed_listeners` 不是有效指令，別用它判斷）
+- **build 環境**：Windows 路徑含空格，先
+  `export JAVA_HOME="/c/Program Files/Android/Android Studio/jbr"`。
+- **commit 一律用明確路徑**（`git add <path>`），禁 `git add -A`：工作區有 `.claude/`、`tools/`、
+  `build-install.bat`、`design/*.png` 等未追蹤雜物，會被掃進去。
+- **設計決策仍然有效**：導航 B 模型、主要按鈕鎖品牌綠 `Green40 (#06C755)` 其餘跟系統動態取色、
+  元件命名照 `design/COMPONENTS.md`。
+- **回應一律繁體中文。**
+
+### 建議下個 AI 用的 skill
+
+- 通知行為出問題 → `diagnosing-bugs`（先建可重現的紅燈迴圈，別直接猜）
+- 動 Compose UI → `impeccable`
+- 切 commit / 版號策略 → `agent-skills:git-workflow-and-versioning`
+- 宣稱完成前 → `superpowers:verification-before-completion`
+- 對外文字（商店文案、release notes）→ `humanizer-zh-tw` / `humanizer`
+
+---
+
+## Previous Session: 2026-07-14（Codex：使用者通知回饋與實機稽核）
+
+> ⚠️ 本節的成果**已全部收編進 master**（切成 `20febc3`..`9c10a30` 七個 commit）。
+> 但本節宣稱「已修好」的**雙 callback 合併，實機上從未生效過**，已於 2026-07-15 重修（`f4f2b46`）。
+> 本節的「沒有 bump、commit」是照當時 HANDOFF 的錯誤指令做的，不是 Codex 的錯。
 
 ### 狀態
 
