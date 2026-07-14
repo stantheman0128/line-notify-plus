@@ -618,6 +618,11 @@ private fun AdvancedSettingsCard(
 ) {
     var expanded by remember { mutableStateOf(false) }
     var infoDialog by remember { mutableStateOf<Pair<String, String>?>(null) }
+    var showStyleGuideDialog by remember { mutableStateOf(false) }
+
+    if (showStyleGuideDialog) {
+        NotificationStyleGuideDialog(onDismiss = { showStyleGuideDialog = false })
+    }
 
     val threadTitle = stringResource(R.string.style_thread_title)
     val threadBody = stringResource(R.string.style_help_thread_body)
@@ -658,7 +663,10 @@ private fun AdvancedSettingsCard(
             if (expanded) {
                 HorizontalDivider(modifier = Modifier.padding(bottom = 4.dp))
 
-                SectionLabel(stringResource(R.string.notification_style_title))
+                SectionLabelWithInfo(
+                    text = stringResource(R.string.notification_style_title),
+                    onInfoClick = { showStyleGuideDialog = true }
+                )
                 StyleOption(
                     title = threadTitle,
                     subtitle = stringResource(R.string.style_thread_subtitle),
@@ -754,6 +762,34 @@ private fun LanguageDropdown(
             DropdownMenuItem(
                 text = { Text(stringResource(R.string.language_en)) },
                 onClick = { onLanguageChange("en"); expanded = false }
+            )
+        }
+    }
+}
+
+@Composable
+private fun SectionLabelWithInfo(text: String, onInfoClick: () -> Unit) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(top = 4.dp, bottom = 8.dp),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = androidx.compose.ui.Alignment.CenterVertically
+    ) {
+        Text(
+            text = text,
+            fontSize = 14.sp,
+            fontWeight = FontWeight.Medium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+        IconButton(
+            onClick = onInfoClick,
+            modifier = Modifier.size(32.dp)
+        ) {
+            Icon(
+                imageVector = Icons.Outlined.Info,
+                contentDescription = stringResource(R.string.style_guide_open_content_description),
+                tint = MaterialTheme.colorScheme.primary
             )
         }
     }
