@@ -6,8 +6,10 @@
 
 ### 一句話狀態
 
-**master = `ddb5c6c`（已 push，與 origin 同步）。版本 vc17 / 1.3.1。所有工作已收編，工作區乾淨。
-唯一在跑的事：Stan 要把 release AAB 上傳 Play Console。**
+**所有工作已收編進 `master` 並 push（本地與 origin 同步，且都只剩 `master` 一條 branch）。
+版本 vc17 / 1.3.1。工作區乾淨。唯一在跑的事：Stan 要把 release AAB 上傳 Play Console。**
+
+> tip sha 別寫死在文件裡（寫死了每 commit 一次就爛一次）。要現況跑 `git log --oneline -1 master`。
 
 ### 做了什麼
 
@@ -86,32 +88,29 @@
      vc15、vc16 狀態不明。若 vc17 已被用掉，要 bump 到下一個可用號碼並重建 AAB（三件套一起改）。
    - AAB：`app/build/outputs/bundle/release/app-release.aab`
    - Release notes（中英，已壓進 500 字元）：`play-store-assets/store-listing.md`
-2. **清掉 11 條殘留 branch**（見下方「branch 清理清單」）。
+2. ~~清掉殘留 branch~~ ✅ **已完成**（2026-07-15，見下方「branch 清理」）。
 3. **上線後盯遮蔽偵測的回報。** 這是唯一能驗證它的路徑。
 
-### branch 清理清單（master = `ddb5c6c` 已含全部內容）
+### branch 清理 ✅ 已完成（2026-07-15）
 
-**已完全併入 master，刪掉零風險（`git branch -d` 就會過）：**
+**本地與 origin 現在都只剩 `master`。** 原本殘留的 11 條全部刪除：7 條已併入 master（`-d` 乾淨刪），
+4 條過期產物（`feat/*` ×3 落後 master 21 個 commit、`preview/all-three-2026-07-02` 是三條的重複預覽）
+用 `-D` 強制刪。
+
+刪除前已打 tag 釘住那 4 條的 commit，**本地與 origin 都有**，永遠救得回來：
+
 ```
-fix/notification-behavior
-fix/notification-feedback-2026-07-14
-integration/rebased-three-2026-07-14
-rebased/notification-style-visual-guide
-rebased/permission-guidance
-rebased/problem-reporting
-test/unit-scaffolding-2026-07-02
+archive/feat/notification-style-visual-guide      → a480542
+archive/feat/permission-guidance                  → 2c3c610
+archive/feat/problem-reporting                    → 7c09702
+archive/preview/all-three-2026-07-02              → 1f7d3a6
 ```
 
-**未併入 master，但內容已被 `rebased/*` 取代（過期前身，需 `git branch -D` 強制刪）：**
-```
-feat/notification-style-visual-guide
-feat/permission-guidance
-feat/problem-reporting
-preview/all-three-2026-07-02
-```
-> `feat/*` 落後 master 21 個 commit，合下去會衝突；`feat/notification-style-visual-guide` 解錯衝突
-> 還會把 master 刻意移除的 HelpActivity「通知風格說明」卡復活。`preview/` 是三條的重複預覽。
-> 保險起見刪前可先打 `archive/*` tag。
+要復原任何一條：`git checkout -b <名字> archive/<原分支名>`
+
+> 為什麼刪：`feat/*` 是 `rebased/*` 的過期前身，內容 100% 被 master 覆蓋，而且合下去會衝突
+> （`feat/notification-style-visual-guide` 解錯衝突還會把 master 刻意移除的 HelpActivity
+> 「通知風格說明」卡復活）。`preview/` 與那三條 patch-id 重複。留著只會誤導下一個接手的人。
 
 ### 給下一個 AI 的提示
 
