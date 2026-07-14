@@ -21,6 +21,15 @@
     <string name="service_needs_permission">需要授權通知存取權限才能運作</string>
     <string name="service_stack_disabled">完整通知已關閉</string>
     <string name="open_notification_access">開啟通知存取權限</string>
+    <string name="request_post_notifications">允許通知發送權限</string>
+    <string name="permission_guide_title">完成 2 個權限設定</string>
+    <string name="permission_guide_body">LINE Notify+ 需要先讀到 LINE 通知，再發出整理後的堆疊版本通知。兩個權限都完成後，服務才會開始運作。</string>
+    <string name="permission_notification_access_title">通知存取權限</string>
+    <string name="permission_notification_access_body">允許 App 讀取 LINE 原始通知，用來重新整理成對話串或 Apple 分組。</string>
+    <string name="permission_post_notifications_title">通知發送權限</string>
+    <string name="permission_post_notifications_body">允許 App 發出新的堆疊版本通知。Android 12 以下不需要另外授權。</string>
+    <string name="permission_status_granted">已完成</string>
+    <string name="permission_status_missing">待設定</string>
     <string name="settings_title">設定</string>
     <string name="enable_stack_notifications_title">啟用完整通知</string>
     <string name="enable_stack_notifications_subtitle">攔截 LINE 通知，把訊息整理成完整對話顯示</string>
