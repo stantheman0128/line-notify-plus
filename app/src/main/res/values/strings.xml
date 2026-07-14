@@ -24,7 +24,7 @@
     <string name="open_notification_access">開啟通知存取權限</string>
     <string name="request_post_notifications">允許通知發送權限</string>
     <string name="permission_guide_title">完成 2 個權限設定</string>
-    <string name="permission_guide_body">LINE Notify+ 需要先讀到 LINE 通知，再發出整理後的堆疊版本通知。兩個權限都完成後，服務才會開始運作。</string>
+    <string name="permission_guide_body">Notify+ 需要先讀到 LINE 通知，再發出整理後的堆疊版本通知。兩個權限都完成後，服務才會開始運作。</string>
     <string name="permission_notification_access_title">通知存取權限</string>
     <string name="permission_notification_access_body">允許 App 讀取 LINE 原始通知，用來重新整理成對話串或 Apple 分組。</string>
     <string name="permission_post_notifications_title">通知發送權限</string>
@@ -118,8 +118,9 @@
     <string name="chat_detail_empty_title">選擇一個聊天室</string>
     <string name="chat_detail_empty_body">在左側選擇聊天室，就能查看類型並切換完整通知。</string>
     <string name="chat_status_enabled">已啟用完整通知</string>
-    <string name="chat_status_disabled">已關閉完整通知</string>
-    <string name="chat_toggle_title">這個聊天室使用完整通知</string>
+    <string name="chat_status_disabled">已完全靜音</string>
+    <string name="chat_legacy_original_only">%1$s · 舊設定：保留 LINE 原通知</string>
+    <string name="chat_toggle_title">允許這個聊天室通知</string>
     <string name="chat_filter_all">全部</string>
     <string name="chat_sort_label">排序</string>
     <string name="chat_sort_recent">最新訊息</string>
@@ -133,15 +134,18 @@
     <string name="chat_search_content_description">搜尋</string>
     <string name="chat_info_content_description">說明</string>
     <string name="chat_info_title">關於聊天室管理</string>
-    <string name="chat_info_body">這裡可以針對每個聊天室，單獨決定要不要做完整通知。關掉某個聊天室，它就只會收到 LINE 原本的通知。\n\n• 只有「曾收到訊息」的聊天室才會出現在這裡。\n• 若頭像沒顯示、或某個聊天室沒出現，通常是該聊天室的通知還沒進來、或尚未被抓取。</string>
+    <string name="chat_info_body">這裡可以針對每個聊天室單獨管理通知。對一般可辨識的通知，關閉後 Notify+ 會撤掉自己與 LINE 的通知，包含 @all 與直接標註你的訊息。點一下聊天室列可手動更正好友／群組／社群分類。\n\n• 標示「舊設定」的聊天室仍會保留 LINE 原通知；先開啟再關閉，才會改成新版完全靜音。\n• 只有「曾收到訊息」的聊天室才會出現在這裡。\n• 系統可能先顯示極短暫的提示，再由 Notify+ 撤掉。\n• 若 Android 已先隱藏通知內容，Notify+ 會看不到聊天室名稱，因此無法保證攔截該則通知。\n• 在保留 LINE 原通知模式中，LINE 的全域摘要也可能包含已靜音聊天室；Notify+ 不會為了它而隱藏其他聊天室的摘要。\n• 若頭像沒顯示、或某個聊天室沒出現，通常是該聊天室的通知還沒進來、或尚未被抓取。</string>
     <string name="chat_info_privacy_link">🔒 我們如何處理你的資料</string>
-    <string name="chat_info_privacy_body">我們不會收集你的聊天室資料。只有在訊息傳入時，才會在「本機」抓取該聊天室的名稱與頭像，用來顯示這份清單。App 沒有網路權限，資料不會上傳。</string>
+    <string name="chat_info_privacy_body">Notify+ 不會把完整訊息歷史寫入自己的檔案；訊息會暫存在程序記憶體並交給 Android 通知系統顯示，通知紀錄可能依你的系統設定保留。磁碟只保存聊天室名稱、分類、最後活躍時間、開關與頭貼。App 沒有網路權限，不會上傳這些資料。</string>
     <string name="chat_select_all">全選</string>
     <string name="chat_deselect_all">取消全選</string>
     <string name="chat_bulk_enable">啟用</string>
     <string name="chat_bulk_disable">停用</string>
     <string name="chat_selected_count">已選 %1$d</string>
     <string name="chat_exit_selection">結束選取</string>
+    <string name="chat_edit_type_title">更正聊天室分類</string>
+    <string name="chat_edit_type_body">「%1$s」應該歸在哪一類？手動選擇後會固定使用此分類。</string>
+    <string name="chat_type_manual">%1$s · 手動</string>
     <string name="info_demo_pending">示範動畫製作中，敬請期待 🎬</string>
     <string name="info_icon_desc">說明</string>
 
@@ -182,6 +186,8 @@
     <string name="faq_a_original">開啟後會隱藏 LINE 原本的通知，只留下 Notify+ 重新整理後的通知。</string>
     <string name="faq_q_reply">快速回覆送不出去怎麼辦？</string>
     <string name="faq_a_reply">這是 closed testing 期間仍在追的行為類 bug。請保留當下通知，回報手機型號、Android 版本與 LINE 版本。</string>
+    <string name="faq_q_sensitive_hidden">為什麼顯示「系統已隱藏含有私密資訊」？</string>
+    <string name="faq_a_sensitive_hidden">Android 15 以上可能在把敏感通知交給 Notify+ 前先移除原文，App 無法還原。你可以在設定搜尋「增強型通知／Enhanced notifications」，或嘗試到「通知與快捷設定／通知與狀態列 → 更多設定」關閉它；不同 OPPO／realme 版本或更新不一定有效，也可能一併關閉智慧回覆等功能。若只在鎖定畫面發生，也可開啟鎖定畫面通知內容、關閉「智慧通知隱藏」；這會降低旁人看到通知內容的隱私保護。Notify+ 辨識到 Android 標準占位通知時，會保留原 LINE 通知且不再重發占位文字。</string>
     <string name="faq_q_xiaomi">小米手機如何設定後台常駐？</string>
     <string name="faq_a_xiaomi">1. 設定 → 應用程式 → 權限 → 自動啟動，開啟 Notify+\n2. 應用程式 → Notify+ → 省電策略 → 選「無限制」\n3. 關閉「暫停閒置應用程式活動」\n4. 完成後建議重新啟動手機</string>
     <string name="faq_q_oppo">OPPO 手機如何設定後台常駐？</string>
@@ -202,4 +208,5 @@
     <string name="notification_summary_text">%1$d 則訊息</string>
     <string name="notification_group_title">%1$s — %2$s</string>
     <string name="notification_channel_description">Notify+ 完整通知</string>
+    <string name="notification_public_text">有一則新訊息</string>
 </resources>

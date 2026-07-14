@@ -234,6 +234,11 @@ private fun FaqCard() {
             )
             HorizontalDivider()
             ExpandableFaqItem(
+                question = stringResource(R.string.faq_q_sensitive_hidden),
+                answer = stringResource(R.string.faq_a_sensitive_hidden)
+            )
+            HorizontalDivider()
+            ExpandableFaqItem(
                 question = stringResource(R.string.faq_q_xiaomi),
                 answer = stringResource(R.string.faq_a_xiaomi)
             )

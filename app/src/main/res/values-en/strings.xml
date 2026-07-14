@@ -24,7 +24,7 @@
     <string name="open_notification_access">Open notification access</string>
     <string name="request_post_notifications">Allow notification posting</string>
     <string name="permission_guide_title">Complete 2 permission steps</string>
-    <string name="permission_guide_body">LINE Notify+ needs to read original LINE notifications first, then post the rebuilt stack version notifications. The service starts after both permissions are ready.</string>
+    <string name="permission_guide_body">Notify+ needs to read original LINE notifications first, then post the rebuilt stack version notifications. The service starts after both permissions are ready.</string>
     <string name="permission_notification_access_title">Notification access</string>
     <string name="permission_notification_access_body">Allow the app to read original LINE notifications so they can be rebuilt as threads or Apple-style groups.</string>
     <string name="permission_post_notifications_title">Notification posting</string>
@@ -118,8 +118,9 @@
     <string name="chat_detail_empty_title">Select a chat</string>
     <string name="chat_detail_empty_body">Choose a chat on the left to view its type and toggle complete notifications.</string>
     <string name="chat_status_enabled">Complete notifications enabled</string>
-    <string name="chat_status_disabled">Complete notifications disabled</string>
-    <string name="chat_toggle_title">Use complete notifications for this chat</string>
+    <string name="chat_status_disabled">Fully muted</string>
+    <string name="chat_legacy_original_only">%1$s · Legacy setting: keep original LINE notifications</string>
+    <string name="chat_toggle_title">Allow notifications from this chat</string>
     <string name="chat_filter_all">All</string>
     <string name="chat_sort_label">Sort</string>
     <string name="chat_sort_recent">Latest message</string>
@@ -133,15 +134,18 @@
     <string name="chat_search_content_description">Search</string>
     <string name="chat_info_content_description">Info</string>
     <string name="chat_info_title">About chat management</string>
-    <string name="chat_info_body">Here you can decide, per chat, whether to give it complete notifications. Turn a chat off and it only gets LINE\'s original notification.\n\n• Only chats that have received a message appear here.\n• If an avatar is missing or a chat is absent, its notification probably hasn\'t arrived or been captured yet.</string>
+    <string name="chat_info_body">Manage notifications for each chat. For notifications it can identify, turning a chat off makes Notify+ dismiss both its own and the original LINE notification, including @all and direct mentions. Tap a row to correct its friend, group, or community category.\n\n• Chats marked “Legacy setting” still keep original LINE notifications; turn one on and then off to opt into the new full-mute behavior.\n• Only chats that have received a message appear here.\n• The system may briefly show an alert before Notify+ dismisses it.\n• If Android has already hidden the notification content, Notify+ cannot see the chat name and therefore cannot guarantee blocking that notification.\n• When original LINE notifications are kept, LINE’s global summary may still include a muted chat; Notify+ will not hide other chats’ summary to suppress it.\n• If an avatar is missing or a chat is absent, its notification probably hasn\'t arrived or been captured yet.</string>
     <string name="chat_info_privacy_link">🔒 How we handle your data</string>
-    <string name="chat_info_privacy_body">We do not collect your chat data. Only when a message arrives do we read the chat\'s name and avatar locally, to show this list. The app has no network permission, so nothing is uploaded.</string>
+    <string name="chat_info_privacy_body">Notify+ does not write a complete message history to its own files. Message data is held temporarily in process memory and passed to Android for display; notification history may retain it according to your system settings. Only chat names, categories, last-active times, switches, and avatars are saved to disk. The App has no network permission and uploads none of this data.</string>
     <string name="chat_select_all">Select all</string>
     <string name="chat_deselect_all">Deselect all</string>
     <string name="chat_bulk_enable">Enable</string>
     <string name="chat_bulk_disable">Disable</string>
     <string name="chat_selected_count">%1$d selected</string>
     <string name="chat_exit_selection">Exit selection</string>
+    <string name="chat_edit_type_title">Correct chat category</string>
+    <string name="chat_edit_type_body">Which category should "%1$s" use? Your manual choice stays in effect.</string>
+    <string name="chat_type_manual">%1$s · Manual</string>
     <string name="info_demo_pending">Demo animation coming soon 🎬</string>
     <string name="info_icon_desc">Info</string>
 
@@ -182,6 +186,8 @@
     <string name="faq_a_original">When enabled, the original LINE notification is hidden and only the rebuilt Notify+ notification remains.</string>
     <string name="faq_q_reply">What if quick replies do not send?</string>
     <string name="faq_a_reply">This is still being investigated during closed testing. Keep the notification and report the phone model, Android version, and LINE version.</string>
+    <string name="faq_q_sensitive_hidden">Why does it say “Sensitive notification content hidden”?</string>
+    <string name="faq_a_sensitive_hidden">On Android 15 and later, the system may remove sensitive content before Notify+ receives it, so the app cannot recover the original text. You can try turning off “Enhanced notifications” under Settings → Notifications → More settings, but this may not work on every OPPO or realme version and may also disable smart-reply features. If it only happens on the lock screen, you can allow lock-screen notification content and turn off “Smart notification hiding”; doing so reduces protection against people nearby reading notifications. When Notify+ recognizes Android’s standard placeholder, it keeps the original LINE notification and does not repost the placeholder.</string>
     <string name="faq_q_xiaomi">Xiaomi: how to keep it running in the background?</string>
     <string name="faq_a_xiaomi">1. Settings → Apps → Permissions → Autostart, enable Notify+\n2. Apps → Notify+ → Battery saver → No restrictions\n3. Turn off "Pause app activity if unused"\n4. Restart the phone afterwards</string>
     <string name="faq_q_oppo">OPPO: how to keep it running in the background?</string>
@@ -202,4 +208,5 @@
     <string name="notification_summary_text">%1$d messages</string>
     <string name="notification_group_title">%1$s — %2$s</string>
     <string name="notification_channel_description">Notify+ complete notifications</string>
+    <string name="notification_public_text">New message</string>
 </resources>
