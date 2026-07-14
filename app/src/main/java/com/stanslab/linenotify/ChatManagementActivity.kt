@@ -10,6 +10,7 @@ import androidx.appcompat.app.AppCompatActivity
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
@@ -45,6 +46,7 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
@@ -72,6 +74,7 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.stanslab.linenotify.service.LineNotificationListener
+import com.stanslab.linenotify.service.NotificationClassifier
 import com.stanslab.linenotify.ui.theme.LineNotifyTheme
 
 class ChatManagementActivity : AppCompatActivity() {
@@ -94,8 +97,10 @@ data class ChatItem(
     val name: String,
     val type: String,
     val enabled: Boolean,
+    val legacyOriginalOnly: Boolean,
     val avatarPath: String?,
     val lastActive: Long,
+    val manuallyClassified: Boolean,
 )
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
@@ -122,6 +127,7 @@ fun ChatManagementScreen(onBack: () -> Unit) {
 
     // Info dialog state
     var showInfo by remember { mutableStateOf(false) }
+    var editingChat by remember { mutableStateOf<ChatItem?>(null) }
 
     // Multi-select state
     var selectionMode by remember { mutableStateOf(false) }
@@ -166,6 +172,18 @@ fun ChatManagementScreen(onBack: () -> Unit) {
                 TextButton(onClick = { showInfo = false }) {
                     Text(stringResource(android.R.string.ok))
                 }
+            }
+        )
+    }
+
+    editingChat?.let { chat ->
+        ChatTypeDialog(
+            chat = chat,
+            onDismiss = { editingChat = null },
+            onTypeSelected = { type ->
+                setChatTypeOverride(prefs, chat.name, type)
+                reload()
+                editingChat = null
             }
         )
     }
@@ -341,7 +359,8 @@ fun ChatManagementScreen(onBack: () -> Unit) {
                             onClickInSelection = {
                                 if (isSelected) selected.remove(chat.name)
                                 else selected.add(chat.name)
-                            }
+                            },
+                            onOpenSettings = { editingChat = chat },
                         )
                     }
                 }
@@ -432,7 +451,8 @@ private fun ChatRow(
     isSelected: Boolean,
     onToggle: (Boolean) -> Unit,
     onLongClick: () -> Unit,
-    onClickInSelection: () -> Unit
+    onClickInSelection: () -> Unit,
+    onOpenSettings: () -> Unit,
 ) {
     val containerColor = if (isSelected) {
         MaterialTheme.colorScheme.secondaryContainer
@@ -444,7 +464,10 @@ private fun ChatRow(
             .fillMaxWidth()
             .combinedClickable(
                 onLongClick = onLongClick,
-                onClick = { if (selectionMode) onClickInSelection() }
+                onClick = {
+                    if (selectionMode) onClickInSelection()
+                    else onOpenSettings()
+                }
             ),
         colors = CardDefaults.cardColors(containerColor = containerColor)
     ) {
@@ -472,7 +495,13 @@ private fun ChatRow(
                     overflow = TextOverflow.Ellipsis
                 )
                 Text(
-                    text = chatTypeLabel(chat.type),
+                    text = if (chat.legacyOriginalOnly) {
+                        stringResource(R.string.chat_legacy_original_only, chatTypeLabel(chat.type))
+                    } else if (chat.manuallyClassified) {
+                        stringResource(R.string.chat_type_manual, chatTypeLabel(chat.type))
+                    } else {
+                        chatTypeLabel(chat.type)
+                    },
                     fontSize = 12.sp,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
@@ -484,6 +513,51 @@ private fun ChatRow(
             )
         }
     }
+}
+
+@Composable
+private fun ChatTypeDialog(
+    chat: ChatItem,
+    onDismiss: () -> Unit,
+    onTypeSelected: (String) -> Unit,
+) {
+    val choices = listOf(
+        TYPE_PERSONAL to stringResource(R.string.chat_type_personal),
+        TYPE_GROUP to stringResource(R.string.chat_type_group),
+        TYPE_COMMUNITY to stringResource(R.string.chat_type_community),
+    )
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(stringResource(R.string.chat_edit_type_title)) },
+        text = {
+            Column {
+                Text(
+                    text = stringResource(R.string.chat_edit_type_body, chat.name),
+                    modifier = Modifier.padding(bottom = 8.dp)
+                )
+                choices.forEach { (type, label) ->
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable { onTypeSelected(type) }
+                            .padding(vertical = 6.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        RadioButton(
+                            selected = chat.type == type,
+                            onClick = { onTypeSelected(type) }
+                        )
+                        Text(text = label, modifier = Modifier.padding(start = 8.dp))
+                    }
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = onDismiss) {
+                Text(stringResource(R.string.action_cancel))
+            }
+        }
+    )
 }
 
 @Composable
@@ -554,21 +628,36 @@ private fun loadAllChats(context: Context, prefs: SharedPreferences): List<ChatI
     val communities = prefs.getStringSet("known_communities", emptySet()) ?: emptySet()
     val groups = prefs.getStringSet("known_groups", emptySet()) ?: emptySet()
     val personal = prefs.getStringSet("known_chats", emptySet()) ?: emptySet()
-    val disabled = prefs.getStringSet(LineNotificationListener.KEY_DISABLED_CHATS, emptySet()) ?: emptySet()
+    val legacyOriginalOnly =
+        prefs.getStringSet(LineNotificationListener.KEY_DISABLED_CHATS, emptySet()) ?: emptySet()
+    val muted = prefs.getStringSet(LineNotificationListener.KEY_MUTED_CHATS, emptySet()) ?: emptySet()
     val lastActive = LineNotificationListener.readLastActive(prefs)
+    val forced = setOf(
+        NotificationClassifier.PREFS_FORCED_COMMUNITIES,
+        NotificationClassifier.PREFS_FORCED_GROUPS,
+        NotificationClassifier.PREFS_FORCED_CHATS,
+    ).flatMapTo(mutableSetOf()) { key -> prefs.getStringSet(key, emptySet()) ?: emptySet() }
 
     fun toItem(name: String, type: String) = ChatItem(
         name = name,
         type = type,
-        enabled = name !in disabled,
+        enabled = NotificationClassifier.notificationModeOf(name, legacyOriginalOnly, muted) ==
+            NotificationClassifier.MODE_ENHANCED,
+        legacyOriginalOnly = NotificationClassifier.notificationModeOf(name, legacyOriginalOnly, muted) ==
+            NotificationClassifier.MODE_LEGACY_ORIGINAL_ONLY,
         avatarPath = LineNotificationListener.avatarFile(context, name)
             .let { if (it.exists()) it.absolutePath else null },
-        lastActive = lastActive[name] ?: 0L
+        lastActive = lastActive[name] ?: 0L,
+        manuallyClassified = name in forced,
     )
+
+    val knownNames = communities + groups + personal
+    val orphanPreferences = (legacyOriginalOnly + muted) - knownNames
 
     return communities.map { toItem(it, TYPE_COMMUNITY) } +
         groups.map { toItem(it, TYPE_GROUP) } +
-        personal.map { toItem(it, TYPE_PERSONAL) }
+        personal.map { toItem(it, TYPE_PERSONAL) } +
+        orphanPreferences.map { toItem(it, TYPE_PERSONAL) }
 }
 
 /** 依「分類」過濾，再依「最新訊息 / 名稱」排序。 */
@@ -582,10 +671,44 @@ private fun applyFilterSort(all: List<ChatItem>, category: String, sort: String)
 }
 
 private fun setChatEnabled(prefs: SharedPreferences, name: String, enabled: Boolean) {
-    val disabled = (prefs.getStringSet(LineNotificationListener.KEY_DISABLED_CHATS, emptySet()) ?: emptySet())
-        .toMutableSet()
-    if (enabled) disabled.remove(name) else disabled.add(name)
-    prefs.edit().putStringSet(LineNotificationListener.KEY_DISABLED_CHATS, disabled).apply()
+    val currentLegacy = prefs.getStringSet(LineNotificationListener.KEY_DISABLED_CHATS, emptySet())
+        ?: emptySet()
+    val currentMuted = prefs.getStringSet(LineNotificationListener.KEY_MUTED_CHATS, emptySet())
+        ?: emptySet()
+    val updated = NotificationClassifier.updateNotificationPreferenceSets(
+        chatTitle = name,
+        enabled = enabled,
+        legacyOriginalOnlyChats = currentLegacy,
+        mutedChats = currentMuted,
+    )
+    prefs.edit()
+        .putStringSet(LineNotificationListener.KEY_DISABLED_CHATS, updated.legacyOriginalOnly)
+        .putStringSet(LineNotificationListener.KEY_MUTED_CHATS, updated.muted)
+        .apply()
+    if (!enabled) LineNotificationListener.instance?.clearChatNotifications(name)
+}
+
+/** 手動分類是對 LINE 私有 extra 變動的保險；同時搬動 known set，讓 UI 立即反映。 */
+private fun setChatTypeOverride(prefs: SharedPreferences, name: String, type: String) {
+    val knownKeys = listOf(
+        NotificationClassifier.PREFS_KNOWN_COMMUNITIES,
+        NotificationClassifier.PREFS_KNOWN_GROUPS,
+        NotificationClassifier.PREFS_KNOWN_CHATS,
+    )
+    val forcedKeys = listOf(
+        NotificationClassifier.PREFS_FORCED_COMMUNITIES,
+        NotificationClassifier.PREFS_FORCED_GROUPS,
+        NotificationClassifier.PREFS_FORCED_CHATS,
+    )
+    val targetKnown = NotificationClassifier.prefsKeyForType(type)
+    val targetForced = NotificationClassifier.forcedPrefsKeyForType(type)
+    val editor = prefs.edit()
+    (knownKeys + forcedKeys).forEach { key ->
+        val values = (prefs.getStringSet(key, emptySet()) ?: emptySet()).toMutableSet()
+        if (key == targetKnown || key == targetForced) values.add(name) else values.remove(name)
+        editor.putStringSet(key, values)
+    }
+    editor.apply()
 }
 
 private fun initialOf(name: String): String {

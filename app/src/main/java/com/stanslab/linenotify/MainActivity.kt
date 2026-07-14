@@ -8,6 +8,7 @@ import android.content.pm.PackageManager
 import android.os.Build
 import android.os.Bundle
 import android.provider.Settings
+import android.service.notification.NotificationListenerService
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -76,6 +77,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.content.ContextCompat
+import androidx.core.app.NotificationManagerCompat
 import androidx.core.os.LocaleListCompat
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LifecycleEventEffect
@@ -112,17 +114,11 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun rebindListenerIfNeeded() {
+        if (packageName !in NotificationManagerCompat.getEnabledListenerPackages(this)) return
+        if (LineNotificationListener.isListenerConnected) return
         val componentName = ComponentName(this, LineNotificationListener::class.java)
-        packageManager.setComponentEnabledSetting(
-            componentName,
-            PackageManager.COMPONENT_ENABLED_STATE_DISABLED,
-            PackageManager.DONT_KILL_APP
-        )
-        packageManager.setComponentEnabledSetting(
-            componentName,
-            PackageManager.COMPONENT_ENABLED_STATE_ENABLED,
-            PackageManager.DONT_KILL_APP
-        )
+        // 以 framework connection callback 判斷，不能用 service instance：斷線後物件仍可能存活。
+        NotificationListenerService.requestRebind(componentName)
     }
 }
 
@@ -173,6 +169,10 @@ fun MainScreen(windowWidthSizeClass: WindowWidthSizeClass) {
         prefs.edit().putBoolean(LineNotificationListener.KEY_REPLACE_ORIGINAL, it).apply()
     }
     val onNotificationStyleChange: (String) -> Unit = {
+        // 舊樣式通知若留在 SystemUI，下一則新樣式會造成同聊天室重複顯示。
+        // service 不在時仍由 NotificationManager cancelAll 清掉 orphan 通知。
+        LineNotificationListener.instance?.clearAllEnhancedNotifications()
+            ?: NotificationManagerCompat.from(context).cancelAll()
         notifStyle = it
         prefs.edit().putString(LineNotificationListener.KEY_NOTIFICATION_STYLE, it).apply()
     }
