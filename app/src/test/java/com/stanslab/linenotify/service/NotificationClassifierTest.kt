@@ -2,6 +2,7 @@ package com.stanslab.linenotify.service
 
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
@@ -53,6 +54,43 @@ class NotificationClassifierTest {
         assertEquals(
             NotificationClassifier.TYPE_GROUP,
             NotificationClassifier.classifyChatType(isSquare = false, subText = ""),
+        )
+    }
+
+    @Test
+    fun confirmed_community_is_sticky_when_square_extra_is_missing() {
+        assertEquals(
+            NotificationClassifier.TYPE_COMMUNITY,
+            NotificationClassifier.classifyChatType(
+                isSquare = false,
+                subText = "已確認社群",
+                previousType = NotificationClassifier.TYPE_COMMUNITY,
+            ),
+        )
+    }
+
+    @Test
+    fun manual_override_wins_over_private_square_signal() {
+        assertEquals(
+            NotificationClassifier.TYPE_GROUP,
+            NotificationClassifier.classifyChatType(
+                isSquare = true,
+                subText = "同名聊天室",
+                previousType = NotificationClassifier.TYPE_COMMUNITY,
+                overrideType = NotificationClassifier.TYPE_GROUP,
+            ),
+        )
+    }
+
+    @Test
+    fun invalid_manual_override_is_ignored() {
+        assertEquals(
+            NotificationClassifier.TYPE_GROUP,
+            NotificationClassifier.classifyChatType(
+                isSquare = false,
+                subText = "群組",
+                overrideType = "invalid",
+            ),
         )
     }
 
@@ -115,6 +153,50 @@ class NotificationClassifierTest {
         )
     }
 
+    @Test
+    fun only_line_new_messages_channel_is_supported() {
+        assertTrue(
+            NotificationClassifier.isSupportedMessageChannel(
+                "jp.naver.line.android.notification.NewMessages"
+            )
+        )
+        assertTrue(NotificationClassifier.isSupportedMessageChannel("NewMessages"))
+        assertFalse(
+            NotificationClassifier.isSupportedMessageChannel(
+                "jp.naver.line.android.notification.LinePay"
+            )
+        )
+        assertFalse(NotificationClassifier.isSupportedMessageChannel(null))
+    }
+
+    @Test
+    fun known_and_forced_type_lookup_use_expected_precedence() {
+        val known = mapOf(
+            NotificationClassifier.PREFS_KNOWN_COMMUNITIES to setOf("重複", "社群"),
+            NotificationClassifier.PREFS_KNOWN_GROUPS to setOf("重複", "群組"),
+            NotificationClassifier.PREFS_KNOWN_CHATS to setOf("好友"),
+        )
+        assertEquals(
+            NotificationClassifier.TYPE_COMMUNITY,
+            NotificationClassifier.knownTypeOf(known, "重複"),
+        )
+        assertEquals(
+            NotificationClassifier.TYPE_GROUP,
+            NotificationClassifier.knownTypeOf(known, "群組"),
+        )
+        assertNull(NotificationClassifier.knownTypeOf(known, "未知"))
+
+        val forced = mapOf(
+            NotificationClassifier.PREFS_FORCED_COMMUNITIES to setOf("手動社群"),
+            NotificationClassifier.PREFS_FORCED_GROUPS to setOf("手動群組"),
+            NotificationClassifier.PREFS_FORCED_CHATS to setOf("手動好友"),
+        )
+        assertEquals(
+            NotificationClassifier.TYPE_PERSONAL,
+            NotificationClassifier.forcedTypeOf(forced, "手動好友"),
+        )
+    }
+
     // ---- chatTitleOf / roomKeyOf ----
 
     @Test
@@ -136,6 +218,208 @@ class NotificationClassifierTest {
         assertEquals("111:同名聊天室", a)
         assertEquals("222:同名聊天室", b)
         assertTrue(a != b)
+    }
+
+    // ---- Android 15+ sensitive notification redaction ----
+
+    @Test
+    fun framework_redacted_clone_is_detected() {
+        assertTrue(
+            NotificationClassifier.isSystemRedactedNotification(
+                title = "LINE",
+                text = "系統已隱藏含有私密資訊的通知內容",
+                subText = null,
+                sourceAppLabel = "LINE",
+                systemRedactedText = "系統已隱藏含有私密資訊的通知內容",
+            )
+        )
+    }
+
+    @Test
+    fun ordinary_message_matching_only_part_of_signature_is_not_redacted() {
+        assertFalse(
+            NotificationClassifier.isSystemRedactedNotification(
+                title = "朋友",
+                text = "系統已隱藏含有私密資訊的通知內容",
+                subText = null,
+                sourceAppLabel = "LINE",
+                systemRedactedText = "系統已隱藏含有私密資訊的通知內容",
+            )
+        )
+        assertFalse(
+            NotificationClassifier.isSystemRedactedNotification(
+                title = "LINE",
+                text = "一般訊息",
+                subText = null,
+                sourceAppLabel = "LINE",
+                systemRedactedText = "系統已隱藏含有私密資訊的通知內容",
+            )
+        )
+    }
+
+    // ---- per-chat full mute ----
+
+    @Test
+    fun disabled_chat_is_fully_muted() {
+        assertTrue(NotificationClassifier.shouldMuteChat("安靜群組", setOf("安靜群組")))
+        assertFalse(NotificationClassifier.shouldMuteChat("其他群組", setOf("安靜群組")))
+    }
+
+    @Test
+    fun legacy_disabled_chat_keeps_original_mode_after_upgrade() {
+        assertEquals(
+            NotificationClassifier.MODE_LEGACY_ORIGINAL_ONLY,
+            NotificationClassifier.notificationModeOf("舊聊天室", setOf("舊聊天室"), emptySet()),
+        )
+    }
+
+    @Test
+    fun explicit_new_mute_wins_if_corrupt_data_contains_both_modes() {
+        assertEquals(
+            NotificationClassifier.MODE_MUTED,
+            NotificationClassifier.notificationModeOf(
+                "聊天室",
+                legacyOriginalOnlyChats = setOf("聊天室"),
+                mutedChats = setOf("聊天室"),
+            ),
+        )
+    }
+
+    @Test
+    fun enable_then_disable_moves_legacy_chat_to_new_mute_set() {
+        val enabled = NotificationClassifier.updateNotificationPreferenceSets(
+            chatTitle = "舊聊天室",
+            enabled = true,
+            legacyOriginalOnlyChats = setOf("舊聊天室"),
+            mutedChats = emptySet(),
+        )
+        assertTrue(enabled.legacyOriginalOnly.isEmpty())
+        assertTrue(enabled.muted.isEmpty())
+
+        val disabledAgain = NotificationClassifier.updateNotificationPreferenceSets(
+            chatTitle = "舊聊天室",
+            enabled = false,
+            legacyOriginalOnlyChats = enabled.legacyOriginalOnly,
+            mutedChats = enabled.muted,
+        )
+        assertTrue(disabledAgain.legacyOriginalOnly.isEmpty())
+        assertEquals(setOf("舊聊天室"), disabledAgain.muted)
+    }
+
+    @Test
+    fun dedupe_fingerprint_is_stable_and_does_not_retain_plaintext() {
+        val first = NotificationClassifier.dedupeFingerprint("profile:room", "私密訊息", 1234)
+        val same = NotificationClassifier.dedupeFingerprint("profile:room", "私密訊息", 1234)
+        val changed = NotificationClassifier.dedupeFingerprint("profile:room", "另一則", 1234)
+        assertEquals(first, same)
+        assertFalse(first.contains("私密訊息"))
+        assertTrue(first != changed)
+    }
+
+    // ---- LINE conversation + legacy mirror（Nothing OS 實機 fixture）----
+
+    private fun mirrorPrimary(
+        key: String = "primary",
+        shortcut: String = "chat-123",
+        postTime: Long = 1_000L,
+        elapsed: Long = 2_000L,
+    ) = NotificationClassifier.MirrorSource(
+        key = key,
+        id = shortcut.hashCode(),
+        tag = "NOTIFICATION_TAG_MESSAGE",
+        shortcutId = shortcut,
+        postTime = postTime,
+        seenElapsed = elapsed,
+    )
+
+    private fun legacyMirror(
+        key: String = "mirror",
+        shortcut: String = "chat-123",
+        postTime: Long = 1_009L,
+        elapsed: Long = 2_024L,
+    ) = NotificationClassifier.MirrorSource(
+        key = key,
+        id = 16_880_000,
+        tag = null,
+        shortcutId = shortcut,
+        postTime = postTime,
+        seenElapsed = elapsed,
+    )
+
+    @Test
+    fun observed_tagged_then_legacy_pair_is_accepted_at_inclusive_boundaries() {
+        assertTrue(NotificationClassifier.isObservedLineMirrorPair(mirrorPrimary(), legacyMirror()))
+        assertTrue(
+            NotificationClassifier.isObservedLineMirrorPair(
+                mirrorPrimary(postTime = 1_000L, elapsed = 2_000L),
+                legacyMirror(postTime = 1_100L, elapsed = 2_500L),
+            )
+        )
+    }
+
+    @Test
+    fun reverse_mirror_order_is_rejected() {
+        assertFalse(NotificationClassifier.isObservedLineMirrorPair(legacyMirror(), mirrorPrimary()))
+    }
+
+    @Test
+    fun unknown_tag_or_ids_are_rejected() {
+        assertFalse(
+            NotificationClassifier.isObservedLineMirrorPair(
+                mirrorPrimary().copy(tag = "other"),
+                legacyMirror(),
+            )
+        )
+        assertFalse(
+            NotificationClassifier.isObservedLineMirrorPair(
+                mirrorPrimary().copy(id = 7),
+                legacyMirror(),
+            )
+        )
+        assertFalse(
+            NotificationClassifier.isObservedLineMirrorPair(
+                mirrorPrimary(),
+                legacyMirror().copy(id = 7),
+            )
+        )
+    }
+
+    @Test
+    fun same_key_or_different_shortcut_is_rejected() {
+        assertFalse(
+            NotificationClassifier.isObservedLineMirrorPair(
+                mirrorPrimary(key = "same"),
+                legacyMirror(key = "same"),
+            )
+        )
+        assertFalse(
+            NotificationClassifier.isObservedLineMirrorPair(
+                mirrorPrimary(shortcut = "a"),
+                legacyMirror(shortcut = "b"),
+            )
+        )
+    }
+
+    @Test
+    fun elapsed_or_post_time_outside_window_is_rejected() {
+        assertFalse(
+            NotificationClassifier.isObservedLineMirrorPair(
+                mirrorPrimary(elapsed = 2_000L),
+                legacyMirror(elapsed = 2_501L),
+            )
+        )
+        assertFalse(
+            NotificationClassifier.isObservedLineMirrorPair(
+                mirrorPrimary(elapsed = 2_000L),
+                legacyMirror(elapsed = 1_999L),
+            )
+        )
+        assertFalse(
+            NotificationClassifier.isObservedLineMirrorPair(
+                mirrorPrimary(postTime = 1_000L),
+                legacyMirror(postTime = 1_101L),
+            )
+        )
     }
 
     // ---- reclassify：改類別時從舊 set 移除（09088de 的自動修正殘留邏輯）----
