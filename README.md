@@ -5,8 +5,8 @@ Nothing Phone 上的 LINE 通知替代 App — 攔截原始 LINE 通知並重新
 | | |
 |---|---|
 | **Package** | `com.stanslab.linenotify` |
-| **目前版本** | versionName `1.1.0` / versionCode `11` |
-| **狀態** | Google Play **Closed Testing** 準備中（14 天觀察期 → Production） |
+| **目前版本** | versionName `1.2.1` / versionCode `15` |
+| **狀態** | **尚未上架**（vc12 因 Impersonation policy 退件 → 已改名「Notify+」，待重交 Production；見 `play-store-assets/play-console-progress.md`） |
 | **GitHub** | https://github.com/stantheman0128/line-notify-plus |
 | **技術** | Kotlin · Jetpack Compose · Gradle（minSdk 26 / targetSdk 35） |
 | **核心機制** | `NotificationListenerService`（**非** AccessibilityService）讀通知；`POST_NOTIFICATIONS` 重發 |
@@ -16,15 +16,23 @@ Nothing Phone 上的 LINE 通知替代 App — 攔截原始 LINE 通知並重新
 ```
 line-notify/
 ├── app/                      ← ⭐ App 原始碼（唯一 source of truth）
-│   └── src/main/
-│       ├── java/com/stanslab/linenotify/   核心邏輯
-│       │   ├── MainActivity.kt / AboutActivity.kt / ChatManagementActivity.kt
-│       │   └── service/  LineNotificationListener.kt · ReplyRelayReceiver.kt
-│       └── res/drawable/ic_launcher_foreground.xml  ← ⭐ icon 向量唯一正解（0.80 縮放、齒輪不裁切）
+│   └── src/
+│       ├── main/
+│       │   ├── java/com/stanslab/linenotify/   核心邏輯
+│       │   │   ├── MainActivity.kt / AboutActivity.kt / ChatManagementActivity.kt / HelpActivity.kt
+│       │   │   └── service/  LineNotificationListener.kt · ReplyRelayReceiver.kt · NotificationClassifier.kt
+│       │   └── res/
+│       │       ├── drawable/ic_launcher_foreground.xml  ← ⭐ icon 向量唯一正解（0.80 縮放、齒輪不裁切）
+│       │       ├── values/ · values-en/          ← i18n（繁中 / 英，新字串兩份都要加）
+│       │       └── values-sw600dp/ · values-sw720dp/  ← 平板 layout
+│       └── test/             ← JVM 單元測試：NotificationClassifierTest.kt（19 案例）
+│                                跑 ./gradlew.bat testDebugUnitTest
 ├── docs/                     ← GitHub Pages：privacy-policy.html（Play Console 用的隱私權 URL）
 ├── play-store-assets/        ← 上架素材（見下方說明）
 ├── keystore/                 ← 🔒 release 簽章金鑰（git-ignored，本機 only，弄丟 = App 無法再更新）
 ├── keystore.properties       ← 🔒 簽章密碼（git-ignored）
+├── AGENTS.md                 ← 🤖 AI agent 鐵則（單一正本；CLAUDE.md 只是指向它的指標）
+├── HANDOFF.md                ← 🤖 交接：當前任務、branch 現況、已驗證的事實
 ├── ROADMAP.md                ← 規劃 + 🐛 已知 bug（tester 回報都記這）
 └── README.md                 ← 你在看的這份
 ```
@@ -62,5 +70,7 @@ line-notify/
 ## 重要提醒
 
 - 🔒 **keystore 弄丟 = 永遠無法更新此 App**。密碼 + .jks 備份在 1Password。務必啟用 Play App Signing 當保險。
-- 🐛 **已知問題看 `ROADMAP.md`**（狀態欄回覆卡住、回覆後通知不消失、雙開 LINE 無法區分等 tester 回報）。
+- 🐛 **已知問題看 `ROADMAP.md`**。2026-06-01 那批 tester 回報的行為 bug（浮窗回覆卡住、回覆後通知不消失、
+  雙開 LINE 無法區分、本人頭貼不顯示）**已於 2026-06-03 全部實機修復**。目前唯一未解的是「權限提示返回後不更新」。
+- 🤖 **AI agent 接手看 `AGENTS.md`（鐵則）+ `HANDOFF.md`（當前任務與分支現況）**。`CLAUDE.md` 只是指向 `AGENTS.md` 的指標。
 - 🌐 App **完全無網路存取**（v1.1.0 已移除 in-app updater）→ Data safety 可誠實填「No data collected / shared」。
