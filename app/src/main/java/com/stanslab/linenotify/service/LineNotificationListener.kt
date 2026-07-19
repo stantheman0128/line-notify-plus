@@ -258,7 +258,11 @@ class LineNotificationListener : NotificationListenerService() {
             }
             if (replacementIsActive) {
                 pendingOriginalCancels.remove(key)
-                cancelNotification(key)
+                if (currentNotificationIsRedacted(key)) {
+                    Log.w(TAG, "原通知已被系統遮蔽（取消前重讀命中）；保留 LINE 原通知")
+                } else {
+                    cancelNotification(key)
+                }
             } else if (attempt + 1 < retryDelays.size && pendingOriginalCancels[key] === cancelTask) {
                 attempt++
                 Log.d(TAG, "副本尚未可查，${retryDelays[attempt]}ms 後重試取消原通知 attempt=$attempt")
@@ -280,16 +284,31 @@ class LineNotificationListener : NotificationListenerService() {
      */
     private fun scheduleLineSummaryCancellation(sbn: StatusBarNotification) {
         if (!prefs.getBoolean(KEY_REPLACE_ORIGINAL, true)) return
+        // GROUP_SUMMARY 分支在 redaction 守門之前，這裡補同等防線：遮蔽版 summary 是
+        // 「有私密訊息」的唯一提示，一律保留。之後若被 LINE 更新，callback 會重新走到這裡。
+        val summaryText = sbn.notification.extras.getCharSequence("android.text")?.toString()
+        if (NotificationClassifier.textMatchesRedactionPlaceholder(summaryText, systemRedactedText())) {
+            Log.w(TAG, "LINE summary 已被系統遮蔽；保留不取消")
+            return
+        }
         val key = sbn.key
+        // summary 的取消只能由「同 profile」的承載者背書：雙開帳號或別 profile 的卡
+        // 不能證明這個 summary 的內容已被承載（獨立審查 2026-07-19 反例）。
+        val summaryProfileKey = profileKeyOf(sbn)
         val task = Runnable {
             pendingOriginalCancels.remove(key)
             val manager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
             val replacementActive = runCatching {
-                manager.activeNotifications.orEmpty().isNotEmpty()
+                manager.activeNotifications.orEmpty().any { ours ->
+                    val roomKey = ours.notification.extras.getString(EXTRA_ROOM_KEY)
+                        ?: findRoomKeyByNotification(ours.tag, ours.id)
+                    NotificationClassifier.roomKeyBelongsToProfile(roomKey, summaryProfileKey)
+                }
             }.getOrDefault(false)
             val lineChildActive = runCatching {
                 activeNotifications.orEmpty().any { active ->
                     active.packageName in LINE_PACKAGES &&
+                        profileKeyOf(active) == summaryProfileKey &&
                         active.key != key &&
                         !active.notification.extras.getBoolean("android.isGroupSummary", false) &&
                         NotificationClassifier.isSupportedMessageChannel(active.notification.channelId) &&
@@ -302,8 +321,12 @@ class LineNotificationListener : NotificationListenerService() {
                     lineChildActive = lineChildActive,
                 )
             ) {
-                cancelNotification(key)
-                Log.d(TAG, "接管 LINE summary，已取消")
+                if (currentNotificationIsRedacted(key)) {
+                    Log.w(TAG, "LINE summary 已被系統遮蔽（取消前重讀命中）；保留不取消")
+                } else {
+                    cancelNotification(key)
+                    Log.d(TAG, "接管 LINE summary，已取消")
+                }
             } else {
                 Log.d(TAG, "LINE summary 為唯一殘留；fail-open 保留")
             }
@@ -311,6 +334,20 @@ class LineNotificationListener : NotificationListenerService() {
         pendingOriginalCancels[key] = task
         handler.postDelayed(task, 350)
     }
+
+    /**
+     * 取消指令送出前的最後重讀：該 key 的現行 text 已是系統遮蔽占位字時回 true。
+     * 同 key 在延遲窗內被系統換成遮蔽版時，callback 撤任務攔不到「已在佇列後段」的更新，
+     * 這裡是最後一道。看不到該通知（部分 OEM activeNotifications 可見性延遲）時回 false
+     * 照取消——與歷代版本相同的 fail 方向；殘餘的 binder 飛行窗口為 API 固有、無法原子化。
+     */
+    private fun currentNotificationIsRedacted(key: String): Boolean = runCatching {
+        activeNotifications.orEmpty().firstOrNull { it.key == key }
+            ?.notification?.extras?.getCharSequence("android.text")?.toString()
+            ?.let { current ->
+                NotificationClassifier.textMatchesRedactionPlaceholder(current, systemRedactedText())
+            }
+    }.getOrNull() ?: false
 
     private fun systemRedactedText(): String? {
         // NotificationManagerService 使用系統語系建立遮蔽文字；不能跟著 App 的單獨語言設定，
