@@ -11,12 +11,15 @@
 
 ### 根因（附證據）
 
-- **LINE 26.11.0 把 `id=16880000 tag=null` 從 legacy mirror 改成 `GROUP_SUMMARY`**
-  （A065 dumpsys mArchive 實證 flags=…|GROUP_SUMMARY；26.10.1 時代它是普通通知，
-  vc17 的 mirror 合併就是按那個形狀寫的）。vc17 對 summary 的策略是「永遠保留」＋
-  堆疊摘要 title 也不再取消（vc13 舊版兩者都會 cancel）→ 孤兒 summary 在 realme UI
-  以「N則新訊息＋訊息預覽」整卡殘留 = 用戶看到的「沒被取代」。用戶兩張截圖的 LINE 卡
-  title 都是「28xx則新訊息」= summary，非 child，吻合。
+- **LINE 26.11.0 的 `id=16880000 tag=null` 是雙形態**（兩者都在 A065 實證）：
+  單聊天室新訊息時仍是舊式 legacy mirror（2026-07-19 18:12 watcher 實測「合併 mirror
+  callback」有觸發、取代流程綠燈）；未讀累積/彙總狀態時變成 `GROUP_SUMMARY`
+  （同日 dumpsys mArchive 實證 flags=…|GROUP_SUMMARY，26.10.1 時代沒觀察過此形態）。
+  vc17 對 summary 的策略是「永遠保留」＋堆疊摘要 title 也不再取消（vc13 舊版兩者都會
+  cancel）→ summary 態下每則訊息更新那張彙總卡、永遠沒人清 → 在 realme UI 以
+  「N則新訊息＋訊息預覽」整卡殘留 = 用戶看到的「沒被取代」。用戶兩張截圖的 LINE 卡
+  title 都是「28xx則新訊息」= summary，非 child，吻合；她 2868 未讀 = 常駐 summary 態，
+  Stan 未讀少 = 多半 mirror 態 → 頻率差異也對上。
 - **`scheduleOriginalCancellation` 是 200ms 一次性檢查、失敗不重試**，且依賴
   `activeNotifications` 即時可見（程式碼自註「部分 OEM 不是同步可見」）→ 慢一拍就永久留雙份。
 - **遮蔽偵測四條件 AND 過嚴**：realme 的 redaction clone 保留原 title/subText，只有
@@ -51,8 +54,12 @@
 1. watcher 抓到 vc17 紅燈（等訊息進場）→ 對照確認假說。
 2. Stan 決定 vc18 驗證路徑（internal testing 上傳 / 本機重裝）。
 3. 發布後請 realme 用戶確認：LINE 卡片是否只剩 Notify+ 一張、私密占位是否改為顯示 LINE 原通知。
-4. 「heads-up 跳兩次」只做了機制定位（LINE NewMessages 頻道 importance=4 全響 + 我方通知
-   也響；26.11.0 的 summary 是否第三個響源待 watcher 數據）——**未修**，等數據再設計。
+4. 「heads-up 跳兩次」機制已實錘（2026-07-19 18:12 watcher：LINE child buzz →
+   278ms 後我方 buzz，跨 package 雙響；LINE NewMessages 頻道 importance=4 全響）。
+   **就算取代流程完美運作也會雙響**——我們是 listener，LINE 的第一響攔不住。**未修**，
+   屬產品取捨：候選 (a) onboarding 引導使用者把 LINE 訊息頻道靜音（但 Notify+ fail-open
+   時訊息會無聲）、(b) 偵測 LINE 剛響過就把我方那則設 silent（heads-up 就不彈）、
+   (c) 接受現狀。等 Stan 拍板。
 
 ## Latest Session: 2026-07-15（Claude Code：修好「跳兩則」、收編全部工作、vc17 待上架）
 
