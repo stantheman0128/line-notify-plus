@@ -209,8 +209,12 @@ class LineNotificationListener : NotificationListenerService() {
         expectedSource: NotificationClassifier.MirrorSource? = null,
         expectedMirrorSignature: String? = null,
     ) {
-        val cancelTask = Runnable {
-            pendingOriginalCancels.remove(key)
+        // activeNotifications 在部分 OEM 不是同步可見（realme UI 實證會慢於 200ms）。
+        // 一次性檢查失敗就放棄會讓 LINE 原通知永久殘留，改成重試階梯；全部失敗才 fail-open。
+        val retryDelays = longArrayOf(200L, 500L, 900L)
+        var attempt = 0
+        lateinit var cancelTask: Runnable
+        cancelTask = Runnable {
             val manager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
             val sourceStillCurrent = if (expectedSource != null && expectedMirrorSignature != null) {
                 runCatching {
@@ -253,13 +257,59 @@ class LineNotificationListener : NotificationListenerService() {
                 isActive(manager, expected)
             }
             if (replacementIsActive) {
+                pendingOriginalCancels.remove(key)
                 cancelNotification(key)
+            } else if (attempt + 1 < retryDelays.size && pendingOriginalCancels[key] === cancelTask) {
+                attempt++
+                Log.d(TAG, "副本尚未可查，${retryDelays[attempt]}ms 後重試取消原通知 attempt=$attempt")
+                handler.postDelayed(cancelTask, retryDelays[attempt])
             } else {
+                pendingOriginalCancels.remove(key)
                 Log.w(TAG, "找不到已提交的 Notify+ 副本；保留 LINE 原通知")
             }
         }
         pendingOriginalCancels[key] = cancelTask
-        handler.postDelayed(cancelTask, 200)
+        handler.postDelayed(cancelTask, retryDelays[0])
+    }
+
+    /**
+     * 接管 LINE 的 group summary／堆疊摘要（詳見 [NotificationClassifier.shouldCancelLineSummary]）。
+     * 延遲 350ms：讓同批 child callback 的副本先貼出，才能通過「內容已由別處承載」的確認。
+     * summary 每次被 LINE 更新都會重新走到這裡（onNotificationPosted 開頭已撤舊任務），
+     * 首則訊息若 summary 先到而暫時保留，下一次更新就會補收。
+     */
+    private fun scheduleLineSummaryCancellation(sbn: StatusBarNotification) {
+        if (!prefs.getBoolean(KEY_REPLACE_ORIGINAL, true)) return
+        val key = sbn.key
+        val task = Runnable {
+            pendingOriginalCancels.remove(key)
+            val manager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+            val replacementActive = runCatching {
+                manager.activeNotifications.orEmpty().isNotEmpty()
+            }.getOrDefault(false)
+            val lineChildActive = runCatching {
+                activeNotifications.orEmpty().any { active ->
+                    active.packageName in LINE_PACKAGES &&
+                        active.key != key &&
+                        !active.notification.extras.getBoolean("android.isGroupSummary", false) &&
+                        NotificationClassifier.isSupportedMessageChannel(active.notification.channelId) &&
+                        !isCallNotification(active.notification)
+                }
+            }.getOrDefault(false)
+            if (NotificationClassifier.shouldCancelLineSummary(
+                    replaceEnabled = prefs.getBoolean(KEY_REPLACE_ORIGINAL, true),
+                    replacementActive = replacementActive,
+                    lineChildActive = lineChildActive,
+                )
+            ) {
+                cancelNotification(key)
+                Log.d(TAG, "接管 LINE summary，已取消")
+            } else {
+                Log.d(TAG, "LINE summary 為唯一殘留；fail-open 保留")
+            }
+        }
+        pendingOriginalCancels[key] = task
+        handler.postDelayed(task, 350)
     }
 
     private fun systemRedactedText(): String? {
@@ -641,6 +691,15 @@ class LineNotificationListener : NotificationListenerService() {
 
         val extras = notification.extras
 
+        // LINE 26.11.0 起 id=16880000 從 legacy mirror 變成 GROUP_SUMMARY（A065 dumpsys 實證）。
+        // summary 不會被 SystemUI 回收，放著會在部分 OEM（realme UI 實證）以「N則新訊息＋預覽」
+        // 整卡殘留，看起來就像原通知沒被取代。此檢查必須在 title/text 空值 return 之前——
+        // summary 不保證帶 android.text。取消前仍會確認內容已由別的通知承載（fail-open）。
+        if (extras.getBoolean("android.isGroupSummary", false)) {
+            scheduleLineSummaryCancellation(sbn)
+            return
+        }
+
         val title = extras.getCharSequence("android.title")?.toString() ?: return
         val text = extras.getCharSequence("android.text")?.toString() ?: return
         val subText = extras.getCharSequence("android.subText")?.toString()
@@ -663,14 +722,9 @@ class LineNotificationListener : NotificationListenerService() {
             return
         }
 
-        // LINE summary 沒有可靠的單一聊天室識別，也可能比 child 先到。永遠 fail-open 保留；
-        // child 被成功取代/取消後 SystemUI 通常會自行重算，不能為了去重而冒險吃掉唯一通知。
-        if (extras.getBoolean("android.isGroupSummary", false)) {
-            return
-        }
-
-        // 過濾 LINE 的堆疊摘要通知（title 含逗號+冒號）
+        // 過濾 LINE 的堆疊摘要通知（title 含逗號+冒號）；與 group summary 同樣接管
         if (NotificationClassifier.isStackSummaryTitle(title)) {
+            scheduleLineSummaryCancellation(sbn)
             return
         }
 
