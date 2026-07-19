@@ -37,17 +37,30 @@
   空值 return 之前——summary 不保證帶 android.text）；原通知取消改 200/500/900ms 重試階梯。
 - `e695b96` 三件套 vc18 / 1.3.2 + 中英 changelog。
 
-### 驗證狀態（誠實聲明）
+### 驗證狀態（2026-07-19 晚間已實機驗證）
 
 - ✅ JVM：45 tests 0 failures（`--rerun` + XML 實讀）。assembleDebug / assembleRelease /
   bundleRelease 全綠。
-- ⚠️ **裝置行為未驗**：診斷 watcher（`tools/diag/notifwatch.py`，紅燈定義見檔頭）已在
-  A065 上跑、canary 通過，但截至寫入時尚無 LINE 訊息進場，vc17 紅燈與 vc18 綠燈都還沒
-  在實機收到。**A065 的 vc17 是 Play 安裝（Play App Signing 簽章），本地 vc18 APK 簽章
-  不同、`install -r` 會被拒**；實機綠燈只能走 (a) Play internal testing 軌道更新（保資料，
-  推薦）或 (b) 砍掉重裝本地 build（設定全失，需 Stan 同意）。
+- ✅ **A065 實機驗證（vc18 本地簽章版，Stan 同意移除 Play 版重裝、設定歸零）**：
+  watcher（`tools/diag/notifwatch.py`）全程錄，多輪真實訊息 capture 全綠零紅燈：
+  - T1 單則取代 ✅（LINE child+mirror 全取消，終態只剩 Notify+ 卡）
+  - T2 同室連發堆疊 ✅（count 1→5 正確，無重複卡）
+  - T3 多聊天室並存 ✅（兩張 Notify+ 卡並存、LINE 側 16880000 全清、零殘留）
+  - T4 滑除全清 ✅（「本機通知被移除，清整組」）
+  - 雙開分身（user 999）流量 ✅ 正常走完整流程
+  - **全程零「重試」log = 每則都在第一檔 200ms 取消，速度與 vc13 相同**；
+    重試階梯只在首查失敗才啟動（舊版該情況=永久殘留，新版=最多多活 1.4s 後被清）
+  - vc17 紅燈另有 17:19 mArchive 三卡並存實證＋realme 用戶截圖
+  - 未直接命中：GROUP_SUMMARY 形態的「接管 LINE summary」分支（本機 16880000 都在
+    mirror 形態就被清掉、升不上 summary 態）——決策邏輯有 JVM 測試罩著，實地效果等
+    realme 用戶回報
+- ⏳ T5 點擊跳轉 / T6 快速回覆：Stan 手動測。
+- 🔍 **競品「通知優化 for LINE」dex 掃描**：同為 listener+cancelNotification+
+  getActiveNotifications+postDelayed，無 snooze/隱藏 API——「LINE heads-up 先彈」
+  的物理限制對它同樣成立，雙響不是我們獨有的缺陷。
 - 產物：AAB `app/build/outputs/bundle/release/app-release.aab`（7,113,911 bytes，
   SHA-256 前綴 `ca129ebb8c7fa429`）。上傳前照慣例先確認 vc18 未被 Console 佔用。
+  ⚠️ A065 目前裝的是**本地簽章 vc18**——之後要換回 Play 軌道版本時需再次移除重裝。
 
 ### 下一步
 
