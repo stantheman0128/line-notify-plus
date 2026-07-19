@@ -1,5 +1,59 @@
 # Project Handoff — Notify+
 
+## Latest Session: 2026-07-19（Claude Code：LINE 26.11.0 結構改變三症狀診斷 + vc18 修復，branch `fix/line-26110-summary-redaction-2026-07-19`）
+
+### 起因（1.3.1 上線後的回報）
+
+1. **realme 用戶（GT 8 Pro / realme UI 7 / Android 16 / LINE 26.11.0）**：LINE 原通知沒被取代、
+   跟 Notify+ 一併出現；開關重開＋重啟無效。另回報私密占位通知又出現（內容是行事曆訊息）。
+2. **Stan（Nothing A065 / LINE 26.11.0）**：同一則訊息 heads-up 跳兩次（下滑只剩一則）；
+   一次目擊 LINE 原通知沒被取消。
+
+### 根因（附證據）
+
+- **LINE 26.11.0 把 `id=16880000 tag=null` 從 legacy mirror 改成 `GROUP_SUMMARY`**
+  （A065 dumpsys mArchive 實證 flags=…|GROUP_SUMMARY；26.10.1 時代它是普通通知，
+  vc17 的 mirror 合併就是按那個形狀寫的）。vc17 對 summary 的策略是「永遠保留」＋
+  堆疊摘要 title 也不再取消（vc13 舊版兩者都會 cancel）→ 孤兒 summary 在 realme UI
+  以「N則新訊息＋訊息預覽」整卡殘留 = 用戶看到的「沒被取代」。用戶兩張截圖的 LINE 卡
+  title 都是「28xx則新訊息」= summary，非 child，吻合。
+- **`scheduleOriginalCancellation` 是 200ms 一次性檢查、失敗不重試**，且依賴
+  `activeNotifications` 即時可見（程式碼自註「部分 OEM 不是同步可見」）→ 慢一拍就永久留雙份。
+- **遮蔽偵測四條件 AND 過嚴**：realme 的 redaction clone 保留原 title/subText，只有
+  text=占位字串成立 → 漏判 → 占位字被原樣轉貼、原通知被取消（比不修還糟）。
+  占位字串本身與用戶截圖逐字相同，錯的不是字串比對，是附加條件。
+  舊測試 `ordinary_message_matching_only_part_of_signature_is_not_redacted` 把這個過嚴
+  行為當規格鎖住了，已改寫。
+
+### 修復（三 commit + 三件套，vc18 / 1.3.2）
+
+- `4acd58f` classifier：遮蔽偵測改為只比對 text==系統占位字串（誤中代價=該則不增強，
+  fail-open）；新增 `shouldCancelLineSummary`（取代開啟且內容已由我方副本或 LINE child
+  承載才取消 summary，唯一殘留則保留）。測試 45 全綠（XML 實讀 43+2 / 0 failures）。
+- `f26b640` listener：summary/堆疊摘要接管（延遲 350ms 守門取消；檢查移到 title/text
+  空值 return 之前——summary 不保證帶 android.text）；原通知取消改 200/500/900ms 重試階梯。
+- `e695b96` 三件套 vc18 / 1.3.2 + 中英 changelog。
+
+### 驗證狀態（誠實聲明）
+
+- ✅ JVM：45 tests 0 failures（`--rerun` + XML 實讀）。assembleDebug / assembleRelease /
+  bundleRelease 全綠。
+- ⚠️ **裝置行為未驗**：診斷 watcher（`tools/diag/notifwatch.py`，紅燈定義見檔頭）已在
+  A065 上跑、canary 通過，但截至寫入時尚無 LINE 訊息進場，vc17 紅燈與 vc18 綠燈都還沒
+  在實機收到。**A065 的 vc17 是 Play 安裝（Play App Signing 簽章），本地 vc18 APK 簽章
+  不同、`install -r` 會被拒**；實機綠燈只能走 (a) Play internal testing 軌道更新（保資料，
+  推薦）或 (b) 砍掉重裝本地 build（設定全失，需 Stan 同意）。
+- 產物：AAB `app/build/outputs/bundle/release/app-release.aab`（7,113,911 bytes，
+  SHA-256 前綴 `ca129ebb8c7fa429`）。上傳前照慣例先確認 vc18 未被 Console 佔用。
+
+### 下一步
+
+1. watcher 抓到 vc17 紅燈（等訊息進場）→ 對照確認假說。
+2. Stan 決定 vc18 驗證路徑（internal testing 上傳 / 本機重裝）。
+3. 發布後請 realme 用戶確認：LINE 卡片是否只剩 Notify+ 一張、私密占位是否改為顯示 LINE 原通知。
+4. 「heads-up 跳兩次」只做了機制定位（LINE NewMessages 頻道 importance=4 全響 + 我方通知
+   也響；26.11.0 的 summary 是否第三個響源待 watcher 數據）——**未修**，等數據再設計。
+
 ## Latest Session: 2026-07-15（Claude Code：修好「跳兩則」、收編全部工作、vc17 待上架）
 
 > 接手的第一件事：**先讀 `AGENTS.md`（鐵則），再讀本節。** 下面兩節是歷史，僅供追溯。
