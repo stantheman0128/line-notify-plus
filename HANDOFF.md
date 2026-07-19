@@ -99,7 +99,13 @@ Codex 獨立驗證（verify-only）判「不可上架」；逐行複核後它指
   watcher 一輪）：真實訊息走**雙開 user 999 路徑**（正是 profile 綁定改動最該驗的路），
   取代成功、兩則堆疊 count=2 正常、~1.1s 後終態 children/summaries 全空只剩我方一張卡、
   零 fail-open 誤觸、零重試、零紅旗。
-- ⏳ 待辦：Codex 重審（驗證單 v2 已交 Stan 轉交）→ 過審後 Stan 上傳 `0c3c5412` AAB。
+- ✅ Codex 重審（2026-07-20 凌晨，審於 `ebfe191`；與 HEAD 差異僅煙霧驗證 docs commit）：
+  **「可上架」**。六條中五條 CONFIRMED（含上輪三反例全數證實已加固、47/0、鐵則合規、
+  rev-list 9 吻合）；「正常路徑」因其無手機標無法獨立重驗——該缺口由我方 A065 煙霧驗證
+  （雙開 999 路徑綠燈）補上。其確認的殘餘風險=非原子 active-snapshot/binder 窗口，
+  「相對舊版只增加保護、沒有更差」，與 HANDOFF 固有限制記載一致。
+- ⏳ 唯一待辦：**Stan 上傳 `0c3c5412` AAB**（先確認 Console 未占用 vc18）→ 發布後追
+  realme 用戶兩個確認問題（「N則新訊息」卡消失？私密通知改顯示 LINE 原通知？）。
 
 ## Latest Session: 2026-07-15（Claude Code：修好「跳兩則」、收編全部工作、vc17 待上架）
 
