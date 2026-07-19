@@ -58,8 +58,8 @@
 - 🔍 **競品「通知優化 for LINE」dex 掃描**：同為 listener+cancelNotification+
   getActiveNotifications+postDelayed，無 snooze/隱藏 API——「LINE heads-up 先彈」
   的物理限制對它同樣成立，雙響不是我們獨有的缺陷。
-- 產物：AAB `app/build/outputs/bundle/release/app-release.aab`（7,113,911 bytes，
-  SHA-256 前綴 `ca129ebb8c7fa429`）。上傳前照慣例先確認 vc18 未被 Console 佔用。
+- 產物：AAB（⚠️ 此輪產物已被下方「加固輪」重建取代，勿上傳 `ca129ebb` 版）。
+  上傳前照慣例先確認 vc18 未被 Console 佔用。
   ⚠️ A065 目前裝的是**本地簽章 vc18**——之後要換回 Play 軌道版本時需再次移除重裝。
 
 ### 下一步
@@ -73,6 +73,30 @@
    屬產品取捨：候選 (a) onboarding 引導使用者把 LINE 訊息頻道靜音（但 Notify+ fail-open
    時訊息會無聲）、(b) 偵測 LINE 剛響過就把我方那則設 silent（heads-up 就不彈）、
    (c) 接受現狀。等 Stan 拍板。
+
+### 加固輪（2026-07-20 凌晨：獨立審查後三處守門收緊，同分支 +2 commits）
+
+Codex 獨立驗證（verify-only）判「不可上架」；逐行複核後它指出的程式碼事實全部屬實，同分支加固：
+
+- **反例 1｜summary 守門不分 profile**：`replacementActive` 原是「有任何一張我方卡就算」
+  （連我方 Aggregate 聚合卡都算）、`lineChildActive` 沒比對 `sbn.user` → 雙開或跨 profile
+  的卡可替別 profile 的 summary 背書，理論上可砍掉唯一內容載體。
+  修：`roomKeyBelongsToProfile`（我方卡 roomKey 取自 `EXTRA_ROOM_KEY` extras、fallback
+  `findRoomKeyByNotification`，比對 profileKey+`:` 前綴；null 不算背書）＋ LINE child 改比
+  `profileKeyOf(active) == summaryProfileKey`。
+- **反例 2｜redacted GROUP_SUMMARY 繞過遮蔽守門**：summary 分支排在 redaction 檢查之前
+  （summary 不保證帶 text，檢查搬不進去）→ 遮蔽版 summary 可能被接管取消。
+  修：`textMatchesRedactionPlaceholder`（null text 不算遮蔽），排程前命中即保留。
+- **反例 3｜check-then-cancel TOCTOU**：**API 固有、vc13/vc17 歷代同款**——listener 只有
+  按 key 取消、沒有比對內容的原子取消；handler 綁主執行緒＋callback 同線程，進程內無交錯，
+  殘餘只剩 binder 飛行窗口（~ms）。窄化：`currentNotificationIsRedacted`——兩個取消點送出
+  cancel 前最後重讀該 key 現行 text，已是占位字就放手；看不到通知時照取消（歷代 fail 方向）。
+  **殘餘窗口記為固有限制；「絕不被取消」級別的保證做不到，文件與驗證單不得再這樣宣稱。**
+- commits：`1c3e40c`（classifier+tests）、`f46e3a5`（listener）。JVM 47/0（XML 實讀 2+45）。
+  版號維持 vc18/1.3.2（未曾發佈、不佔新 vc，changelog 文案仍準確）。
+- 新 AAB：7,114,612 bytes，SHA-256 前綴 `0c3c54125d998b04`。
+- ⏳ 待辦：A065 實機煙霧驗證（加固版同簽名 `install -r` + watcher 一輪自然訊息）——
+  加固當下手機未連 ADB；之後 Codex 重審（驗證單 v2：宣稱措辭修正、commit 數 8、測試數 47）。
 
 ## Latest Session: 2026-07-15（Claude Code：修好「跳兩則」、收編全部工作、vc17 待上架）
 
