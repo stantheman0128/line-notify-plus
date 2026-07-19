@@ -220,10 +220,20 @@ object NotificationClassifier {
     }
 
     /**
-     * Android 15+ 交給不受信任 NotificationListener 的敏感通知 clone：title 會改成來源
-     * App label、text 會改成 framework 的 redacted 字串，subText 被移除。命中後不能重發、
-     * 建立假聊天室或取消原通知，因為原始內容在 callback 前就已不可逆地被移除。
+     * Android 15+ 交給不受信任 NotificationListener 的敏感通知 clone：text 會被換成
+     * framework 的 redacted 占位字串。命中後不能重發、建立假聊天室或取消原通知，
+     * 因為原始內容在 callback 前就已不可逆地被移除。
+     *
+     * 只比對 text == 占位字串。AOSP 的 clone 還會把 title 改成 App label、移除 subText，
+     * 但 OEM 分支不保證照做——realme UI 7（2026-07-18 用戶實證）的 clone 保留了
+     * 原 title/subText，舊版四條件 AND 因此漏判，把占位字轉貼成 Notify+ 通知。
+     * 占位字串取自 `Resources.getSystem()`（跟系統語系走），一般人打出一模一樣整句的
+     * 機率極低；就算誤中，後果只是該則不增強、保留 LINE 原通知（fail-open，可接受）。
+     *
+     * [title]/[subText]/[sourceAppLabel] 參數保留：讓呼叫端與測試明確列出 clone 可見
+     * 欄位，未來若需要再收緊仍有資料可用。
      */
+    @Suppress("UNUSED_PARAMETER")
     fun isSystemRedactedNotification(
         title: String,
         text: String,
@@ -232,10 +242,22 @@ object NotificationClassifier {
         systemRedactedText: String?,
     ): Boolean =
         !systemRedactedText.isNullOrEmpty() &&
-            text == systemRedactedText &&
-            subText == null &&
-            !sourceAppLabel.isNullOrEmpty() &&
-            title == sourceAppLabel
+            text == systemRedactedText
+
+    /**
+     * LINE 26.11.0 起，`id=16880000 tag=null` 從 legacy mirror 變成 `GROUP_SUMMARY`
+     * （2026-07-19 於 Nothing A065 dumpsys 實證，flags=...|GROUP_SUMMARY）。
+     * summary 不會被 SystemUI 自動回收，放著不管會在部分 OEM（realme UI 實證）
+     * 以「N則新訊息＋訊息預覽」的完整卡片殘留，看起來就像「原通知沒被取代」。
+     *
+     * 取消條件：取代模式開啟，且內容已由別的通知承載（我方副本或 LINE child 任一在場）。
+     * 兩者皆不在場代表 summary 可能是唯一殘留 → fail-open 保留。
+     */
+    fun shouldCancelLineSummary(
+        replaceEnabled: Boolean,
+        replacementActive: Boolean,
+        lineChildActive: Boolean,
+    ): Boolean = replaceEnabled && (replacementActive || lineChildActive)
 
     /**
      * 一個聊天室只該屬於一個分類。把它放進 [chatType] 對應的 set，並從其他兩個 set 移除，

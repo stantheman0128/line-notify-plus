@@ -236,8 +236,10 @@ class NotificationClassifierTest {
     }
 
     @Test
-    fun ordinary_message_matching_only_part_of_signature_is_not_redacted() {
-        assertFalse(
+    fun oem_redacted_clone_with_sender_title_is_detected() {
+        // realme UI 7 實際案例（2026-07-18 用戶回報）：clone 的 text 是系統占位字串，
+        // 但 title 保留發送者、subText 可能保留群組名——不能因形狀不合 AOSP 就轉貼占位字。
+        assertTrue(
             NotificationClassifier.isSystemRedactedNotification(
                 title = "朋友",
                 text = "系統已隱藏含有私密資訊的通知內容",
@@ -246,6 +248,19 @@ class NotificationClassifierTest {
                 systemRedactedText = "系統已隱藏含有私密資訊的通知內容",
             )
         )
+        assertTrue(
+            NotificationClassifier.isSystemRedactedNotification(
+                title = "朋友",
+                text = "系統已隱藏含有私密資訊的通知內容",
+                subText = "某個群組",
+                sourceAppLabel = "LINE",
+                systemRedactedText = "系統已隱藏含有私密資訊的通知內容",
+            )
+        )
+    }
+
+    @Test
+    fun ordinary_text_is_not_redacted() {
         assertFalse(
             NotificationClassifier.isSystemRedactedNotification(
                 title = "LINE",
@@ -255,6 +270,46 @@ class NotificationClassifierTest {
                 systemRedactedText = "系統已隱藏含有私密資訊的通知內容",
             )
         )
+    }
+
+    @Test
+    fun missing_system_redacted_text_never_matches() {
+        assertFalse(
+            NotificationClassifier.isSystemRedactedNotification(
+                title = "LINE",
+                text = "系統已隱藏含有私密資訊的通知內容",
+                subText = null,
+                sourceAppLabel = "LINE",
+                systemRedactedText = null,
+            )
+        )
+        assertFalse(
+            NotificationClassifier.isSystemRedactedNotification(
+                title = "LINE",
+                text = "",
+                subText = null,
+                sourceAppLabel = "LINE",
+                systemRedactedText = "",
+            )
+        )
+    }
+
+    // ---- LINE group summary 接管（LINE 26.11.0 起 id=16880000 變成 GROUP_SUMMARY）----
+
+    @Test
+    fun line_summary_cancelled_only_when_content_carried_elsewhere() {
+        // 取代模式關閉：完全不碰 LINE
+        assertFalse(NotificationClassifier.shouldCancelLineSummary(
+            replaceEnabled = false, replacementActive = true, lineChildActive = true))
+        // summary 是唯一殘留（無我方副本、無 LINE child）：fail-open 保留
+        assertFalse(NotificationClassifier.shouldCancelLineSummary(
+            replaceEnabled = true, replacementActive = false, lineChildActive = false))
+        // 我方副本在場：summary 是多餘的殼，取消
+        assertTrue(NotificationClassifier.shouldCancelLineSummary(
+            replaceEnabled = true, replacementActive = true, lineChildActive = false))
+        // LINE child 還在（例如遮蔽通知放行、或取代失敗）：child 本身載有內容，summary 仍多餘
+        assertTrue(NotificationClassifier.shouldCancelLineSummary(
+            replaceEnabled = true, replacementActive = false, lineChildActive = true))
     }
 
     // ---- per-chat full mute ----
