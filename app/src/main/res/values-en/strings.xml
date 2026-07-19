@@ -78,6 +78,9 @@
     <string name="changelog_1_2_0_clear">Added settings to auto-clear notifications after replying or reading</string>
     <string name="changelog_1_2_0_dual">Tell apart different accounts when running dual LINE</string>
     <string name="changelog_1_2_0_ui">Refreshed interface with clearer wording</string>
+    <string name="changelog_1_3_2_summary">Fixed a leftover "N new messages" LINE card after a LINE update that made it look like the original notification was not replaced</string>
+    <string name="changelog_1_3_2_retry">Replacing the original notification occasionally failed on some phones (such as realme), leaving both visible. It now retries automatically</string>
+    <string name="changelog_1_3_2_redacted">Fixed some phones re-posting the system\'s "sensitive content hidden" placeholder as a Notify+ notification. These are now left to LINE</string>
     <string name="changelog_1_3_1_dupe">Actually fixed the same message showing up as two notification cards, or four for group chats. The v1.3.0 fix never took effect</string>
     <string name="changelog_1_3_0_redacted">Fixed private messages hidden by the system creating an empty "LINE" chat and hiding the original notification</string>
     <string name="changelog_1_3_0_mute">Turning a chat off now fully mutes it, clearing LINE\'s own notification too. Existing settings keep the old behaviour until you turn the chat back on and off again</string>
