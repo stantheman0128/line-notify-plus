@@ -260,6 +260,26 @@ object NotificationClassifier {
     ): Boolean = replaceEnabled && (replacementActive || lineChildActive)
 
     /**
+     * text 是否恰為系統遮蔽占位字。兩處守門共用：
+     * (1) GROUP_SUMMARY 分支排在 title/text 空值檢查之前（summary 不保證帶 android.text），
+     *     走不到 [isSystemRedactedNotification]——遮蔽版 summary 以此保留、不取消；
+     * (2) 取消原通知前的最後重讀：同 key 在延遲窗內被更新成遮蔽版時放手不取消（TOCTOU 窄化）。
+     * null text 不算遮蔽。
+     */
+    fun textMatchesRedactionPlaceholder(text: String?, systemRedactedText: String?): Boolean =
+        text != null &&
+            !systemRedactedText.isNullOrEmpty() &&
+            text == systemRedactedText
+
+    /**
+     * roomKey 格式 = profileKey + [KEY_SEP] + chatTitle（雙開帳號以 profileKey 區分）。
+     * summary 的取消只能由「同 profile」的承載者背書；null roomKey（例如我們自己的
+     * Aggregate 聚合卡）不能算。KEY_SEP 一併比對，避免 profileKey 前綴撞名。
+     */
+    fun roomKeyBelongsToProfile(roomKey: String?, profileKey: String): Boolean =
+        roomKey != null && roomKey.startsWith(profileKey + KEY_SEP)
+
+    /**
      * 一個聊天室只該屬於一個分類。把它放進 [chatType] 對應的 set，並從其他兩個 set 移除，
      * 自動修正過去誤分類的殘留（例如社群曾被當群組存進 known_groups）。
      *

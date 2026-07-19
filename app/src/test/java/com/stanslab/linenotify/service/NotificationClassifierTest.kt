@@ -298,6 +298,8 @@ class NotificationClassifierTest {
 
     @Test
     fun line_summary_cancelled_only_when_content_carried_elsewhere() {
+        // 兩個 active 旗標的語意是「同 profile」承載（聽 listener 端過濾），
+        // 跨雙開帳號的卡不得替 summary 的取消背書。
         // 取代模式關閉：完全不碰 LINE
         assertFalse(NotificationClassifier.shouldCancelLineSummary(
             replaceEnabled = false, replacementActive = true, lineChildActive = true))
@@ -310,6 +312,40 @@ class NotificationClassifierTest {
         // LINE child 還在（例如遮蔽通知放行、或取代失敗）：child 本身載有內容，summary 仍多餘
         assertTrue(NotificationClassifier.shouldCancelLineSummary(
             replaceEnabled = true, replacementActive = false, lineChildActive = true))
+    }
+
+    @Test
+    fun redacted_summary_is_kept_not_cancelled() {
+        val placeholder = "系統已隱藏含有私密資訊的通知內容"
+        // 遮蔽版 summary（text 被系統換成占位字）不得進取消流程
+        assertTrue(NotificationClassifier.textMatchesRedactionPlaceholder(
+            text = placeholder, systemRedactedText = placeholder))
+        // 一般 summary 文案不受影響
+        assertFalse(NotificationClassifier.textMatchesRedactionPlaceholder(
+            text = "5 則新訊息", systemRedactedText = placeholder))
+        // summary 常不帶 android.text：null 不可誤判為遮蔽
+        assertFalse(NotificationClassifier.textMatchesRedactionPlaceholder(
+            text = null, systemRedactedText = placeholder))
+        // 系統占位字取不到時永不命中
+        assertFalse(NotificationClassifier.textMatchesRedactionPlaceholder(
+            text = placeholder, systemRedactedText = null))
+    }
+
+    @Test
+    fun replacement_backs_summary_only_within_same_profile() {
+        val sep = NotificationClassifier.KEY_SEP
+        val mainProfile = "jp.naver.line.android@0"
+        val cloneProfile = "jp.naver.line.android@999"
+        assertTrue(NotificationClassifier.roomKeyBelongsToProfile(
+            roomKey = mainProfile + sep + "好友A", profileKey = mainProfile))
+        // 雙開帳號的卡不能替主帳號 summary 背書（2026-07-19 獨立審查反例）
+        assertFalse(NotificationClassifier.roomKeyBelongsToProfile(
+            roomKey = cloneProfile + sep + "好友A", profileKey = mainProfile))
+        assertFalse(NotificationClassifier.roomKeyBelongsToProfile(
+            roomKey = mainProfile + sep + "好友A", profileKey = cloneProfile))
+        // 我們自己的 Aggregate 聚合卡沒有 roomKey extra：不能算背書
+        assertFalse(NotificationClassifier.roomKeyBelongsToProfile(
+            roomKey = null, profileKey = mainProfile))
     }
 
     // ---- per-chat full mute ----
