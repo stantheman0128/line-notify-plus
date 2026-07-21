@@ -1,6 +1,50 @@
 # Project Handoff — Notify+
 
-## Latest Session: 2026-07-19（Claude Code：LINE 26.11.0 結構改變三症狀診斷 + vc18 修復，branch `fix/line-26110-summary-redaction-2026-07-19`）
+## Latest Session: 2026-07-21（Claude Code：卡內重複根因定罪 + vc19 修復，branch `fix/group-mirror-title-dedup-2026-07-21`）
+
+### 根因（實錄定罪，非推測）
+
+- **LINE 26.11.0 對群組訊息的 tagged conversation callback 把 `android.title` 組成
+  「群組名：發送者」**（全形冒號，實錄 `寶貝兒子：Christina王秀華`），legacy mirror（id=16880000）
+  則帶乾淨發送者名；兩邊 `subText`＝群組名、`text` 同、**`when` 毫秒完全相同**。
+  → `mirrorFingerprint` 的 sender 欄位失配 → 嚴格合併失敗 → 同一則群組訊息在卡片跳兩列。
+  實測（A065 + Play 版 vc18）：**group 合併 1/12、personal 2/2**——只有群組中招。
+  用戶截圖「小寶貝：AAA Christina」＋「AAA Christina」成對出現＝同一機理（小寶貝=群組名）。
+- 證據工具：`tools/diag/notifwatch.py`（既有）＋ 本輪新增 **`tools/diag/notifspy.py`**
+  （0.6s 快輪詢 dumpsys --noredact 側錄 LINE/我方通知完整欄位，釘欄位漂移用）。
+- 考古（為何舊版少發生）：≤vc15 有 `roomKey|text|秒級時間` 簡易去重（兩 callback 同秒必中）；
+  vc16 `20767b3` 把它整段刪掉換成當時從未生效的指紋合併＝退化點；vc17 修好指紋但
+  26.11.0 title 漂移又繞過。
+
+### 修復（branch `fix/group-mirror-title-dedup-2026-07-21`，基底 ec3fa03，vc19 / 1.3.3）
+
+- `99f885f` classifier：`senderOf(title, subText)` 剝「subText＋：」前綴（只剝全形、長度守門、
+  純字串）；11 個新測試把 26.11.0 雙形態指紋相等性鎖成規格。測試 47→58 全綠。
+- `f4bc0e3` listener：sender 改走 senderOf（roomKey/chatTitle 不動）；**第 2 層保底去重**
+  `recentPostedPayloads`（指紋=房間+全文+毫秒 when、3000ms 窗+同 stateEpoch 才吸收、
+  取代開啟才以最保守形式取消原通知；辨真偽靠 when 毫秒——真連發兩則相同文字 when 必不同，實測差 2449ms）。
+- `708844b` 三件套 vc19/1.3.3（vc18 已上傳 Play 燒掉）。
+- ✅ verifier 對抗複驗 **CONFIRMED**（六項：58/0 親跑、senderOf 反例全擋、保底七子項、
+  鐵則合規、manifest 零變更、零回歸面）。assembleDebug/Release、bundleRelease 全綠。
+
+### 驗證狀態與卡點
+
+- ⛔ **實機行為未驗**：A065 現裝 **Play 商店版 vc18**（installer=com.android.vending，
+  Play App Signing 重簽）→ 本地簽章 vc19 `install -r` 被簽章擋下（INSTALL_FAILED_UPDATE_INCOMPATIBLE）。
+  二選一：**A（推薦）Stan 直接上傳 vc19 AAB**（7,116,084 bytes，SHA-256 前綴 `f3a3741f`），
+  發布後在真實訊息流驗收；**B** Stan 同意 uninstall→裝本地 vc19（設定歸零+listener 重授）。
+- 驗收判準（watcher 跑著看）：群組訊息「收到訊息」次數＝實際則數、每則出現「合併」或
+  「保底去重」log 其一、count 不再翻倍、personal 不受影響。
+- 雙響（heads-up 兩次）＝跨 package 物理限制（LINE child 先震、我方 ~200-280ms 後震，本輪多次實錄），
+  **三選項仍待 Stan 拍板**，本輪未動。
+- 來電不響：查無我方路徑（isCallNotification 自 `309cf52` 未改、VoIP 頻道被 NewMessages allowlist
+  擋在處理流程外）；待有來電樣本（watcher+notifspy 開著打一通）才能證偽間接路徑。
+- ⚠️ master 仍在 vc17（`cd89180`）；已上架的 vc18 branch `fix/line-26110-summary-redaction-2026-07-19`
+  與本輪 vc19 branch 都待 Stan merge。
+
+
+
+## Previous Session: 2026-07-19（Claude Code：LINE 26.11.0 結構改變三症狀診斷 + vc18 修復，branch `fix/line-26110-summary-redaction-2026-07-19`）
 
 ### 起因（1.3.1 上線後的回報）
 
