@@ -125,6 +125,34 @@ object NotificationClassifier {
     /** 顯示用聊天室名：有 subText 用 subText(群組/社群名)，否則用 title(發送者)。 */
     fun chatTitleOf(title: String, subText: String?): String = subText ?: title
 
+    /**
+     * 從通知 title 還原「乾淨的發送者顯示名」。
+     *
+     * LINE 26.11.0 對群組訊息的 tagged conversation callback，會把 android.title 組成
+     * 「群組名：發送者」（全形冒號），android.subText = 群組名；同一則訊息的 legacy mirror
+     * callback 則帶乾淨 title = 純發送者名。實測（2026-07-21，Nothing A065 + LINE 26.11.0
+     * dumpsys --noredact 多對樣本）：tagged title="寶貝兒子：Christina王秀華" / subText="寶貝兒子"，
+     * mirror title="Christina王秀華" / subText="寶貝兒子"。兩邊 sender 不一致會害
+     * [mirrorFingerprint] 兩側算出不同指紋、合併失敗，同一則群組訊息在對話串卡片跳兩列。
+     *
+     * 這裡把 tagged 那側的「subText：」前綴剝掉，讓兩邊 sender 一致。
+     * **只剝全形冒號「：」**——實機證據只看到全形；半形冒號不在證據範圍內，不動，避免誤剝
+     * 正常含半形冒號的暱稱。長度守門確保剝完非空（避免整個 title 恰為「群組名：」時剝成空字串）。
+     * 1:1 個人訊息兩邊 title 一致、subText 為 null 或不成前綴，一律原樣回傳 title。
+     * 純字串操作（startsWith/substring），不用正則，subText 含正則特殊字元也安全。
+     */
+    fun senderOf(title: String, subText: String?): String {
+        val prefix = "$subText："
+        if (subText != null &&
+            title != subText &&
+            title.startsWith(prefix) &&
+            title.length > prefix.length
+        ) {
+            return title.substring(prefix.length)
+        }
+        return title
+    }
+
     /** roomKey = profileKey + 分隔字元 + 聊天室名（雙開帳號各自獨立）。 */
     fun roomKeyOf(profileKey: String, chatTitle: String): String =
         profileKey + KEY_SEP + chatTitle
