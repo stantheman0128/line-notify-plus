@@ -110,6 +110,11 @@ class LineNotificationListener : NotificationListenerService() {
         val receipt: ReplacementReceipt,
         val stateEpoch: Long,
     )
+    private data class RecentPostedEntry(
+        val receipt: ReplacementReceipt,
+        val stateEpoch: Long,
+        val seenElapsed: Long,
+    )
 
     private val summaryIds = mutableMapOf<String, NotificationRef>()
     private val threadNotifIds = mutableMapOf<String, NotificationRef>()
@@ -123,6 +128,9 @@ class LineNotificationListener : NotificationListenerService() {
     private val pendingThreadRefCounts = mutableMapOf<NotificationRef, Int>()
     private val pendingOriginalCancels = mutableMapOf<String, Runnable>()
     private val recentMirroredVariants = linkedMapOf<String, MirroredVariantEntry>()
+    // 第 2 層保底去重：fingerprint(房間+全文+毫秒 when) → 最近成功貼出的訊息。嚴格 mirror
+    // 合併之後的兜底，吸收未來任何欄位漂移導致的重複 callback（見 onNotificationPosted）。
+    private val recentPostedPayloads = linkedMapOf<String, RecentPostedEntry>()
     private val mirrorPoisonUntil = mutableMapOf<String, Long>()
     private val nextPostGeneration = java.util.concurrent.atomic.AtomicLong(System.currentTimeMillis())
     private var notificationStateEpoch = 0L
@@ -159,6 +167,7 @@ class LineNotificationListener : NotificationListenerService() {
     private fun invalidateMirrorCandidates() {
         notificationStateEpoch++
         recentMirroredVariants.clear()
+        recentPostedPayloads.clear()
         mirrorPoisonUntil.clear()
     }
 
@@ -591,6 +600,7 @@ class LineNotificationListener : NotificationListenerService() {
         handler.removeCallbacksAndMessages(null)
         pendingOriginalCancels.clear()
         recentMirroredVariants.clear()
+        recentPostedPayloads.clear()
         mirrorPoisonUntil.clear()
         pendingAppleRefCounts.clear()
         pendingThreadRefCounts.clear()
@@ -777,7 +787,10 @@ class LineNotificationListener : NotificationListenerService() {
         // 實機 dumpsys 驗證：社群帶 line.square.notification=true，群組沒有。
         val isSquareKeyPresent = extras.containsKey("line.square.notification")
         val isSquare = extras.getBoolean("line.square.notification", false)
-        val sender: String = title
+        // LINE 26.11.0 群組 tagged callback 的 title 被組成「群組名：發送者」（見 senderOf）；
+        // 這裡只還原「訊息發送者顯示名」，讓它與 legacy mirror 的乾淨 title 一致（嚴格合併才配得上）。
+        // roomKey/chatTitle 推導不動——那些拿 title 當聊天室名素材，是另一個語意。
+        val sender: String = NotificationClassifier.senderOf(title, subText)
         val chatTitle = NotificationClassifier.chatTitleOf(title, subText)
         val previousType = knownChatType(chatTitle)
         val overrideType = forcedChatType(chatTitle)
@@ -853,6 +866,7 @@ class LineNotificationListener : NotificationListenerService() {
         recentMirroredVariants.entries.removeAll {
             mirrorNow - it.value.source.seenElapsed > 500L
         }
+        recentPostedPayloads.entries.removeAll { mirrorNow - it.value.seenElapsed > 3000L }
         mirrorPoisonUntil.entries.removeAll { (_, until) -> mirrorNow > until }
         val mirrorSignature = mirroredPayloadFingerprint(sbn, roomKey, sender, text)
         val currentSourceVariant = notification.shortcutId?.let { shortcutId ->
@@ -906,6 +920,37 @@ class LineNotificationListener : NotificationListenerService() {
             }
         } else if (mirrorSignature != null && mirrorSignature in mirrorPoisonUntil) {
             mirrorSignatureToStore = null
+        }
+
+        // 第 2 層保底去重：吸收未來任何欄位漂移導致嚴格 mirror 合併失配的重複 callback。
+        // 嚴格合併靠 shortcutId/groupKey/channelId 等欄位兩邊全等；LINE 改版動到任一欄位就失效
+        // （26.11.0 群組 title 汙染就是這樣繞過第 1 層前的合併）。這裡改用最小充分集合辨識「同一則」：
+        // 房間 + 全文 + 毫秒 when 三者全等。
+        // 辨真偽原理：真的連續傳兩則相同文字，LINE 的 when 毫秒時間戳必不同（2026-07-21 實測差 2449ms）；
+        // 同一則的鏡像 callback when 完全相同。毫秒＋全文＋房間三重相等才吸收，寧可重複不可漏訊息。
+        // 僅在 when > 0 才啟用（傳給 dedupeFingerprint 的第三參數是毫秒 when）。
+        val dedupeWhen = notification.`when`
+        if (dedupeWhen > 0L) {
+            val dedupeKey = NotificationClassifier.dedupeFingerprint(roomKey, text, dedupeWhen)
+            val postedEntry = recentPostedPayloads[dedupeKey]
+            if (postedEntry != null &&
+                mirrorNow - postedEntry.seenElapsed <= 3000L &&
+                postedEntry.stateEpoch == notificationStateEpoch
+            ) {
+                Log.d(TAG, "保底去重：吸收同室同文同時間戳的重複 callback")
+                if (prefs.getBoolean(KEY_REPLACE_ORIGINAL, true)) {
+                    // 照嚴格合併分支（scheduleOriginalCancellation 呼叫）的 fail-open 精神傳參：
+                    // expectedSource/expectedMirrorSignature 在欄位漂移情境拿不到可靠值（本來就是
+                    // 因為它們變了才走到這），函式允許 null → 省略，退回「只驗我方副本仍在場」的最保守取消。
+                    scheduleOriginalCancellation(
+                        key = sbn.key,
+                        receipt = postedEntry.receipt,
+                        requireExactGeneration = true,
+                        requiredStateEpoch = notificationStateEpoch,
+                    )
+                }
+                return
+            }
         }
 
         // 提取頭貼
@@ -1000,12 +1045,25 @@ class LineNotificationListener : NotificationListenerService() {
         }
         if (replacementReceipt == null) {
             room.removeMessage(message)
-        } else if (mirrorSignatureToStore != null && currentSourceVariant != null) {
-            recentMirroredVariants[mirrorSignatureToStore] = MirroredVariantEntry(
-                source = currentSourceVariant,
-                receipt = replacementReceipt,
-                stateEpoch = notificationStateEpoch,
-            )
+        } else {
+            if (mirrorSignatureToStore != null && currentSourceVariant != null) {
+                recentMirroredVariants[mirrorSignatureToStore] = MirroredVariantEntry(
+                    source = currentSourceVariant,
+                    receipt = replacementReceipt,
+                    stateEpoch = notificationStateEpoch,
+                )
+            }
+            // 第 2 層保底去重的寫入：為每一則成功貼出的訊息（不限 primary variant）記一筆，
+            // 指紋 = 房間 + 全文 + 毫秒 when。when <= 0 不記（無時間戳無法辨真偽）。
+            val dedupeWhen = notification.`when`
+            if (dedupeWhen > 0L) {
+                val dedupeKey = NotificationClassifier.dedupeFingerprint(roomKey, text, dedupeWhen)
+                recentPostedPayloads[dedupeKey] = RecentPostedEntry(
+                    receipt = replacementReceipt,
+                    stateEpoch = notificationStateEpoch,
+                    seenElapsed = mirrorNow,
+                )
+            }
         }
 
         // 延遲取消 LINE 原通知（確保我們的 contentIntent 不會因為 LINE 通知被取消而失效）
