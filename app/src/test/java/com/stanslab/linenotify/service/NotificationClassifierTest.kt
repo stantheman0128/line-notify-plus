@@ -726,4 +726,23 @@ class NotificationClassifierTest {
         assertFalse("重複" in after[NotificationClassifier.PREFS_KNOWN_GROUPS]!!)
         assertFalse("重複" in after[NotificationClassifier.PREFS_KNOWN_CHATS]!!)
     }
+
+    // ---- isLegacyMirrorIdentity（mirror 覆蓋 contentIntent 的守門判斷）----
+
+    @Test
+    fun legacy_mirror_identity_matches_null_tag_and_fixed_id() {
+        assertTrue(NotificationClassifier.isLegacyMirrorIdentity(tag = null, id = 16_880_000))
+    }
+
+    @Test
+    fun legacy_mirror_identity_false_when_tag_present() {
+        assertFalse(
+            NotificationClassifier.isLegacyMirrorIdentity(tag = "NOTIFICATION_TAG_MESSAGE", id = 16_880_000),
+        )
+    }
+
+    @Test
+    fun legacy_mirror_identity_false_when_id_differs() {
+        assertFalse(NotificationClassifier.isLegacyMirrorIdentity(tag = null, id = 12_345))
+    }
 }

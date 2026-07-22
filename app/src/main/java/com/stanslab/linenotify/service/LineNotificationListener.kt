@@ -1025,8 +1025,14 @@ class LineNotificationListener : NotificationListenerService() {
         }
         room.addMessage(message)
 
-        // 保存 LINE 的 contentIntent 和回覆 action（在取消通知前）
-        if (notification.contentIntent != null) {
+        // 保存 LINE 的 contentIntent 和回覆 action（在取消通知前）。
+        // LINE 26.11.0 起，合併失敗時 mirror（tag=null, id=16880000）會晚到，若照舊 last-writer-wins
+        // 覆蓋，會把 tagged child 原本指向特定聊天室的跳轉蓋掉，變成點通知只能開 LINE 主畫面
+        // （vivo V50 用戶回報）。mirror 的 intent 是彙總體，只准在還沒有值時補上，不准覆蓋既有值。
+        if (notification.contentIntent != null &&
+            (room.contentIntent == null ||
+                !NotificationClassifier.isLegacyMirrorIdentity(sbn.tag, sbn.id))
+        ) {
             room.contentIntent = notification.contentIntent
         }
         notification.actions?.forEach { action ->

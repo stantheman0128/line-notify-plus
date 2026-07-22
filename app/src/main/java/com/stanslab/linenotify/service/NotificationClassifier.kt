@@ -41,8 +41,12 @@ object NotificationClassifier {
         source.tag == "NOTIFICATION_TAG_MESSAGE" &&
             source.id == source.shortcutId.hashCode()
 
+    /** legacy mirror 的通知身分（tag=null 且固定 id）。 */
+    fun isLegacyMirrorIdentity(tag: String?, id: Int): Boolean =
+        tag == null && id == 16_880_000
+
     fun isObservedLineLegacyMirror(source: MirrorSource): Boolean =
-        source.tag == null && source.id == 16_880_000
+        isLegacyMirrorIdentity(source.tag, source.id)
 
     /**
      * 僅接受實機觀察到的方向：較完整的 tagged conversation 先到，固定 ID mirror 後到。
