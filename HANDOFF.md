@@ -31,7 +31,8 @@
 
 - ⛔ **實機行為未驗**：A065 現裝 **Play 商店版 vc18**（installer=com.android.vending，
   Play App Signing 重簽）→ 本地簽章 vc19 `install -r` 被簽章擋下（INSTALL_FAILED_UPDATE_INCOMPATIBLE）。
-  二選一：**A（推薦）Stan 直接上傳 vc19 AAB**（7,116,084 bytes，SHA-256 前綴 `f3a3741f`），
+  二選一：**A（推薦）Stan 直接上傳 vc19 AAB**（⚠️ 最終版=intent 防蓋硬化後重建：
+  7,116,277 bytes，SHA-256 前綴 `08bb4bae`；舊 `f3a3741f` 版作廢勿上傳），
   發布後在真實訊息流驗收；**B** Stan 同意 uninstall→裝本地 vc19（設定歸零+listener 重授）。
 - 驗收判準（watcher 跑著看）：群組訊息「收到訊息」次數＝實際則數、每則出現「合併」或
   「保底去重」log 其一、count 不再翻倍、personal 不受影響。
