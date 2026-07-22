@@ -41,6 +41,10 @@
   擋在處理流程外）；待有來電樣本（watcher+notifspy 開著打一通）才能證偽間接路徑。
 - ⚠️ master 仍在 vc17（`cd89180`）；已上架的 vc18 branch `fix/line-26110-summary-redaction-2026-07-19`
   與本輪 vc19 branch 都待 Stan merge。
+- vivo V50（Android 16 / LINE 26.11.0 / Apple 模式）用戶回報「重複＋點通知只能開 LINE」＝同根因雙面：
+  合併失敗時 mirror 後到、last-writer-wins 蓋掉 room.contentIntent 的聊天室跳轉。已加硬化：
+  mirror 形態只准填空不准覆蓋（isLegacyMirrorIdentity guard）。任何 callback 順序下 tagged 的
+  跳轉 intent 都不會被 mirror 蓋掉。
 
 
 
