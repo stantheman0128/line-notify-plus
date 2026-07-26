@@ -252,29 +252,55 @@ object NotificationClassifier {
     }
 
     /**
-     * Android 15+ 交給不受信任 NotificationListener 的敏感通知 clone：text 會被換成
+     * Android 15+ 交給不受信任 NotificationListener 的敏感通知 clone：內容會被換成
      * framework 的 redacted 占位字串。命中後不能重發、建立假聊天室或取消原通知，
      * 因為原始內容在 callback 前就已不可逆地被移除。
      *
-     * 只比對 text == 占位字串。AOSP 的 clone 還會把 title 改成 App label、移除 subText，
-     * 但 OEM 分支不保證照做——realme UI 7（2026-07-18 用戶實證）的 clone 保留了
-     * 原 title/subText，舊版四條件 AND 因此漏判，把占位字轉貼成 Notify+ 通知。
-     * 占位字串取自 `Resources.getSystem()`（跟系統語系走），一般人打出一模一樣整句的
-     * 機率極低；就算誤中，後果只是該則不增強、保留 LINE 原通知（fail-open，可接受）。
+     * **兩條線 OR，因為 OEM 的 clone 形狀分兩種，各自只斷得掉其中一條：**
      *
-     * [title]/[subText]/[sourceAppLabel] 參數保留：讓呼叫端與測試明確列出 clone 可見
-     * 欄位，未來若需要再收緊仍有資料可用。
+     * 1. **占位字比對**（[textMatchesRedactionPlaceholder]）。realme UI 7 的 clone 保留原
+     *    title/subText（2026-07-18 用戶實證），只有 text 可辨識。
+     * 2. **AOSP clone 形狀**（[matchesAospCloneShape]）。Nothing OS 走標準路徑：title 換成
+     *    App label、subText 移除、largeIcon 換成 App 圖示，但 text 對不上占位字。
+     *    2026-07-12 Nothing A059P 實證：一則「蝦皮店到店包裹通知」在同一毫秒
+     *    （chat_last_active 兩筆皆 1783826523374）多生出一個名為「LINE」的聊天室，
+     *    其頭貼檔 chat_avatars/2336756.png 是 LINE 的 App 圖示。
+     *
+     * 歷史教訓：vc18 的 4acd58f 為了修好第 1 種，把第 2 種的判斷條件整條刪掉，於是
+     * Nothing 這類機器從「偶爾漏判」變成「必然漏判」。兩種形狀要各留一條線，不能二選一。
+     *
+     * 誤判成本刻意壓在安全側：把正常通知誤當 clone，後果只是該則不增強、保留 LINE 原通知
+     * （fail-open）；反過來漏判則會建出假聊天室，還在取代模式下把真訊息的原通知一起取消。
      */
-    @Suppress("UNUSED_PARAMETER")
     fun isSystemRedactedNotification(
         title: String,
         text: String,
         subText: String?,
         sourceAppLabel: String?,
         systemRedactedText: String?,
+        largeIconMatchesAppIcon: Boolean = false,
     ): Boolean =
-        !systemRedactedText.isNullOrEmpty() &&
-            text == systemRedactedText
+        textMatchesRedactionPlaceholder(text, systemRedactedText) ||
+            matchesAospCloneShape(title, subText, sourceAppLabel, largeIconMatchesAppIcon)
+
+    /**
+     * AOSP redaction clone 的形狀：title 等於來源 App 名稱、沒有 subText、
+     * largeIcon 就是該 App 的圖示。
+     *
+     * 三個條件缺一不可。只靠前兩個會誤殺「聊天室名剛好等於 App 名稱」的 1:1 對話
+     * （例如 LINE 官方帳號本身就叫「LINE」）——那種通知帶的是帳號頭像而非 App 圖示，
+     * 由 [largeIconMatchesAppIcon] 分開。
+     */
+    fun matchesAospCloneShape(
+        title: String,
+        subText: String?,
+        sourceAppLabel: String?,
+        largeIconMatchesAppIcon: Boolean,
+    ): Boolean =
+        !sourceAppLabel.isNullOrEmpty() &&
+            title == sourceAppLabel &&
+            subText == null &&
+            largeIconMatchesAppIcon
 
     /**
      * LINE 26.11.0 起，`id=16880000 tag=null` 從 legacy mirror 變成 `GROUP_SUMMARY`

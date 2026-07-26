@@ -73,6 +73,8 @@ class LineNotificationListener : NotificationListenerService() {
         private const val EXTRA_POST_GENERATION = "com.stanslab.linenotify.extra.POST_GENERATION"
         private const val MAX_APPLE_CHILDREN_PER_ROOM = 8
         private const val MAX_APPLE_CHILDREN_TOTAL = 24
+        private const val ICON_COMPARE_SIZE = 64
+        private const val ICON_MATCH_PERCENT = 90
 
         /** 某聊天室頭貼的本機檔案（用名字 hash 當檔名，避開 emoji/特殊字元）。 */
         fun avatarFile(context: Context, chatName: String): java.io.File =
@@ -319,7 +321,9 @@ class LineNotificationListener : NotificationListenerService() {
                     active.packageName in LINE_PACKAGES &&
                         profileKeyOf(active) == summaryProfileKey &&
                         active.key != key &&
-                        !active.notification.extras.getBoolean("android.isGroupSummary", false) &&
+                        // 同上：group summary 看 flags，不看 extras。舊寫法恆為 true，
+                        // 會把別的 summary 誤算成「LINE child 還在」而放行取消。
+                        (active.notification.flags and Notification.FLAG_GROUP_SUMMARY) == 0 &&
                         NotificationClassifier.isSupportedMessageChannel(active.notification.channelId) &&
                         !isCallNotification(active.notification)
                 }
@@ -357,6 +361,58 @@ class LineNotificationListener : NotificationListenerService() {
                 NotificationClassifier.textMatchesRedactionPlaceholder(current, systemRedactedText())
             }
     }.getOrNull() ?: false
+
+    /**
+     * 通知的 largeIcon 是不是就是來源 App 的圖示。
+     *
+     * AOSP 的 redaction clone 會把 largeIcon 換成 App 圖示。2026-07-12 Nothing A059P 實證：
+     * 被誤建出來的「LINE」聊天室，頭貼檔 chat_avatars/2336756.png 正是 LINE 的 App 圖示；
+     * 而 [recordChat] 只在 largeIcon 非 null 時存檔、沒有任何預設圖 fallback，
+     * 所以那張圖必然是通知自己帶來的。
+     *
+     * 這是 [NotificationClassifier.matchesAospCloneShape] 用來跟「聊天室名剛好等於 App 名稱」
+     * 的正常 1:1 對話分家的關鍵訊號——後者帶的是帳號頭像。
+     *
+     * 任何一步取不到就回 false，維持既有行為（不當成 clone）。
+     */
+    private fun largeIconMatchesAppIcon(sbn: StatusBarNotification): Boolean = runCatching {
+        val large = sbn.notification.getLargeIcon()?.loadDrawable(this) ?: return false
+        val appIcon = packageManager.getApplicationIcon(sbn.packageName)
+        val fromNotification = rasterizeIcon(large) ?: return false
+        val fromPackage = rasterizeIcon(appIcon) ?: run {
+            fromNotification.recycle()
+            return false
+        }
+        val identical = bitmapsMostlyIdentical(fromNotification, fromPackage)
+        fromNotification.recycle()
+        fromPackage.recycle()
+        identical
+    }.getOrDefault(false)
+
+    /** 把 icon 畫到固定尺寸畫布，消掉密度與 adaptive icon 造成的尺寸差異。 */
+    private fun rasterizeIcon(drawable: android.graphics.drawable.Drawable): Bitmap? = runCatching {
+        val bitmap = Bitmap.createBitmap(
+            ICON_COMPARE_SIZE,
+            ICON_COMPARE_SIZE,
+            Bitmap.Config.ARGB_8888,
+        )
+        val canvas = android.graphics.Canvas(bitmap)
+        drawable.setBounds(0, 0, ICON_COMPARE_SIZE, ICON_COMPARE_SIZE)
+        drawable.draw(canvas)
+        bitmap
+    }.getOrNull()
+
+    /** 逐點相同率達 [ICON_MATCH_PERCENT]% 就視為同一張圖，容忍縮放插值的少量差異。 */
+    private fun bitmapsMostlyIdentical(a: Bitmap, b: Bitmap): Boolean {
+        val total = ICON_COMPARE_SIZE * ICON_COMPARE_SIZE
+        val pixelsA = IntArray(total)
+        val pixelsB = IntArray(total)
+        a.getPixels(pixelsA, 0, ICON_COMPARE_SIZE, 0, 0, ICON_COMPARE_SIZE, ICON_COMPARE_SIZE)
+        b.getPixels(pixelsB, 0, ICON_COMPARE_SIZE, 0, 0, ICON_COMPARE_SIZE, ICON_COMPARE_SIZE)
+        var same = 0
+        for (i in 0 until total) if (pixelsA[i] == pixelsB[i]) same++
+        return same * 100 >= total * ICON_MATCH_PERCENT
+    }
 
     private fun systemRedactedText(): String? {
         // NotificationManagerService 使用系統語系建立遮蔽文字；不能跟著 App 的單獨語言設定，
@@ -742,7 +798,13 @@ class LineNotificationListener : NotificationListenerService() {
         // summary 不會被 SystemUI 回收，放著會在部分 OEM（realme UI 實證）以「N則新訊息＋預覽」
         // 整卡殘留，看起來就像原通知沒被取代。此檢查必須在 title/text 空值 return 之前——
         // summary 不保證帶 android.text。取消前仍會確認內容已由別的通知承載（fail-open）。
-        if (extras.getBoolean("android.isGroupSummary", false)) {
+        //
+        // ⚠️ 判斷依據是 flags 的 FLAG_GROUP_SUMMARY，不是 extras。framework 從不寫
+        // "android.isGroupSummary" 這個 extras key（它只是 Notification.Builder.setGroupSummary
+        // 的參數名），舊寫法恆為 false，這整個分支自 vc18 引入起從未執行過。
+        // 2026-07-26 Nothing A059P dumpsys 實證：全機通知的 extras 中該 key 出現 0 次，
+        // 而確實帶 GROUP_SUMMARY flag 的通知有 2 個。
+        if (notification.flags and Notification.FLAG_GROUP_SUMMARY != 0) {
             scheduleLineSummaryCancellation(sbn)
             return
         }
@@ -757,12 +819,16 @@ class LineNotificationListener : NotificationListenerService() {
             val appInfo = packageManager.getApplicationInfo(sbn.packageName, 0)
             packageManager.getApplicationLabel(appInfo).toString()
         }.getOrNull()
+        // 圖片比對有成本，只在 title/subText 已經長得像 AOSP clone 時才做。
+        val cloneShapeCandidate =
+            !sourceAppLabel.isNullOrEmpty() && title == sourceAppLabel && subText == null
         if (NotificationClassifier.isSystemRedactedNotification(
                 title = title,
                 text = text,
                 subText = subText,
                 sourceAppLabel = sourceAppLabel,
                 systemRedactedText = systemRedactedText(),
+                largeIconMatchesAppIcon = cloneShapeCandidate && largeIconMatchesAppIcon(sbn),
             )
         ) {
             Log.w(TAG, "系統已遮蔽敏感通知；保留原始通知且不建立 Notify+ 副本")
