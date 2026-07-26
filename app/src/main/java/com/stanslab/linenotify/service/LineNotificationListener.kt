@@ -820,8 +820,12 @@ class LineNotificationListener : NotificationListenerService() {
             packageManager.getApplicationLabel(appInfo).toString()
         }.getOrNull()
         // 圖片比對有成本，只在 title/subText 已經長得像 AOSP clone 時才做。
-        val cloneShapeCandidate =
-            !sourceAppLabel.isNullOrEmpty() && title == sourceAppLabel && subText == null
+        // 條件必須向 classifier 借，不可在這裡重寫一份（見 matchesAospCloneShapeExceptIcon 的說明）。
+        val cloneShapeCandidate = NotificationClassifier.matchesAospCloneShapeExceptIcon(
+            title = title,
+            subText = subText,
+            sourceAppLabel = sourceAppLabel,
+        )
         if (NotificationClassifier.isSystemRedactedNotification(
                 title = title,
                 text = text,

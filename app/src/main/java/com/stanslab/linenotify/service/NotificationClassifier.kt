@@ -297,10 +297,24 @@ object NotificationClassifier {
         sourceAppLabel: String?,
         largeIconMatchesAppIcon: Boolean,
     ): Boolean =
+        matchesAospCloneShapeExceptIcon(title, subText, sourceAppLabel) &&
+            largeIconMatchesAppIcon
+
+    /**
+     * clone 形狀裡不需要動到圖片的那幾個條件。
+     *
+     * 存在的唯一理由是給呼叫端當「要不要花成本做圖示比對」的閘門，**不可以在呼叫端自己重寫一份**。
+     * 兩處各自維護同一組條件，正是 vc18 那次回歸的病根：改一邊忘另一邊，
+     * [matchesAospCloneShape] 就會靜默失效而測試照樣全綠。
+     */
+    fun matchesAospCloneShapeExceptIcon(
+        title: String,
+        subText: String?,
+        sourceAppLabel: String?,
+    ): Boolean =
         !sourceAppLabel.isNullOrEmpty() &&
             title == sourceAppLabel &&
-            subText == null &&
-            largeIconMatchesAppIcon
+            subText == null
 
     /**
      * LINE 26.11.0 起，`id=16880000 tag=null` 從 legacy mirror 變成 `GROUP_SUMMARY`

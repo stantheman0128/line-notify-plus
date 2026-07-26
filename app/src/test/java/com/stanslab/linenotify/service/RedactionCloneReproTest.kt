@@ -1,5 +1,6 @@
 package com.stanslab.linenotify.service
 
+import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -116,6 +117,34 @@ class RedactionCloneReproTest {
     @Test
     fun does_not_flag_ordinary_direct_message() {
         assertFalse(check(title = "小明", text = "晚點打給你"))
+    }
+
+    /**
+     * 鎖住「閘門」與「完整形狀判斷」的一致性。
+     *
+     * listener 用 matchesAospCloneShapeExceptIcon 當閘門，決定要不要花成本做圖示比對；
+     * 圖示比中時，完整判斷的結果就必須等於閘門。任何一邊被重寫成另一組條件，這條會紅。
+     * 這正是 vc18 回歸的病根——同一組條件散在兩處，改一邊忘另一邊而測試照樣全綠。
+     */
+    @Test
+    fun gate_stays_consistent_with_full_shape_check() {
+        val cases = listOf(
+            Triple(appLabel, null, appLabel),
+            Triple(appLabel, "家族群組", appLabel),
+            Triple("小明", null, appLabel),
+            Triple(appLabel, null, null),
+            Triple(appLabel, null, ""),
+        )
+        for ((title, subText, label) in cases) {
+            val gate = NotificationClassifier.matchesAospCloneShapeExceptIcon(title, subText, label)
+            val full = NotificationClassifier.matchesAospCloneShape(
+                title = title,
+                subText = subText,
+                sourceAppLabel = label,
+                largeIconMatchesAppIcon = true,
+            )
+            assertEquals("title=$title subText=$subText label=$label", gate, full)
+        }
     }
 
     /** 取不到 App 名稱時不能靠形狀成立，否則任何 title 都可能被誤判。 */
