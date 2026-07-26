@@ -18,14 +18,14 @@ val keystoreProperties = Properties().apply {
 
 android {
     namespace = "com.stanslab.linenotify"
-    compileSdk = 35
+    compileSdk = 36
 
     defaultConfig {
         applicationId = "com.stanslab.linenotify"
         minSdk = 26
-        targetSdk = 35
-        versionCode = 19
-        versionName = "1.3.3"
+        targetSdk = 36
+        versionCode = 20
+        versionName = "1.3.4"
     }
 
     signingConfigs {

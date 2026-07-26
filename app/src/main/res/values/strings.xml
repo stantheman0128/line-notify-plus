@@ -78,6 +78,7 @@
     <string name="changelog_1_2_0_clear">新增回覆後、已讀後自動清除通知的設定</string>
     <string name="changelog_1_2_0_dual">雙開 LINE 時可以區分不同帳號的訊息來源</string>
     <string name="changelog_1_2_0_ui">介面改版，文案調整讓功能更好懂</string>
+    <string name="changelog_1_3_4_android16">配合 Android 16 更新系統相容性設定，通知功能不受影響。</string>
     <string name="changelog_1_3_3_group_dupe">修正群組訊息在通知卡重複顯示兩次，以及點擊通知只能開啟 LINE 主畫面、無法跳轉到聊天室的問題。</string>
     <string name="changelog_1_3_2_summary">修正 LINE 改版後，通知欄殘留一張「N 則新訊息」的 LINE 卡片、看起來像原始通知沒被取代的問題</string>
     <string name="changelog_1_3_2_retry">取代原始通知在部分手機（例如 realme）偶爾沒生效、兩邊通知同時出現，現在會自動重試</string>
