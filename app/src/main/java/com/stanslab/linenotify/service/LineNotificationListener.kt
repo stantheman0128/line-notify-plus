@@ -75,6 +75,8 @@ class LineNotificationListener : NotificationListenerService() {
         private const val MAX_APPLE_CHILDREN_TOTAL = 24
         private const val ICON_COMPARE_SIZE = 64
         private const val ICON_MATCH_PERCENT = 90
+        private const val SELF_AVATAR_DIR = "self_avatars"
+        private const val SELF_AVATAR_SIZE = 192
 
         /** 某聊天室頭貼的本機檔案（用名字 hash 當檔名，避開 emoji/特殊字元）。 */
         fun avatarFile(context: Context, chatName: String): java.io.File =
@@ -390,14 +392,13 @@ class LineNotificationListener : NotificationListenerService() {
     }.getOrDefault(false)
 
     /** 把 icon 畫到固定尺寸畫布，消掉密度與 adaptive icon 造成的尺寸差異。 */
-    private fun rasterizeIcon(drawable: android.graphics.drawable.Drawable): Bitmap? = runCatching {
-        val bitmap = Bitmap.createBitmap(
-            ICON_COMPARE_SIZE,
-            ICON_COMPARE_SIZE,
-            Bitmap.Config.ARGB_8888,
-        )
+    private fun rasterizeIcon(
+        drawable: android.graphics.drawable.Drawable,
+        size: Int = ICON_COMPARE_SIZE,
+    ): Bitmap? = runCatching {
+        val bitmap = Bitmap.createBitmap(size, size, Bitmap.Config.ARGB_8888)
         val canvas = android.graphics.Canvas(bitmap)
-        drawable.setBounds(0, 0, ICON_COMPARE_SIZE, ICON_COMPARE_SIZE)
+        drawable.setBounds(0, 0, size, size)
         drawable.draw(canvas)
         bitmap
     }.getOrNull()
@@ -681,6 +682,7 @@ class LineNotificationListener : NotificationListenerService() {
                 if (sbn.tag == null) manager.cancel(sbn.id) else manager.cancel(sbn.tag, sbn.id)
             }
         rebuildNotificationIndexes(active)
+        restorePersistedSelfAvatars()
         enforceMutedPreferencesOnActiveNotifications()
         Log.d(TAG, "通知監聽已連線")
     }
@@ -1043,20 +1045,27 @@ class LineNotificationListener : NotificationListenerService() {
                 }
         } catch (e: Exception) { null }
 
-        // 從 LINE 的 MessagingStyle 通知取出「本人」頭貼與名稱，按帳號(profile)分別快取
+        // 從 LINE 的 MessagingStyle 通知取出「本人」頭貼與名稱，按帳號(profile)分別快取。
+        //
+        // ⚠️ 平台欄位要自己讀，不能只靠 NotificationCompat。androidx.core 1.15.0 的
+        // MessagingStyle.restoreFromCompatExtras 只讀 compat 專屬的 "android.messagingStyleUser"，
+        // 沒讀平台 API 28+ 寫的 Notification.EXTRA_MESSAGING_PERSON("android.messagingUser")
+        // ——androidx 要到 1.19.0 才補上。而平台的 MessagingStyle.addExtras() 是把名字寫進
+        // EXTRA_SELF_DISPLAY_NAME、把含 icon 的 Person 寫進 EXTRA_MESSAGING_PERSON。
+        // 所以 LINE 只要是用平台 Notification.MessagingStyle 建通知，頭貼就會在這一步被靜靜丟掉，
+        // 只剩名字活下來。實機症狀正是「帳號名稱抓得到，但本人頭貼永遠是預設圖」。
         try {
-            val lineUser = NotificationCompat.MessagingStyle
+            val compatUser = NotificationCompat.MessagingStyle
                 .extractMessagingStyleFromNotification(notification)?.user
-            if (lineUser != null) {
-                if (!selfPersonIcons.containsKey(profileKey)) {
-                    lineUser.icon?.let {
-                        selfPersonIcons[profileKey] = it
-                        Log.d(TAG, "✓ 取得帳號[$profileKey]本人頭貼")
-                    }
-                }
-                lineUser.name?.toString()?.takeIf { it.isNotBlank() }
-                    ?.let { accountLabels[profileKey] = it }
+            val selfIcon = compatUser?.icon ?: platformSelfIcon(extras)
+            if (selfIcon != null && !selfPersonIcons.containsKey(profileKey)) {
+                selfPersonIcons[profileKey] = selfIcon
+                persistSelfAvatar(profileKey, selfIcon)
+                Log.d(TAG, "✓ 取得帳號[$profileKey]本人頭貼")
             }
+            val selfName = compatUser?.name?.toString()
+                ?: extras.getCharSequence(Notification.EXTRA_SELF_DISPLAY_NAME)?.toString()
+            selfName?.takeIf { it.isNotBlank() }?.let { accountLabels[profileKey] = it }
         } catch (e: Exception) { /* LINE 沒附就用預設 */ }
 
         // 檢查我們是否還有該聊天室的活躍通知
@@ -1321,10 +1330,79 @@ class LineNotificationListener : NotificationListenerService() {
         }
     }
 
+    /**
+     * 讀平台 API 28+ 的 [Notification.EXTRA_MESSAGING_PERSON]，補 androidx.core 1.15.0
+     * 漏讀的那條路（見 onNotificationPosted 內的說明）。
+     *
+     * 轉成 Bitmap 而不是直接包 [android.graphics.drawable.Icon]：Icon 可能是 URI 型，
+     * 那種我方無權轉貼；先 loadDrawable 再畫成點陣圖，順便讓它可以存檔持久化。
+     */
+    private fun platformSelfIcon(extras: Bundle): IconCompat? {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.P) return null
+        return runCatching {
+            @Suppress("DEPRECATION")
+            val person = extras.getParcelable(Notification.EXTRA_MESSAGING_PERSON)
+                as? android.app.Person
+            val drawable = person?.icon?.loadDrawable(this) ?: return null
+            val bitmap = rasterizeIcon(drawable, SELF_AVATAR_SIZE) ?: return null
+            IconCompat.createWithBitmap(bitmap)
+        }.getOrNull()
+    }
+
+    /** 本人頭貼的存檔位置，一個 profile 一張。 */
+    private fun selfAvatarFile(profileKey: String): java.io.File =
+        java.io.File(java.io.File(filesDir, SELF_AVATAR_DIR), "${profileKey.hashCode()}.png")
+
+    /**
+     * 把本人頭貼寫到檔案。
+     *
+     * 沒有這一步，[selfPersonIcons] 就只是純記憶體快取：NotificationListenerService 被系統
+     * 回收重綁之後歸零，而補回來的唯一時機是「下一則帶得出本人頭貼的 LINE 通知」，
+     * 於是重開機後的第一次回覆必然是預設圖。
+     */
+    private fun persistSelfAvatar(profileKey: String, icon: IconCompat) {
+        runCatching {
+            val bitmap = rasterizeIcon(icon.loadDrawable(this) ?: return, SELF_AVATAR_SIZE)
+                ?: return
+            val file = selfAvatarFile(profileKey)
+            file.parentFile?.mkdirs()
+            java.io.FileOutputStream(file).use { bitmap.compress(Bitmap.CompressFormat.PNG, 90, it) }
+            bitmap.recycle()
+        }.onFailure { Log.w(TAG, "存本人頭貼失敗 profile=$profileKey", it) }
+    }
+
+    /** 從存檔還原本人頭貼；listener 重連時呼叫，讓 process 重啟不會退回預設圖。 */
+    private fun restorePersistedSelfAvatars() {
+        val dir = java.io.File(filesDir, SELF_AVATAR_DIR)
+        val files = runCatching { dir.listFiles() }.getOrNull() ?: return
+        for (file in files) {
+            val profileKey = knownProfiles.firstOrNull { "${it.hashCode()}.png" == file.name }
+                ?: continue
+            if (selfPersonIcons.containsKey(profileKey)) continue
+            runCatching { android.graphics.BitmapFactory.decodeFile(file.absolutePath) }
+                .getOrNull()
+                ?.let { selfPersonIcons[profileKey] = IconCompat.createWithBitmap(it) }
+        }
+    }
+
     /** 該帳號的本人頭貼（取不到用綠色預設） */
     private fun selfIconFor(room: ChatRoom): IconCompat =
         selfPersonIcons[room.profileKey]
+            ?: restoreSelfAvatarFromDisk(room.profileKey)
             ?: IconCompat.createWithResource(this, R.drawable.ic_self_avatar)
+
+    /**
+     * 單一 profile 的懶載入。[restorePersistedSelfAvatars] 只在重連時掃一次，而
+     * [knownProfiles] 要等第一則通知才會有內容，兩者先後不保證，這裡補一條直接命中的路。
+     */
+    private fun restoreSelfAvatarFromDisk(profileKey: String): IconCompat? {
+        val file = selfAvatarFile(profileKey)
+        if (!file.exists()) return null
+        return runCatching { android.graphics.BitmapFactory.decodeFile(file.absolutePath) }
+            .getOrNull()
+            ?.let { IconCompat.createWithBitmap(it) }
+            ?.also { selfPersonIcons[profileKey] = it }
+    }
 
     /** 多帳號時，標題前綴帳號來源（例：「工作帳號 · 」）；單帳號時為空字串 */
     private fun acctPrefix(room: ChatRoom): String {

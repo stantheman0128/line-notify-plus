@@ -78,6 +78,7 @@
     <string name="changelog_1_2_0_clear">Added settings to auto-clear notifications after replying or reading</string>
     <string name="changelog_1_2_0_dual">Tell apart different accounts when running dual LINE</string>
     <string name="changelog_1_2_0_ui">Refreshed interface with clearer wording</string>
+    <string name="changelog_1_3_6_self_avatar">Fixed your own avatar showing as the default icon instead of your LINE profile picture when replying in a group.</string>
     <string name="changelog_1_3_5_redacted">Fixed some phones showing the same message as two notifications, one of them blank.</string>
     <string name="changelog_1_3_5_summary">Fixed a leftover LINE summary card that made it look like the original notification was not replaced.</string>
     <string name="changelog_1_3_4_android16">Updated system compatibility settings for Android 16. Notification behaviour is unchanged.</string>
