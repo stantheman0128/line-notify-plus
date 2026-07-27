@@ -261,6 +261,34 @@ object NotificationClassifier {
     }
 
     /**
+     * Apple 分組模式下，一張 child 卡的訊息身分 token（最終會變成通知的 tag）。
+     *
+     * 同一則訊息重複貼必須算出同一個 token（→ 同 tag → 覆蓋成一張），
+     * 同房不同訊息必須算出不同 token（→ 各自一張卡，這是 Apple 模式的核心語意）。
+     *
+     * ⛔ **參數列就是白名單**，跟 [mirrorFingerprint] 同一個規矩。絕不可放入 post generation、
+     * `room.messages.size`、`sbn.postTime` 這類「每個 callback 都會變」的值——放進去等於宣告
+     * 每個 callback 都是新訊息，同一則訊息就會拿到兩個 tag、貼出兩張永不互相覆蓋的卡，
+     * 而且各佔一個 cap 名額。vc23 以前正是如此（token 含 `childGeneration` 與 `room.messages.size`），
+     * 這就是「Apple 分組模式下出現兩個一模一樣的通知」的結構性成因。
+     *
+     * [identityWhenMs] 必須是 LINE 的 `notification.when`（同一則訊息的兩個 mirror callback
+     * 帶的值相同），不可以用 `sbn.postTime`（兩個 callback 不同）。真的連續傳兩則相同文字時，
+     * LINE 的 when 毫秒必不同（2026-07-21 實測差 2449ms），所以分辨得出來。
+     *
+     * 這組身分欄位不是新發明，正是第 2 層保底去重已經在用的同一組。差別在於：那一層靠
+     * in-memory 快取，快取被清掉就失效；tag 冪等是結構性質，process 重啟後照樣成立。
+     */
+    fun appleChildToken(
+        roomKey: String,
+        text: String,
+        identityWhenMs: Long,
+        isFromMe: Boolean,
+    ): String =
+        (if (isFromMe) "me" else "in") + ":" +
+            dedupeFingerprint(roomKey, text, identityWhenMs).take(24)
+
+    /**
      * LINE 對同一則訊息會送兩個 callback（tagged conversation + legacy mirror `id=16880000`），
      * 這個指紋用來把它們配成一對、只留一張卡。
      *

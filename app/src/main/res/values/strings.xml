@@ -78,6 +78,7 @@
     <string name="changelog_1_2_0_clear">新增回覆後、已讀後自動清除通知的設定</string>
     <string name="changelog_1_2_0_dual">雙開 LINE 時可以區分不同帳號的訊息來源</string>
     <string name="changelog_1_2_0_ui">介面改版，文案調整讓功能更好懂</string>
+    <string name="changelog_1_3_8_apple_dupe">修正分組模式下，同一則訊息有時會變成兩張一模一樣的通知卡、且不會自動收合的問題。</string>
     <string name="changelog_1_3_7_mute">修正把聊天室關掉後，@all 與社群公告、記事本重要貼文仍會跳出來的問題。純公告型的社群現在也會出現在聊天室管理清單裡，可以單獨關閉。</string>
     <string name="changelog_1_3_6_self_avatar">修正在群組裡回覆訊息時，自己的頭貼顯示成預設圖示、而不是你的 LINE 大頭貼的問題。</string>
     <string name="changelog_1_3_5_redacted">修正部分手機會把同一則訊息顯示成兩則通知的問題，其中一則內容是空白的。</string>

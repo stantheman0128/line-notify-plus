@@ -1185,7 +1185,9 @@ class LineNotificationListener : NotificationListenerService() {
         // 先發我們的通知
         val style = prefs.getString(KEY_NOTIFICATION_STYLE, "thread") ?: "thread"
         val replacementReceipt = when (style) {
-            "apple" -> postAppleStyleNotification(room, message)
+            // identityWhenMs 用 LINE 的 notification.when：同一則訊息的兩個 mirror callback
+            // 帶的值相同，sbn.postTime 則不同，用錯就失去 tag 冪等。
+            "apple" -> postAppleStyleNotification(room, message, notification.`when`)
             else -> postThreadStyleNotification(room)
         }
         if (replacementReceipt == null) {
@@ -1374,6 +1376,9 @@ class LineNotificationListener : NotificationListenerService() {
             postAppleStyleNotification(
                 room,
                 replyMessage,
+                // 自己的回覆沒有 LINE 的 when，退回 ChatMessage 自帶的時間戳；
+                // 加上 token 的 "me:" 前綴，不會跟收到的訊息撞身分。
+                identityWhenMs = 0L,
                 replacementVictim = repliedRef,
             )
         } else {
@@ -1559,16 +1564,36 @@ class LineNotificationListener : NotificationListenerService() {
     private fun postAppleStyleNotification(
         room: ChatRoom,
         newMessage: ChatMessage,
+        identityWhenMs: Long,
         replacementVictim: NotificationRef? = null,
     ): ReplacementReceipt? {
         val groupKey = "linenotify_${room.roomKey}"
         val manager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+
+        // tag 由訊息身分決定，不含 generation 也不含 buffer 大小——同一則訊息的兩個 callback
+        // 因此拿到同一個 tag，第二次貼是覆蓋而不是並存（見 appleChildToken 的說明）。
+        val identityWhen = identityWhenMs.takeIf { it > 0L } ?: newMessage.timestamp
+        val messageRef = notificationRef(
+            kind = "apple-child",
+            roomKey = room.roomKey,
+            id = APPLE_CHILD_NOTIFICATION_ID,
+            messageToken = NotificationClassifier.appleChildToken(
+                roomKey = room.roomKey,
+                text = newMessage.text,
+                identityWhenMs = identityWhen,
+                isFromMe = newMessage.isFromMe,
+            ),
+        )
+        val isRepost = appleNotifIds[room.roomKey]?.contains(messageRef) == true
+
         // Preflight：先確認目前看得到的狀態至少存在安全方案；真正提交前仍會重算，
         // 避免 burst 中另一筆 pending transaction 成敗後讓這份計畫過期。
+        // 重貼不佔新名額（additionalChildCount = 0），也不可把正在刷新的那張自己淘汰掉。
         if (planAppleEvictions(
                 manager = manager,
                 currentRoomKey = room.roomKey,
-                additionalChildCount = 1,
+                additionalChildCount = if (isRepost) 0 else 1,
+                protectedRef = if (isRepost) messageRef else null,
                 mandatoryEvictionRef = replacementVictim,
             ) == null
         ) {
@@ -1576,23 +1601,14 @@ class LineNotificationListener : NotificationListenerService() {
             return null
         }
 
-        // generation 是 process 內單調遞增值，確保即使同一房、同一毫秒、同文字、同 sender
-        // 的兩個 callback 也不會得到同 tag 而互相覆蓋。
         val childGeneration = nextPostGeneration.incrementAndGet()
-        val token = "$childGeneration:${newMessage.timestamp}:${room.messages.size}:" +
-            NotificationClassifier.dedupeFingerprint(
-                room.roomKey,
-                newMessage.text,
-                newMessage.timestamp,
-            ).take(12)
-        val messageRef = notificationRef(
-            kind = "apple-child",
-            roomKey = room.roomKey,
-            id = APPLE_CHILD_NOTIFICATION_ID,
-            messageToken = token,
-        )
-        appleNotifIds.getOrPut(room.roomKey) { mutableListOf() }.add(messageRef)
-        appleMessagesByRef[messageRef] = newMessage
+        if (isRepost) {
+            // 這則已經在 buffer 裡（第一個 callback 加的），把這次的重複實例移掉。
+            room.removeMessage(newMessage)
+        } else {
+            appleNotifIds.getOrPut(room.roomKey) { mutableListOf() }.add(messageRef)
+            appleMessagesByRef[messageRef] = newMessage
+        }
         markApplePending(messageRef)
 
         val msgBuilder = NotificationCompat.Builder(this, CHANNEL_ID)
@@ -1624,15 +1640,20 @@ class LineNotificationListener : NotificationListenerService() {
             childGeneration,
         )
         addReplyAction(msgBuilder, room, messageRef)
-        appleNotificationOrder.addLast(room.roomKey to messageRef)
+        // 重貼只是刷新同一張卡，不該改變它在淘汰佇列裡的年紀，也不該再提示一次。
+        if (!isRepost) appleNotificationOrder.addLast(room.roomKey to messageRef)
+        msgBuilder.setOnlyAlertOnce(isRepost)
         val childPosted = runCatching { manager.notify(messageRef.tag, messageRef.id, msgBuilder.build()) }
             .onFailure { Log.e(TAG, "張貼 Apple child 通知失敗", it) }
             .isSuccess
         if (!childPosted) {
             unmarkApplePending(messageRef)
-            appleNotifIds[room.roomKey]?.remove(messageRef)
-            appleMessagesByRef.remove(messageRef)
-            appleNotificationOrder.remove(room.roomKey to messageRef)
+            // 重貼失敗時第一次那張卡與它的索引仍然合法，不可連坐銷毀。
+            if (!isRepost) {
+                appleNotifIds[room.roomKey]?.remove(messageRef)
+                appleMessagesByRef.remove(messageRef)
+                appleNotificationOrder.remove(room.roomKey to messageRef)
+            }
             return null
         }
 
@@ -1681,7 +1702,11 @@ class LineNotificationListener : NotificationListenerService() {
         Log.d(TAG, "Apple 分組通知 room=${room.chatTitle.hashCode()} count=${room.messages.size}")
         val receipt = ReplacementReceipt(
             posts = listOf(
-                PostedNotification(messageRef, childGeneration, acceptNewerGeneration = false),
+                // tag 冪等之後，「同 tag、較新 generation」在型別上只可能是同一則訊息的重貼，
+                // 不可能是別則訊息（token 不含 generation，見 appleChildToken）。因此放寬世代
+                // 比對是安全的，而且必須放寬：否則重貼會讓第一個 callback 排的取消任務判定
+                // 副本不在場而 fail-open，變成「一張 Notify+ 卡 + 一張沒被撤掉的 LINE 卡」。
+                PostedNotification(messageRef, childGeneration, acceptNewerGeneration = true),
                 PostedNotification(summaryRef, summaryGeneration, acceptNewerGeneration = true),
             ),
             committed = false,
@@ -1722,11 +1747,15 @@ class LineNotificationListener : NotificationListenerService() {
                 if (replacementIsActive) {
                     Log.w(TAG, "Apple budget 提交前狀態已變更；回滾本次副本並保留 LINE 原通知")
                 }
-                appleNotifIds[room.roomKey]?.remove(messageRef)
-                appleMessagesByRef.remove(messageRef)
-                appleNotificationOrder.remove(room.roomKey to messageRef)
-                if (isActive(manager, NotificationRef(messageRef.tag, messageRef.id))) {
-                    manager.cancel(messageRef.tag, messageRef.id)
+                // 重貼的 rollback 只該撤銷「這次刷新」，不可把第一個 callback 貼出的那張
+                // 合法卡片與它的索引一起銷毀——那會讓使用者反而看不到這則訊息。
+                if (!isRepost) {
+                    appleNotifIds[room.roomKey]?.remove(messageRef)
+                    appleMessagesByRef.remove(messageRef)
+                    appleNotificationOrder.remove(room.roomKey to messageRef)
+                    if (isActive(manager, NotificationRef(messageRef.tag, messageRef.id))) {
+                        manager.cancel(messageRef.tag, messageRef.id)
+                    }
                 }
                 if (summaryWasNew) {
                     val exactSummary = PostedNotification(
