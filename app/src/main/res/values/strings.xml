@@ -78,6 +78,7 @@
     <string name="changelog_1_2_0_clear">新增回覆後、已讀後自動清除通知的設定</string>
     <string name="changelog_1_2_0_dual">雙開 LINE 時可以區分不同帳號的訊息來源</string>
     <string name="changelog_1_2_0_ui">介面改版，文案調整讓功能更好懂</string>
+    <string name="changelog_1_3_7_mute">修正把聊天室關掉後，@all 與社群公告、記事本重要貼文仍會跳出來的問題。純公告型的社群現在也會出現在聊天室管理清單裡，可以單獨關閉。</string>
     <string name="changelog_1_3_6_self_avatar">修正在群組裡回覆訊息時，自己的頭貼顯示成預設圖示、而不是你的 LINE 大頭貼的問題。</string>
     <string name="changelog_1_3_5_redacted">修正部分手機會把同一則訊息顯示成兩則通知的問題，其中一則內容是空白的。</string>
     <string name="changelog_1_3_5_summary">修正 LINE 改版後，通知欄仍留下一張 LINE 原始摘要卡片、看起來像沒被取代的問題。</string>
@@ -150,7 +151,7 @@
     <string name="chat_search_content_description">搜尋</string>
     <string name="chat_info_content_description">說明</string>
     <string name="chat_info_title">關於聊天室管理</string>
-    <string name="chat_info_body">這裡可以針對每個聊天室單獨管理通知。對一般可辨識的通知，關閉後 Notify+ 會撤掉自己與 LINE 的通知，包含 @all 與直接標註你的訊息。點一下聊天室列可手動更正好友／群組／社群分類。\n\n• 標示「舊設定」的聊天室仍會保留 LINE 原通知；先開啟再關閉，才會改成新版完全靜音。\n• 只有「曾收到訊息」的聊天室才會出現在這裡。\n• 系統可能先顯示極短暫的提示，再由 Notify+ 撤掉。\n• 若 Android 已先隱藏通知內容，Notify+ 會看不到聊天室名稱，因此無法保證攔截該則通知。\n• 在保留 LINE 原通知模式中，LINE 的全域摘要也可能包含已靜音聊天室；Notify+ 不會為了它而隱藏其他聊天室的摘要。\n• 若頭像沒顯示、或某個聊天室沒出現，通常是該聊天室的通知還沒進來、或尚未被抓取。</string>
+    <string name="chat_info_body">這裡可以針對每個聊天室單獨管理通知。對可辨識的通知，關閉後 Notify+ 會撤掉自己與 LINE 的通知，包含 @all、直接標註你的訊息，以及社群的公告與記事本重要貼文。點一下聊天室列可手動更正好友／群組／社群分類。\n\n• 標示「舊設定」的聊天室仍會保留 LINE 原通知；先開啟再關閉，才會改成新版完全靜音。\n• 只有「曾收到訊息」的聊天室才會出現在這裡。\n• 系統可能先顯示極短暫的提示，再由 Notify+ 撤掉。\n• 若 Android 已先隱藏通知內容，Notify+ 會看不到聊天室名稱，因此無法保證攔截該則通知。\n• LINE 的全域摘要卡可能包含已靜音聊天室；Notify+ 不會為了它而隱藏其他聊天室的摘要。\n• 若頭像沒顯示、或某個聊天室沒出現，通常是該聊天室的通知還沒進來、或尚未被抓取。</string>
     <string name="chat_info_privacy_link">🔒 我們如何處理你的資料</string>
     <string name="chat_info_privacy_body">Notify+ 不會把完整訊息歷史寫入自己的檔案；訊息會暫存在程序記憶體並交給 Android 通知系統顯示，通知紀錄可能依你的系統設定保留。磁碟只保存聊天室名稱、分類、最後活躍時間、開關與頭貼。App 沒有網路權限，不會上傳這些資料。</string>
     <string name="chat_select_all">全選</string>

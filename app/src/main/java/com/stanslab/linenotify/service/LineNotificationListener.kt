@@ -710,7 +710,8 @@ class LineNotificationListener : NotificationListenerService() {
         runCatching { activeNotifications.orEmpty() }
             .getOrDefault(emptyArray())
             .filter { it.packageName in LINE_PACKAGES }
-            .filter { NotificationClassifier.isSupportedMessageChannel(it.notification.channelId) }
+            // 用 mute-eligible 而非白名單：listener 重連時要連公告類的殘留一起掃掉。
+            .filter { NotificationClassifier.isMuteEligibleChannel(it.notification.channelId) }
             .filterNot { isCallNotification(it.notification) }
             .filter { sbn ->
                 val extras = sbn.notification.extras
@@ -789,12 +790,71 @@ class LineNotificationListener : NotificationListenerService() {
         }
 
         val channelId = notification.channelId
+        val extras = notification.extras
+
+        // 靜音硬封鎖必須排在「頻道白名單 / GROUP_SUMMARY / title,text 空值 / 系統遮蔽」這四道
+        // 早退之前。那四道 return 掉的通知照樣會出現在使用者面前，靜音排在它們後面等於對它們
+        // 全部失效——這就是「我明明把聊天室關掉了，@all 和社群公告還是會跳」的成因。
+        //
+        // 仍排在通話守門之後：來電的 title 是對方名字、subText 為 null，形狀跟 1:1 聊天室
+        // 一模一樣，靜音搶在前面會連來電一起撤掉。
+        //
+        // 這裡只做「撤掉」，不重建 Notify+ 卡片，所以能安全地涵蓋公告類頻道
+        // （見 NotificationClassifier.isMuteEligibleChannel）。
+        if (NotificationClassifier.isMuteEligibleChannel(channelId)) {
+            val gateTitle = extras.getCharSequence("android.title")?.toString()
+            val gateSubText = extras.getCharSequence("android.subText")?.toString()
+            val gateText = extras.getCharSequence("android.text")?.toString()
+            val gateAppLabel = runCatching {
+                packageManager.getApplicationLabel(
+                    packageManager.getApplicationInfo(sbn.packageName, 0)
+                ).toString()
+            }.getOrNull()
+
+            // 純公告型社群只走 SquareActivity，永遠不會跑完下面那條會 recordChat 的管線，
+            // 於是不會出現在聊天室管理清單裡，使用者連「關掉它」都做不到。這裡補登錄。
+            if (NotificationClassifier.isSquareActivityChannel(channelId) &&
+                gateTitle != null &&
+                NotificationClassifier.isAttributableChatTitle(gateTitle, gateSubText, gateAppLabel) &&
+                !NotificationClassifier.textMatchesRedactionPlaceholder(gateText, systemRedactedText())
+            ) {
+                val announceTitle = NotificationClassifier.chatTitleOf(gateTitle, gateSubText)
+                recordChatMetadata(
+                    announceTitle,
+                    forcedChatType(announceTitle) ?: NotificationClassifier.TYPE_COMMUNITY,
+                    sbn.postTime,
+                )
+            }
+
+            if (NotificationClassifier.shouldHardMute(
+                    channelId = channelId,
+                    title = gateTitle,
+                    subText = gateSubText,
+                    text = gateText,
+                    isGroupSummary = notification.flags and Notification.FLAG_GROUP_SUMMARY != 0,
+                    sourceAppLabel = gateAppLabel,
+                    systemRedactedText = systemRedactedText(),
+                    mutedChats = prefs.getStringSet(KEY_MUTED_CHATS, emptySet()) ?: emptySet(),
+                )
+            ) {
+                val mutedTitle = NotificationClassifier.chatTitleOf(gateTitle!!, gateSubText)
+                clearChatGroup(
+                    NotificationClassifier.roomKeyOf(profileKeyOf(sbn), mutedTitle)
+                )
+                cancelNotification(sbn.key)
+                Log.d(
+                    TAG,
+                    "靜音前置守門已封鎖 room=${mutedTitle.hashCode()} " +
+                        "channelHash=${channelId?.hashCode()}"
+                )
+                return
+            }
+        }
+
         if (!NotificationClassifier.isSupportedMessageChannel(channelId)) {
             Log.d(TAG, "略過非聊天通知 channelHash=${channelId?.hashCode()}")
             return
         }
-
-        val extras = notification.extras
 
         // LINE 26.11.0 起 id=16880000 從 legacy mirror 變成 GROUP_SUMMARY（A065 dumpsys 實證）。
         // summary 不會被 SystemUI 回收，放著會在部分 OEM（realme UI 實證）以「N則新訊息＋預覽」

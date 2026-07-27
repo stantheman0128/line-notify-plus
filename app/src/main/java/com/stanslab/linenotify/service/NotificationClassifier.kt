@@ -96,6 +96,65 @@ object NotificationClassifier {
     fun isSupportedMessageChannel(channelId: String?): Boolean =
         channelId == "NewMessages" || channelId?.endsWith(".notification.NewMessages") == true
 
+    /** LINE 的「社群活動」頻道，承載社群公告與記事本重要貼文。 */
+    fun isSquareActivityChannel(channelId: String?): Boolean =
+        channelId == "SquareActivity" ||
+            channelId?.endsWith(".notification.SquareActivity") == true
+
+    /**
+     * 靜音可以攔截的頻道，刻意比 [isSupportedMessageChannel] 寬。
+     *
+     * 兩者不是同一件事：[isSupportedMessageChannel] 決定「要不要把它重建成 Notify+ 卡片」，
+     * 這裡決定「使用者說要靜音時，要不要幫他撤掉」。公告類通知沒有 MessagingStyle、沒有
+     * subText，重建成卡片只會生出假聊天室，但撤掉它沒有任何副作用——所以社群活動頻道
+     * 只進這個集合，不進白名單。
+     */
+    fun isMuteEligibleChannel(channelId: String?): Boolean =
+        isSupportedMessageChannel(channelId) || isSquareActivityChannel(channelId)
+
+    /**
+     * 這則通知能不能被歸屬到單一聊天室。歸屬不明就不該套用靜音，否則會誤撤別人的通知。
+     *
+     * 兩種不可歸屬的形狀：系統遮蔽 clone（title 是 App 名稱，跟聊天室無關）、
+     * 以及沒有 subText 的堆疊摘要（title 本身就是多個聊天室拼起來的）。
+     */
+    fun isAttributableChatTitle(
+        title: String?,
+        subText: String?,
+        sourceAppLabel: String?,
+    ): Boolean =
+        title != null &&
+            !matchesAospCloneShapeExceptIcon(title, subText, sourceAppLabel) &&
+            !(subText == null && isStackSummaryTitle(title))
+
+    /**
+     * 這則該不該因為「使用者把該聊天室完全靜音」而直接撤掉。
+     *
+     * 存在的理由是守門順序：靜音檢查原本排在頻道白名單、GROUP_SUMMARY、title/text 空值、
+     * 系統遮蔽這四道早退**之後**，而那四道 return 掉的通知照樣會出現在使用者面前，
+     * 等於靜音對它們一律失效——這就是「我明明關掉了，@all 和社群公告還是會跳」的成因。
+     *
+     * 遮蔽通知刻意排除：原始內容在 callback 前就已不可逆遺失，撤掉它等於讓使用者永遠
+     * 不知道有這則訊息。group summary 也排除，它涵蓋多個聊天室、不可歸屬到單一房。
+     */
+    fun shouldHardMute(
+        channelId: String?,
+        title: String?,
+        subText: String?,
+        text: String?,
+        isGroupSummary: Boolean,
+        sourceAppLabel: String?,
+        systemRedactedText: String?,
+        mutedChats: Set<String>,
+    ): Boolean {
+        if (title == null) return false
+        if (!isMuteEligibleChannel(channelId)) return false
+        if (isGroupSummary) return false
+        if (chatTitleOf(title, subText) !in mutedChats) return false
+        if (textMatchesRedactionPlaceholder(text, systemRedactedText)) return false
+        return isAttributableChatTitle(title, subText, sourceAppLabel)
+    }
+
     /** 分類 → 對應的 SharedPreferences set key。 */
     fun prefsKeyForType(chatType: String): String = when (chatType) {
         TYPE_COMMUNITY -> PREFS_KNOWN_COMMUNITIES
