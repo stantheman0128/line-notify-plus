@@ -838,6 +838,19 @@ class LineNotificationListener : NotificationListenerService() {
                 )
             ) {
                 val mutedTitle = NotificationClassifier.chatTitleOf(gateTitle!!, gateSubText)
+                // 舊的 MODE_MUTED 分支會登錄 metadata，前置段接手後也要做，
+                // 否則靜音聊天室的「最後活躍時間」從此凍結、在管理清單裡會慢慢沉底。
+                recordChatMetadata(
+                    mutedTitle,
+                    forcedChatType(mutedTitle)
+                        ?: knownChatType(mutedTitle)
+                        ?: if (NotificationClassifier.isSquareActivityChannel(channelId)) {
+                            NotificationClassifier.TYPE_COMMUNITY
+                        } else {
+                            NotificationClassifier.TYPE_PERSONAL
+                        },
+                    sbn.postTime,
+                )
                 clearChatGroup(
                     NotificationClassifier.roomKeyOf(profileKeyOf(sbn), mutedTitle)
                 )
@@ -1694,7 +1707,10 @@ class LineNotificationListener : NotificationListenerService() {
         if (!summaryPosted) {
             unmarkApplePending(messageRef)
             unmarkApplePending(summaryRef)
-            cancelAppleChild(manager, room.roomKey, messageRef)
+            // 重貼時 messageRef 指的是第一個 callback 已經貼出的那張合法卡片。summary 這次
+            // 失敗不代表那張卡有問題，撤掉它反而會讓使用者看不到這則訊息，而且 buffer 裡
+            // 會留下一則沒有卡也沒有索引的孤兒訊息（重貼路徑在前面已 removeMessage 過一次）。
+            if (!isRepost) cancelAppleChild(manager, room.roomKey, messageRef)
             if (summaryWasNew) summaryIds.remove(room.roomKey, summaryRef)
             return null
         }
