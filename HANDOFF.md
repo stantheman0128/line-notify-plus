@@ -1,6 +1,25 @@
 # Project Handoff — Notify+
 
-## Latest Session: 2026-07-21（Claude Code：卡內重複根因定罪 + vc19 修復，branch `fix/group-mirror-title-dedup-2026-07-21`）
+## Latest Session: 2026-08-14（Claude Code：守門失效七連修 vc20–vc24，branch `fix/redaction-summary-guards-2026-07-27`）
+
+### ⛔ 上傳指引（取代下方 2026-07-21 節的舊指引；`08bb4bae` vc19 AAB 作廢勿上傳）
+
+- **待上傳 AAB＝vc24 / 1.3.8**：`app/build/outputs/bundle/release/app-release.aab`
+  7,120,044 bytes，SHA-256 `be34c2a568f211ae...`，jarsigner 驗證通過。
+  含 vc19 全部修復＋本輪 vc20–vc24（targetSdk 36、summary flags 死碼、遮蔽 OR、
+  本人頭貼平台欄位＋持久化、靜音前置＋SquareActivity、Apple tag 冪等）。
+- 前置確認：Play Console 沒有任何 draft/退件佔用 vc19–vc24（vc19 從未上傳，理論上乾淨）。
+- 上傳後驗收重點（依風險排序）：
+  1. **summary 接管路徑首次真正上線**（vc21 修死碼後 `scheduleLineSummaryCancellation`
+     才開始執行）——盯有沒有誤刪 LINE 通知。
+  2. Apple 模式重複是否消失（vc24 tag 冪等；`isRepost` 段零測試覆蓋，靠閱讀推導）。
+  3. 群組回覆時本人頭貼（vc22 建立在「LINE 用平台 API」假設上；若無效改走 Photo Picker）。
+  4. 已靜音社群的公告/重要貼文不再跳（vc23）。
+- branch 狀態：10 commits（7 修復＋3 docs 前身）、88 tests 全綠、verifier 兩輪
+  （第一輪 CONFIRMED；第二輪 REFUTED 抓到漏第五處 isRepost guard，已修 `173e324`）。
+- 詳細根因與證據見 git log 各 commit message（每則都含機制、實證、紅綠對照、未驗清單）。
+
+## Session: 2026-07-21（Claude Code：卡內重複根因定罪 + vc19 修復，branch `fix/group-mirror-title-dedup-2026-07-21`）
 
 ### 根因（實錄定罪，非推測）
 
