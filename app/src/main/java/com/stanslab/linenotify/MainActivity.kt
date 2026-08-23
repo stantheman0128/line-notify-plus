@@ -62,6 +62,7 @@ import androidx.compose.material3.windowsizeclass.ExperimentalMaterial3WindowSiz
 import androidx.compose.material3.windowsizeclass.WindowWidthSizeClass
 import androidx.compose.material3.windowsizeclass.calculateWindowSizeClass
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -89,6 +90,7 @@ import com.stanslab.linenotify.service.LineNotificationListener
 import com.stanslab.linenotify.service.LineMessageChannelSettings
 import com.stanslab.linenotify.ui.theme.Green40
 import com.stanslab.linenotify.ui.theme.LineNotifyTheme
+import kotlinx.coroutines.delay
 
 class MainActivity : AppCompatActivity() {
 
@@ -257,6 +259,18 @@ fun MainScreen(windowWidthSizeClass: WindowWidthSizeClass) {
         hasParallelNotifyListenerEnabled = isParallelNotifyListenerEnabled(context)
         hasPostNotificationsPermission = hasPostNotificationsPermission(context)
         notifyPlusCanAlert = canNotifyPlusAlert(context)
+    }
+
+    // 第一次授予通知存取權時，listener 可能在 Activity 已 resumed 後才建立通知頻道。
+    // 短暫重讀可避免首頁一直停在「Notify+ 無法彈出」，直到使用者手動離開再回來。
+    LaunchedEffect(isListenerEnabled, hasPostNotificationsPermission) {
+        if (isListenerEnabled && hasPostNotificationsPermission) {
+            repeat(10) {
+                notifyPlusCanAlert = canNotifyPlusAlert(context)
+                if (notifyPlusCanAlert) return@LaunchedEffect
+                delay(300)
+            }
+        }
     }
 
     Scaffold(
