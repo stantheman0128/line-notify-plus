@@ -40,6 +40,11 @@ android {
     }
 
     buildTypes {
+        debug {
+            // 實機驗證版可與 Play 版並存，避免 debug 簽章無法覆蓋 Play App Signing。
+            applicationIdSuffix = ".singlepoptest"
+            versionNameSuffix = "-single-pop-test"
+        }
         release {
             isMinifyEnabled = false
             // 打包原生 debug symbols（androidx 依賴帶進來的 .so），方便 Play Console 分析原生層 crash/ANR。
