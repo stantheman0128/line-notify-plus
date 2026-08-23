@@ -1,7 +1,7 @@
 # Notify+ — Play Store 文案素材
 
-最後更新：2026-07-14
-版本：v1.2.1 (versionCode 15)
+最後更新：2026-08-24
+版本：v1.4.0 (versionCode 25)
 
 > ⚠️ 2026-06-23 因 Impersonation policy 被退件（舊名「LINE Notify+」+ 舊 feature graphic 模仿 LINE 識別）。
 > 本檔已改名為 Notify+、去掉 LINE 品牌主打、開頭即聲明第三方非官方。商店描述可以「描述功能會用到 LINE 通知」，但名稱與識別不可暗示官方關聯。
@@ -81,6 +81,30 @@ GitHub：https://github.com/stantheman0128/line-notify-plus
 ```
 
 字數：約 720 / 4000
+
+---
+
+## Release notes v1.4.0 / vc25（Play Console 上限 500 字元）
+
+### 繁中
+
+```
+這次更新讓設定更簡單：
+
+• 精簡首頁通知設定，讓「取代原始通知」的行為更清楚
+• 調整功能說明，清楚說明 LINE 原始通知與 Notify+ 通知的差異
+• 更新時會保留既有聊天室清單、分類、個別靜音設定與頭貼
+```
+
+### English
+
+```
+This update makes notification settings simpler:
+
+• Streamlined the home-screen settings and clarified how “Replace original notifications” works
+• Clarified the difference between original LINE and Notify+ notifications
+• Existing chat lists, classifications, per-chat mute settings, and avatars are preserved during updates
+```
 
 ---
 

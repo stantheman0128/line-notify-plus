@@ -146,7 +146,7 @@ fun AboutScreen(onBack: () -> Unit) {
                     ChangelogEntry(
                         "v1.4.0",
                         listOf(
-                            stringResource(R.string.changelog_1_4_0_single_popup),
+                            stringResource(R.string.changelog_1_4_0_settings),
                         )
                     )
 
