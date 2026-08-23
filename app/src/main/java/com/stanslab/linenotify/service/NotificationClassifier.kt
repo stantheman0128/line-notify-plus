@@ -94,7 +94,7 @@ object NotificationClassifier {
 
     /** 僅攔截 LINE 聊天訊息頻道；付款、好友邀請、動態等其他頻道一律 fail-open。 */
     fun isSupportedMessageChannel(channelId: String?): Boolean =
-        channelId == "NewMessages" || channelId?.endsWith(".notification.NewMessages") == true
+        LineMessageChannelSettings.isSupportedMessageChannel(channelId)
 
     /** LINE 的「社群活動」頻道，承載社群公告與記事本重要貼文。 */
     fun isSquareActivityChannel(channelId: String?): Boolean =

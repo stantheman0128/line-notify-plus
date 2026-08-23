@@ -1,14 +1,18 @@
 package com.stanslab.linenotify
 
 import android.Manifest
+import android.app.NotificationManager
+import android.content.ActivityNotFoundException
 import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
+import android.net.Uri
 import android.os.Build
 import android.os.Bundle
 import android.provider.Settings
 import android.service.notification.NotificationListenerService
+import android.widget.Toast
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -82,6 +86,7 @@ import androidx.core.os.LocaleListCompat
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LifecycleEventEffect
 import com.stanslab.linenotify.service.LineNotificationListener
+import com.stanslab.linenotify.service.LineMessageChannelSettings
 import com.stanslab.linenotify.ui.theme.Green40
 import com.stanslab.linenotify.ui.theme.LineNotifyTheme
 
@@ -131,6 +136,7 @@ fun MainScreen(windowWidthSizeClass: WindowWidthSizeClass) {
     }
 
     var isListenerEnabled by remember { mutableStateOf(false) }
+    var hasParallelNotifyListenerEnabled by remember { mutableStateOf(false) }
     var serviceEnabled by remember {
         mutableStateOf(prefs.getBoolean(LineNotificationListener.KEY_SERVICE_ENABLED, true))
     }
@@ -153,6 +159,9 @@ fun MainScreen(windowWidthSizeClass: WindowWidthSizeClass) {
     }
     var hasPostNotificationsPermission by remember {
         mutableStateOf(hasPostNotificationsPermission(context))
+    }
+    var notifyPlusCanAlert by remember {
+        mutableStateOf(canNotifyPlusAlert(context))
     }
     val postNotificationsLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.RequestPermission()
@@ -192,6 +201,37 @@ fun MainScreen(windowWidthSizeClass: WindowWidthSizeClass) {
     val onOpenPermissionSettings = {
         context.startActivity(Intent(Settings.ACTION_NOTIFICATION_LISTENER_SETTINGS))
     }
+    val onOpenLineMessageChannelSettings = {
+        openLineNotificationSettings(
+            context = context,
+            rememberedPackage = prefs.getString(
+                LineNotificationListener.KEY_LAST_LINE_MESSAGE_PACKAGE,
+                null,
+            ),
+            rememberedChannelId = prefs.getString(
+                LineNotificationListener.KEY_LAST_LINE_MESSAGE_CHANNEL,
+                null,
+            ),
+            openMessageChannel = true,
+        )
+    }
+    val onOpenLineAppNotificationSettings = {
+        openLineNotificationSettings(
+            context = context,
+            rememberedPackage = prefs.getString(
+                LineNotificationListener.KEY_LAST_LINE_MESSAGE_PACKAGE,
+                null,
+            ),
+            rememberedChannelId = prefs.getString(
+                LineNotificationListener.KEY_LAST_LINE_MESSAGE_CHANNEL,
+                null,
+            ),
+            openMessageChannel = false,
+        )
+    }
+    val onOpenNotifyPlusNotificationSettings = {
+        openNotifyPlusNotificationSettings(context)
+    }
     val onRequestPostNotifications = {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             postNotificationsLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
@@ -214,7 +254,9 @@ fun MainScreen(windowWidthSizeClass: WindowWidthSizeClass) {
 
     LifecycleEventEffect(Lifecycle.Event.ON_RESUME) {
         isListenerEnabled = isNotificationListenerEnabled(context)
+        hasParallelNotifyListenerEnabled = isParallelNotifyListenerEnabled(context)
         hasPostNotificationsPermission = hasPostNotificationsPermission(context)
+        notifyPlusCanAlert = canNotifyPlusAlert(context)
     }
 
     Scaffold(
@@ -285,6 +327,9 @@ fun MainScreen(windowWidthSizeClass: WindowWidthSizeClass) {
                         isListenerEnabled = isListenerEnabled,
                         serviceEnabled = serviceEnabled
                     )
+                    if (hasParallelNotifyListenerEnabled) {
+                        ParallelInstallWarningCard(onOpenPermissionSettings)
+                    }
                     if (!isListenerEnabled || !hasPostNotificationsPermission) {
                         PermissionGuideCard(
                             isListenerEnabled = isListenerEnabled,
@@ -295,8 +340,13 @@ fun MainScreen(windowWidthSizeClass: WindowWidthSizeClass) {
                         SettingsCard(
                             serviceEnabled = serviceEnabled,
                             replaceOriginal = replaceOriginal,
+                            notifyPlusCanAlert = notifyPlusCanAlert,
                             onServiceEnabledChange = onServiceEnabledChange,
-                            onReplaceOriginalChange = onReplaceOriginalChange
+                            onReplaceOriginalChange = onReplaceOriginalChange,
+                            onOpenLineMessageChannelSettings = onOpenLineMessageChannelSettings,
+                            onOpenLineAppNotificationSettings = onOpenLineAppNotificationSettings,
+                            onOpenNotifyPlusNotificationSettings =
+                                onOpenNotifyPlusNotificationSettings,
                         )
                     } else {
                         PermissionButton(onClick = onOpenPermissionSettings)
@@ -347,6 +397,9 @@ fun MainScreen(windowWidthSizeClass: WindowWidthSizeClass) {
                     isListenerEnabled = isListenerEnabled,
                     serviceEnabled = serviceEnabled
                 )
+                if (hasParallelNotifyListenerEnabled) {
+                    ParallelInstallWarningCard(onOpenPermissionSettings)
+                }
                 if (!isListenerEnabled || !hasPostNotificationsPermission) {
                     PermissionGuideCard(
                         isListenerEnabled = isListenerEnabled,
@@ -358,8 +411,13 @@ fun MainScreen(windowWidthSizeClass: WindowWidthSizeClass) {
                     SettingsCard(
                         serviceEnabled = serviceEnabled,
                         replaceOriginal = replaceOriginal,
+                        notifyPlusCanAlert = notifyPlusCanAlert,
                         onServiceEnabledChange = onServiceEnabledChange,
-                        onReplaceOriginalChange = onReplaceOriginalChange
+                        onReplaceOriginalChange = onReplaceOriginalChange,
+                        onOpenLineMessageChannelSettings = onOpenLineMessageChannelSettings,
+                        onOpenLineAppNotificationSettings = onOpenLineAppNotificationSettings,
+                        onOpenNotifyPlusNotificationSettings =
+                            onOpenNotifyPlusNotificationSettings,
                     )
                     if (!hasPostNotificationsPermission &&
                         Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU
@@ -432,6 +490,35 @@ private fun ServiceStatusCard(isListenerEnabled: Boolean, serviceEnabled: Boolea
                 color = contentColor
             )
             Text(text = bodyText, color = contentColor)
+        }
+    }
+}
+
+@Composable
+private fun ParallelInstallWarningCard(onOpenPermissionSettings: () -> Unit) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.errorContainer,
+        ),
+    ) {
+        Column(
+            modifier = Modifier.padding(20.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            Text(
+                text = stringResource(R.string.parallel_notify_warning_title),
+                fontSize = 17.sp,
+                fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.onErrorContainer,
+            )
+            Text(
+                text = stringResource(R.string.parallel_notify_warning_body),
+                color = MaterialTheme.colorScheme.onErrorContainer,
+            )
+            OutlinedButton(onClick = onOpenPermissionSettings) {
+                Text(stringResource(R.string.parallel_notify_warning_action))
+            }
         }
     }
 }
@@ -544,10 +631,15 @@ private fun StatusPill(granted: Boolean) {
 private fun SettingsCard(
     serviceEnabled: Boolean,
     replaceOriginal: Boolean,
+    notifyPlusCanAlert: Boolean,
     onServiceEnabledChange: (Boolean) -> Unit,
-    onReplaceOriginalChange: (Boolean) -> Unit
+    onReplaceOriginalChange: (Boolean) -> Unit,
+    onOpenLineMessageChannelSettings: () -> Unit,
+    onOpenLineAppNotificationSettings: () -> Unit,
+    onOpenNotifyPlusNotificationSettings: () -> Unit,
 ) {
     var infoDialog by remember { mutableStateOf<Pair<String, String>?>(null) }
+    var showSinglePopupDialog by remember { mutableStateOf(false) }
     val replaceInfoTitle = stringResource(R.string.replace_original_info_title)
     val replaceInfoBody = stringResource(R.string.replace_original_info_body)
 
@@ -577,6 +669,61 @@ private fun SettingsCard(
                 onCheckedChange = onReplaceOriginalChange,
                 onInfo = { infoDialog = replaceInfoTitle to replaceInfoBody }
             )
+
+            if (serviceEnabled && replaceOriginal) {
+                HorizontalDivider(modifier = Modifier.padding(vertical = 12.dp))
+                Text(
+                    text = stringResource(R.string.single_popup_setup_title),
+                    fontSize = 16.sp,
+                    fontWeight = FontWeight.Bold,
+                )
+                Text(
+                    text = stringResource(
+                        if (notifyPlusCanAlert) {
+                            R.string.single_popup_setup_body
+                        } else {
+                            R.string.notify_plus_alert_not_ready
+                        }
+                    ),
+                    modifier = Modifier.padding(top = 6.dp),
+                    fontSize = 13.sp,
+                    color = if (notifyPlusCanAlert) {
+                        MaterialTheme.colorScheme.onSurfaceVariant
+                    } else {
+                        MaterialTheme.colorScheme.error
+                    },
+                )
+                OutlinedButton(
+                    onClick = {
+                        if (notifyPlusCanAlert) {
+                            showSinglePopupDialog = true
+                        } else {
+                            onOpenNotifyPlusNotificationSettings()
+                        }
+                    },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(top = 12.dp),
+                ) {
+                    Text(
+                        stringResource(
+                            if (notifyPlusCanAlert) {
+                                R.string.single_popup_setup_action
+                            } else {
+                                R.string.notify_plus_alert_fix_action
+                            }
+                        )
+                    )
+                }
+                if (notifyPlusCanAlert) {
+                    TextButton(
+                        onClick = onOpenLineAppNotificationSettings,
+                        modifier = Modifier.fillMaxWidth(),
+                    ) {
+                        Text(stringResource(R.string.single_popup_setup_fallback))
+                    }
+                }
+            }
         }
     }
 
@@ -590,6 +737,29 @@ private fun SettingsCard(
                     Text(stringResource(android.R.string.ok))
                 }
             }
+        )
+    }
+
+    if (showSinglePopupDialog) {
+        AlertDialog(
+            onDismissRequest = { showSinglePopupDialog = false },
+            title = { Text(stringResource(R.string.single_popup_dialog_title)) },
+            text = { Text(stringResource(R.string.single_popup_dialog_body)) },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        showSinglePopupDialog = false
+                        onOpenLineMessageChannelSettings()
+                    },
+                ) {
+                    Text(stringResource(R.string.single_popup_dialog_confirm))
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showSinglePopupDialog = false }) {
+                    Text(stringResource(R.string.action_close))
+                }
+            },
         )
     }
 }
@@ -918,6 +1088,89 @@ private fun isNotificationListenerEnabled(context: Context): Boolean {
     return enabledListeners.contains(componentName.flattenToString())
 }
 
+private fun isParallelNotifyListenerEnabled(context: Context): Boolean =
+    context.packageName != PRODUCTION_PACKAGE_NAME &&
+        PRODUCTION_PACKAGE_NAME in NotificationManagerCompat.getEnabledListenerPackages(context)
+
+private fun openLineNotificationSettings(
+    context: Context,
+    rememberedPackage: String?,
+    rememberedChannelId: String?,
+    openMessageChannel: Boolean,
+) {
+    if (!canNotifyPlusAlert(context)) {
+        Toast.makeText(context, R.string.notify_plus_alert_not_ready, Toast.LENGTH_LONG).show()
+        openNotifyPlusNotificationSettings(context)
+        return
+    }
+
+    val installedPackages = LineMessageChannelSettings.knownPackages
+        .filterTo(mutableSetOf()) { context.isPackageInstalled(it) }
+    val target = LineMessageChannelSettings.resolveTarget(
+        installedPackages = installedPackages,
+        rememberedPackage = rememberedPackage,
+        rememberedChannelId = rememberedChannelId,
+    )
+    if (target == null) {
+        Toast.makeText(context, R.string.line_app_not_found, Toast.LENGTH_LONG).show()
+        return
+    }
+
+    val appSettingsIntent = Intent(Settings.ACTION_APP_NOTIFICATION_SETTINGS)
+        .putExtra(Settings.EXTRA_APP_PACKAGE, target.packageName)
+    val appDetailsIntent = Intent(
+        Settings.ACTION_APPLICATION_DETAILS_SETTINGS,
+        Uri.parse("package:${target.packageName}"),
+    )
+    val channelId = target.channelId
+    val intents = if (openMessageChannel && channelId != null) {
+        listOf(
+            Intent(Settings.ACTION_CHANNEL_NOTIFICATION_SETTINGS)
+                .putExtra(Settings.EXTRA_APP_PACKAGE, target.packageName)
+                .putExtra(Settings.EXTRA_CHANNEL_ID, channelId),
+            appSettingsIntent,
+            appDetailsIntent,
+        )
+    } else {
+        listOf(appSettingsIntent, appDetailsIntent)
+    }
+
+    if (intents.none { context.tryStartActivity(it) }) {
+        Toast.makeText(context, R.string.notification_settings_not_found, Toast.LENGTH_LONG).show()
+    }
+}
+
+private fun openNotifyPlusNotificationSettings(context: Context) {
+    val intents = listOf(
+        Intent(Settings.ACTION_APP_NOTIFICATION_SETTINGS)
+            .putExtra(Settings.EXTRA_APP_PACKAGE, context.packageName),
+        Intent(
+            Settings.ACTION_APPLICATION_DETAILS_SETTINGS,
+            Uri.parse("package:" + context.packageName),
+        ),
+    )
+    if (intents.none { context.tryStartActivity(it) }) {
+        Toast.makeText(context, R.string.notification_settings_not_found, Toast.LENGTH_LONG).show()
+    }
+}
+
+@Suppress("DEPRECATION")
+private fun Context.isPackageInstalled(packageName: String): Boolean = try {
+    packageManager.getApplicationInfo(packageName, 0)
+    true
+} catch (_: PackageManager.NameNotFoundException) {
+    false
+}
+
+private fun Context.tryStartActivity(intent: Intent): Boolean = try {
+    startActivity(intent)
+    true
+} catch (_: ActivityNotFoundException) {
+    false
+} catch (_: SecurityException) {
+    false
+}
+
 private fun hasPostNotificationsPermission(context: Context): Boolean {
     if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU) return true
     return ContextCompat.checkSelfPermission(
@@ -925,3 +1178,13 @@ private fun hasPostNotificationsPermission(context: Context): Boolean {
         Manifest.permission.POST_NOTIFICATIONS
     ) == PackageManager.PERMISSION_GRANTED
 }
+
+private fun canNotifyPlusAlert(context: Context): Boolean {
+    if (!hasPostNotificationsPermission(context)) return false
+    if (!NotificationManagerCompat.from(context).areNotificationsEnabled()) return false
+    val manager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+    val channel = manager.getNotificationChannel(LineNotificationListener.CHANNEL_ID) ?: return false
+    return channel.importance >= NotificationManager.IMPORTANCE_HIGH
+}
+
+private const val PRODUCTION_PACKAGE_NAME = "com.stanslab.linenotify"

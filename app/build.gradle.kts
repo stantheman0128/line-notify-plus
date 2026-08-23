@@ -24,8 +24,8 @@ android {
         applicationId = "com.stanslab.linenotify"
         minSdk = 26
         targetSdk = 36
-        versionCode = 24
-        versionName = "1.3.8"
+        versionCode = 25
+        versionName = "1.4.0"
     }
 
     signingConfigs {
