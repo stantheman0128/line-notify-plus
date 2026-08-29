@@ -110,6 +110,14 @@ class LineNotificationListener : NotificationListenerService() {
         val receipt: ReplacementReceipt,
         val stateEpoch: Long,
     )
+    private data class LineSentinel(
+        val key: String,
+        val roomKey: String,
+        var payloadFingerprint: String,
+        var lastProbeElapsed: Long,
+        var lastIngestElapsed: Long = 0L,
+        var seenSnoozed: Boolean = false,
+    )
 
     private val summaryIds = mutableMapOf<String, NotificationRef>()
     private val threadNotifIds = mutableMapOf<String, NotificationRef>()
@@ -122,6 +130,10 @@ class LineNotificationListener : NotificationListenerService() {
     private val pendingAppleRefCounts = mutableMapOf<NotificationRef, Int>()
     private val pendingThreadRefCounts = mutableMapOf<NotificationRef, Int>()
     private val pendingOriginalCancels = mutableMapOf<String, Runnable>()
+    private val lineSentinels = mutableMapOf<String, LineSentinel>()
+    private val ingestingSentinelKeys = mutableSetOf<String>()
+    private var sentinelWatchdogScheduled = false
+    private var sentinelWatchdogDueElapsed = 0L
     private val recentMirroredVariants = linkedMapOf<String, MirroredVariantEntry>()
     private val mirrorPoisonUntil = mutableMapOf<String, Long>()
     private val nextPostGeneration = java.util.concurrent.atomic.AtomicLong(System.currentTimeMillis())
@@ -204,6 +216,8 @@ class LineNotificationListener : NotificationListenerService() {
     private fun scheduleOriginalCancellation(
         key: String,
         receipt: ReplacementReceipt,
+        roomKey: String,
+        payloadFingerprint: String,
         requireExactGeneration: Boolean = false,
         requiredStateEpoch: Long? = null,
         expectedSource: NotificationClassifier.MirrorSource? = null,
@@ -253,7 +267,16 @@ class LineNotificationListener : NotificationListenerService() {
                 isActive(manager, expected)
             }
             if (replacementIsActive) {
-                cancelNotification(key)
+                // 藏起來但不刪：LINE 之後 cancel() 才還有東西可對，已讀才能連動。
+                snoozeNotification(key, LineReadSync.SENTINEL_SNOOZE_MS)
+                lineSentinels[key] = LineSentinel(
+                    key = key,
+                    roomKey = roomKey,
+                    payloadFingerprint = payloadFingerprint,
+                    lastProbeElapsed = android.os.SystemClock.elapsedRealtime(),
+                )
+                scheduleSentinelWatchdog()
+                Log.d(TAG, "已 snooze 隱藏 LINE 原通知，保留已讀 sentinel")
             } else {
                 Log.w(TAG, "找不到已提交的 Notify+ 副本；保留 LINE 原通知")
             }
@@ -503,6 +526,10 @@ class LineNotificationListener : NotificationListenerService() {
     override fun onDestroy() {
         handler.removeCallbacksAndMessages(null)
         pendingOriginalCancels.clear()
+        lineSentinels.clear()
+        ingestingSentinelKeys.clear()
+        sentinelWatchdogScheduled = false
+        sentinelWatchdogDueElapsed = 0L
         recentMirroredVariants.clear()
         mirrorPoisonUntil.clear()
         pendingAppleRefCounts.clear()
@@ -530,6 +557,13 @@ class LineNotificationListener : NotificationListenerService() {
         rebuildNotificationIndexes(active)
         enforceMutedPreferencesOnActiveNotifications()
         Log.d(TAG, "通知監聽已連線")
+    }
+
+    override fun onNotificationRankingUpdate(rankingMap: RankingMap) {
+        super.onNotificationRankingUpdate(rankingMap)
+        if (lineSentinels.isEmpty() || !isListenerConnected) return
+        // LINE 已讀時，已 snooze 的項目常常沒有 onNotificationRemoved；ranking 變了就趕緊對一次清單。
+        scheduleSentinelWatchdog(LineReadSync.RANKING_RECONCILE_DELAY_MS)
     }
 
     override fun onListenerDisconnected() {
@@ -610,12 +644,157 @@ class LineNotificationListener : NotificationListenerService() {
         return false
     }
 
+    private fun linePayloadFingerprint(sbn: StatusBarNotification): String? {
+        val text = sbn.notification.extras.getCharSequence("android.text")?.toString() ?: return null
+        return LineReadSync.payloadFingerprint(sbn.key, text)
+    }
+
+    private fun isLinePostedEcho(sbn: StatusBarNotification): Boolean =
+        LineReadSync.isSentinelKeyEcho(
+            hasSentinel = sbn.key in lineSentinels,
+            ingestingUpdate = sbn.key in ingestingSentinelKeys,
+        )
+
+    private fun dropLineSentinels(roomKey: String) {
+        val keys = lineSentinels.filter { it.value.roomKey == roomKey }.keys.toList()
+        keys.forEach { key ->
+            lineSentinels.remove(key)
+            runCatching { cancelNotification(key) }
+        }
+    }
+
+    private val sentinelWatchdog = Runnable {
+        sentinelWatchdogScheduled = false
+        reconcileLineSentinels()
+        if (lineSentinels.isNotEmpty() && isListenerConnected) {
+            scheduleSentinelWatchdog()
+        }
+    }
+
+    private fun watchdogDelayMs(): Long {
+        val interactive = (getSystemService(Context.POWER_SERVICE) as android.os.PowerManager)
+            .isInteractive
+        return LineReadSync.watchdogIntervalMs(interactive)
+    }
+
+    private fun scheduleSentinelWatchdog(delayMs: Long = watchdogDelayMs()) {
+        val now = android.os.SystemClock.elapsedRealtime()
+        val due = now + delayMs
+        if (sentinelWatchdogScheduled && due >= sentinelWatchdogDueElapsed) return
+        handler.removeCallbacks(sentinelWatchdog)
+        sentinelWatchdogScheduled = true
+        sentinelWatchdogDueElapsed = due
+        handler.postDelayed(sentinelWatchdog, delayMs)
+    }
+
+    /**
+     * AOSP 對已 snooze 的 notify() 可能不回 onNotificationPosted，cancel() 也可能不再送
+     * APP_CANCEL。定期核對 snoozed/active 清單：有新內容就當新訊息處理，兩邊都消失就當已讀。
+     * 對仍藏著且內容沒變的 sentinel，偶爾做一次極短 unsnooze 探測（isCanceled 無法從公開 API 讀到）。
+     */
+    private fun reconcileLineSentinels() {
+        if (!isListenerConnected || lineSentinels.isEmpty()) return
+        val active = runCatching { activeNotifications.orEmpty() }.getOrNull() ?: return
+        val snoozed = runCatching { getSnoozedNotifications().orEmpty() }.getOrNull() ?: return
+        val activeKeys = active.mapTo(mutableSetOf()) { it.key }
+        val snoozedByKey = snoozed
+            .filter { it.packageName in LINE_PACKAGES }
+            .associateBy { it.key }
+        val now = android.os.SystemClock.elapsedRealtime()
+        val replaceOriginal = prefs.getBoolean(KEY_REPLACE_ORIGINAL, true)
+        val clearAfterRead = prefs.getBoolean(KEY_CLEAR_AFTER_READ, true)
+        var probed = false
+
+        lineSentinels.values.toList().forEach { sentinel ->
+            val snoozedSbn = snoozedByKey[sentinel.key]
+            val snoozedFingerprint = snoozedSbn?.let(::linePayloadFingerprint)
+            if (snoozedSbn != null) sentinel.seenSnoozed = true
+            val sighting = LineReadSync.classifySentinel(
+                isActive = sentinel.key in activeKeys,
+                snoozedFingerprint = snoozedFingerprint,
+                lastFingerprint = sentinel.payloadFingerprint,
+            )
+            when (sighting) {
+                LineReadSync.SentinelSighting.SNOOZED_UPDATED -> {
+                    if (!LineReadSync.shouldIngestSnoozedUpdate(
+                            nowElapsed = now,
+                            lastIngestElapsed = sentinel.lastIngestElapsed,
+                            lastProbeElapsed = sentinel.lastProbeElapsed,
+                        )
+                    ) {
+                        // extras 可能跟 post 時不一致；對齊指紋避免下一輪又當新訊息。
+                        snoozedFingerprint?.let { sentinel.payloadFingerprint = it }
+                    } else {
+                        Log.d(TAG, "LINE sentinel 內容更新，當新訊息處理")
+                        sentinel.lastIngestElapsed = now
+                        ingestingSentinelKeys.add(sentinel.key)
+                        try {
+                            onNotificationPosted(snoozedSbn!!)
+                            snoozedFingerprint?.let { sentinel.payloadFingerprint = it }
+                        } finally {
+                            ingestingSentinelKeys.remove(sentinel.key)
+                        }
+                    }
+                }
+                LineReadSync.SentinelSighting.SNOOZED_SAME -> {
+                    if (!probed &&
+                        LineReadSync.shouldProbe(sighting, now, sentinel.lastProbeElapsed)
+                    ) {
+                        sentinel.lastProbeElapsed = now
+                        snoozeNotification(sentinel.key, LineReadSync.PROBE_UNSNOOZE_MS)
+                        probed = true
+                        Log.d(TAG, "LINE sentinel 探測已讀")
+                    }
+                }
+                LineReadSync.SentinelSighting.ACTIVE -> {
+                    if (replaceOriginal) {
+                        snoozeNotification(sentinel.key, LineReadSync.SENTINEL_SNOOZE_MS)
+                    }
+                }
+                LineReadSync.SentinelSighting.GONE -> {
+                    if (LineReadSync.shouldTreatGoneAsRead(sighting, sentinel.seenSnoozed) &&
+                        clearAfterRead
+                    ) {
+                        Log.d(TAG, "LINE sentinel 消失，已讀同步")
+                        clearChatGroup(sentinel.roomKey)
+                    } else if (replaceOriginal) {
+                        // OEM 若不回 snoozed 清單，不能把 GONE 當已讀；改用極短 unsnooze 探測。
+                        val canProbe = !probed && LineReadSync.shouldProbe(
+                            LineReadSync.SentinelSighting.SNOOZED_SAME,
+                            now,
+                            sentinel.lastProbeElapsed,
+                        )
+                        if (canProbe) {
+                            sentinel.lastProbeElapsed = now
+                            snoozeNotification(sentinel.key, LineReadSync.PROBE_UNSNOOZE_MS)
+                            probed = true
+                            Log.d(TAG, "LINE sentinel 探測已讀（未進 snoozed 清單）")
+                        } else {
+                            snoozeNotification(sentinel.key, LineReadSync.SENTINEL_SNOOZE_MS)
+                        }
+                    }
+                }
+            }
+        }
+    }
+
     override fun onNotificationPosted(sbn: StatusBarNotification) {
         if (sbn.packageName !in LINE_PACKAGES) return
 
         // LINE 可能在 200ms 取消延遲內用相同 key 更新通知。先撤掉舊任務，否則舊訊息的
         // runnable 會誤殺剛更新的敏感占位通知或來電通知。
         pendingOriginalCancels.remove(sbn.key)?.let(handler::removeCallbacks)
+
+        // 探測 unsnooze 或系統把同一則再送回來：內容沒變就只是再藏一次，不要重疊訊息。
+        if (isLinePostedEcho(sbn)) {
+            if (prefs.getBoolean(KEY_SERVICE_ENABLED, true) &&
+                prefs.getBoolean(KEY_REPLACE_ORIGINAL, true)
+            ) {
+                snoozeNotification(sbn.key, LineReadSync.SENTINEL_SNOOZE_MS)
+                Log.d(TAG, "LINE sentinel echo，重新隱藏 keyHash=${sbn.key.hashCode()}")
+            }
+            return
+        }
 
         if (!prefs.getBoolean(KEY_SERVICE_ENABLED, true)) return
 
@@ -800,6 +979,11 @@ class LineNotificationListener : NotificationListenerService() {
                         scheduleOriginalCancellation(
                             key = sbn.key,
                             receipt = existing.receipt,
+                            roomKey = roomKey,
+                            payloadFingerprint = LineReadSync.payloadFingerprint(
+                                key = sbn.key,
+                                text = text,
+                            ),
                             requireExactGeneration = true,
                             requiredStateEpoch = notificationStateEpoch,
                             expectedSource = currentSourceVariant,
@@ -887,6 +1071,29 @@ class LineNotificationListener : NotificationListenerService() {
                 profileKey = profileKey,
             )
         }
+        val last = room.messages.lastOrNull()
+        if (LineReadSync.isConsecutiveDuplicate(last?.sender, last?.text, sender, text)) {
+            Log.d(TAG, "略過連續重複訊息 room=${chatTitle.hashCode()}")
+            if (prefs.getBoolean(KEY_REPLACE_ORIGINAL, true)) {
+                val fp = linePayloadFingerprint(sbn)
+                snoozeNotification(sbn.key, LineReadSync.SENTINEL_SNOOZE_MS)
+                if (fp != null) {
+                    val existing = lineSentinels[sbn.key]
+                    if (existing != null) {
+                        existing.payloadFingerprint = fp
+                    } else {
+                        lineSentinels[sbn.key] = LineSentinel(
+                            key = sbn.key,
+                            roomKey = roomKey,
+                            payloadFingerprint = fp,
+                            lastProbeElapsed = android.os.SystemClock.elapsedRealtime(),
+                        )
+                        scheduleSentinelWatchdog()
+                    }
+                }
+            }
+            return
+        }
         room.addMessage(message)
 
         // 保存 LINE 的 contentIntent 和回覆 action（在取消通知前）
@@ -917,9 +1124,17 @@ class LineNotificationListener : NotificationListenerService() {
             )
         }
 
-        // 延遲取消 LINE 原通知（確保我們的 contentIntent 不會因為 LINE 通知被取消而失效）
+        // 延遲 snooze 隱藏 LINE 原通知（確保我們的 contentIntent 不會因為原通知被動到而失效）
         if (prefs.getBoolean(KEY_REPLACE_ORIGINAL, true) && replacementReceipt != null) {
-            scheduleOriginalCancellation(sbn.key, replacementReceipt)
+            scheduleOriginalCancellation(
+                key = sbn.key,
+                receipt = replacementReceipt,
+                roomKey = roomKey,
+                payloadFingerprint = LineReadSync.payloadFingerprint(
+                    key = sbn.key,
+                    text = text,
+                ),
+            )
         }
     }
 
@@ -946,33 +1161,37 @@ class LineNotificationListener : NotificationListenerService() {
 
         if (sbn.packageName !in LINE_PACKAGES) return
 
-        // 已讀同步只在「非取代模式」做：取代模式下 LINE 原通知已被我們在 200ms 殺掉，
-        // 等不到它被移除，自然判不了已讀（先天限制，不是 bug）。
-        if (prefs.getBoolean(KEY_REPLACE_ORIGINAL, true)) return
-        if (!prefs.getBoolean(KEY_CLEAR_AFTER_READ, true)) return
+        // 我們自己把 LINE 原通知 snooze 藏起來時，系統會先回 REASON_SNOOZED。不是已讀。
+        if (reason == REASON_SNOOZED) {
+            lineSentinels[sbn.key]?.seenSnoozed = true
+            Log.d(TAG, "LINE 原通知已 snooze 隱藏 keyHash=${sbn.key.hashCode()}")
+            return
+        }
 
-        // 只有「使用者真的在 LINE 端把原通知處理掉」才同步清我們的，靠移除原因 reason 分流：
-        //   8 APP_CANCEL：LINE 自己收掉（在 LINE 內已讀，最主要）  9 APP_CANCEL_ALL：一次清光（開 App/全部已讀）
-        //   1 CLICK：點了 LINE 那則   2 CANCEL：滑掉 LINE 那則
-        // 排掉系統打掃（群組摘要連鎖、頻道變更）與我們自己取消，避免誤清。
-        if (reason != REASON_APP_CANCEL && reason != REASON_APP_CANCEL_ALL &&
-            reason != REASON_CLICK && reason != REASON_CANCEL
+        // 取代模式改成 snooze 之後，LINE 在 App 內已讀仍可能對同一則 cancel。
+        // 有的系統會直接送來 APP_CANCEL；沒送到就靠 sentinel watchdog 補。
+        if (!LineReadSync.shouldClearForLineRemoval(
+                reason = reason,
+                clearAfterRead = prefs.getBoolean(KEY_CLEAR_AFTER_READ, true),
+            )
         ) return
 
         val extras = sbn.notification.extras
-        val title = extras.getCharSequence("android.title")?.toString() ?: return
+        val title = extras.getCharSequence("android.title")?.toString()
         val subText = extras.getCharSequence("android.subText")?.toString()
-        val chatTitle = subText ?: title
-        val roomKey = profileKeyOf(sbn) + KEY_SEP + chatTitle
+        val roomKey = lineSentinels[sbn.key]?.roomKey
+            ?: title?.let { profileKeyOf(sbn) + KEY_SEP + NotificationClassifier.chatTitleOf(it, subText) }
+            ?: return
 
         // 使用者在 LINE 端讀掉/處理掉原通知 → 同步清除我們這則
         clearChatGroup(roomKey)
-        Log.d(TAG, "LINE 已讀同步 reason=$reason room=${chatTitle.hashCode()}")
+        Log.d(TAG, "LINE 已讀同步 reason=$reason room=${roomKey.hashCode()}")
     }
 
     /** 清掉某聊天室的所有通知（thread / apple children / summary）與 in-memory buffer。 */
     private fun clearChatGroup(roomKey: String) {
         invalidateMirrorCandidates()
+        dropLineSentinels(roomKey)
         val manager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
         val refs = mutableListOf<NotificationRef>()
         threadNotifIds.remove(roomKey)?.let(refs::add)
@@ -1031,6 +1250,16 @@ class LineNotificationListener : NotificationListenerService() {
         appleNotifIds.clear()
         appleNotificationOrder.clear()
         appleMessagesByRef.clear()
+    }
+
+    /** 關閉「取代原始通知」時，把仍 snooze 藏著的 LINE 原通知放回通知欄。 */
+    fun releaseLineSentinels() {
+        val keys = lineSentinels.keys.toList()
+        lineSentinels.clear()
+        keys.forEach { key ->
+            // duration > 0 才會被 AOSP 接受；極短 snooze = 從 sentinel 狀態 repost 回來。
+            runCatching { snoozeNotification(key, 100L) }
+        }
     }
 
     /** 由穩定 tag + type id 反查所屬 roomKey。 */

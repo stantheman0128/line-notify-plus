@@ -167,6 +167,7 @@ fun MainScreen(windowWidthSizeClass: WindowWidthSizeClass) {
     val onReplaceOriginalChange: (Boolean) -> Unit = {
         replaceOriginal = it
         prefs.edit().putBoolean(LineNotificationListener.KEY_REPLACE_ORIGINAL, it).apply()
+        if (!it) LineNotificationListener.instance?.releaseLineSentinels()
     }
     val onNotificationStyleChange: (String) -> Unit = {
         // 舊樣式通知若留在 SystemUI，下一則新樣式會造成同聊天室重複顯示。
