@@ -25,7 +25,11 @@
 - `assembleDebug`：`BUILD SUCCESSFUL`。
 - `AndroidManifest.xml`、`service/` 相對 `f74e87c` 零變更；debug APK 權限仍只有
   `BIND_NOTIFICATION_LISTENER_SERVICE` 與 `POST_NOTIFICATIONS`，沒有 `INTERNET`。
-- 尚未將 vc32 安裝到實機；需補手機／平板、淺色／深色、Accessibility 授權往返、舊偏好遷移與真實 LINE 通知回歸。
+- vc32 已覆蓋安裝到 Nothing A065；系統回報 `versionCode=32 / versionName=1.6.0`，通知監聽與
+  Accessibility 授權都保留。首頁 UI hierarchy 可見新版通知風格、清除時機與 Accessibility 卡，
+  `clear_after_read` 實機偏好已是 `true`，本輪 logcat 無 app crash／ANR。
+- 準備繼續導覽時使用者已切換到其他 App，故立即停止 ADB UI 操作；Chat／Help／About 導覽、平板、
+  深色模式與真實 LINE 通知回歸仍待補，不可視為已實機驗證。
 
 ---
 
