@@ -63,7 +63,6 @@ class LineAccessibilityService : AccessibilityService() {
         val prefs = getSharedPreferences(LineNotificationListener.PREFS_NAME, MODE_PRIVATE)
         return prefs.getBoolean(LineNotificationListener.KEY_SERVICE_ENABLED, true) &&
             prefs.getBoolean(LineNotificationListener.KEY_REPLACE_ORIGINAL, true) &&
-            prefs.getBoolean(LineNotificationListener.KEY_CLEAR_AFTER_READ, true) &&
             prefs.getBoolean(LineNotificationListener.KEY_ACCESSIBILITY_READ_SYNC, false)
     }
 

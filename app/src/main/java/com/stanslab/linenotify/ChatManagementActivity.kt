@@ -25,6 +25,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -347,53 +348,62 @@ fun ChatManagementScreen(onBack: () -> Unit) {
                 ) {
                     grouped.forEach { (type, chats) ->
                         item(key = "section_$type") {
-                            Column(modifier = Modifier.padding(bottom = 8.dp)) {
-                                Text(
-                                    text = stringResource(
-                                        R.string.chat_section_count,
-                                        chatSectionTitle(type),
-                                        chats.size
-                                    ),
-                                    fontSize = 11.sp,
-                                    fontWeight = FontWeight.ExtraBold,
-                                    letterSpacing = 1.sp,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                    modifier = Modifier.padding(start = 2.dp, top = 6.dp, bottom = 6.dp)
+                            Text(
+                                text = stringResource(
+                                    R.string.chat_section_count,
+                                    chatSectionTitle(type),
+                                    chats.size
+                                ),
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.ExtraBold,
+                                letterSpacing = 1.sp,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                modifier = Modifier.padding(start = 2.dp, top = 6.dp, bottom = 6.dp)
+                            )
+                        }
+                        itemsIndexed(
+                            items = chats,
+                            key = { _, chat -> "chat_${type}_${chat.name}" },
+                        ) { index, chat ->
+                            val isFirst = index == 0
+                            val isLast = index == chats.lastIndex
+                            val rowShape = RoundedCornerShape(
+                                topStart = if (isFirst) 16.dp else 0.dp,
+                                topEnd = if (isFirst) 16.dp else 0.dp,
+                                bottomStart = if (isLast) 16.dp else 0.dp,
+                                bottomEnd = if (isLast) 16.dp else 0.dp,
+                            )
+                            val isSelected = chat.name in selected
+                            Card(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(bottom = if (isLast) 8.dp else 0.dp),
+                                shape = rowShape,
+                                colors = CardDefaults.cardColors(
+                                    containerColor = MaterialTheme.colorScheme.surface
+                                ),
+                                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline),
+                                elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
+                            ) {
+                                ChatRow(
+                                    chat = chat,
+                                    selectionMode = selectionMode,
+                                    isSelected = isSelected,
+                                    showDivider = !isLast,
+                                    onToggle = { enabled ->
+                                        setChatEnabled(prefs, chat.name, enabled)
+                                        reload()
+                                    },
+                                    onLongClick = {
+                                        selectionMode = true
+                                        if (chat.name !in selected) selected.add(chat.name)
+                                    },
+                                    onClickInSelection = {
+                                        if (isSelected) selected.remove(chat.name)
+                                        else selected.add(chat.name)
+                                    },
+                                    onOpenSettings = { editingChat = chat },
                                 )
-                                Card(
-                                    modifier = Modifier.fillMaxWidth(),
-                                    shape = RoundedCornerShape(16.dp),
-                                    colors = CardDefaults.cardColors(
-                                        containerColor = MaterialTheme.colorScheme.surface
-                                    ),
-                                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline),
-                                    elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
-                                ) {
-                                    Column {
-                                        chats.forEachIndexed { index, chat ->
-                                            val isSelected = chat.name in selected
-                                            ChatRow(
-                                                chat = chat,
-                                                selectionMode = selectionMode,
-                                                isSelected = isSelected,
-                                                showDivider = index != chats.lastIndex,
-                                                onToggle = { enabled ->
-                                                    setChatEnabled(prefs, chat.name, enabled)
-                                                    reload()
-                                                },
-                                                onLongClick = {
-                                                    selectionMode = true
-                                                    if (chat.name !in selected) selected.add(chat.name)
-                                                },
-                                                onClickInSelection = {
-                                                    if (isSelected) selected.remove(chat.name)
-                                                    else selected.add(chat.name)
-                                                },
-                                                onOpenSettings = { editingChat = chat },
-                                            )
-                                        }
-                                    }
-                                }
                             }
                         }
                     }

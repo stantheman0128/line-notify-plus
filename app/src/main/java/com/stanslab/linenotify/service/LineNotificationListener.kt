@@ -48,6 +48,7 @@ class LineNotificationListener : NotificationListenerService() {
         const val KEY_MUTED_CHATS = "fully_muted_chats_v2"
         const val KEY_NOTIFICATION_STYLE = "notification_style"
         const val KEY_CLEAR_AFTER_REPLY = "clear_after_reply"
+        // v1.6.0 起已讀後清除固定開啟；僅保留 key 讓 UI 清理舊版偏好資料。
         const val KEY_CLEAR_AFTER_READ = "clear_after_read"
         const val KEY_ACCESSIBILITY_READ_SYNC = "accessibility_read_sync"
         const val KEY_CHAT_LAST_ACTIVE = "chat_last_active"   // JSON {聊天室名: epochMillis}
@@ -1112,7 +1113,6 @@ class LineNotificationListener : NotificationListenerService() {
         // 已讀同步只在「非取代模式」做：取代模式下 LINE 原通知已被我們在 200ms 殺掉，
         // 等不到它被移除，自然判不了已讀（先天限制，不是 bug）。
         if (prefs.getBoolean(KEY_REPLACE_ORIGINAL, true)) return
-        if (!prefs.getBoolean(KEY_CLEAR_AFTER_READ, true)) return
 
         // 只有「使用者真的在 LINE 端把原通知處理掉」才同步清我們的，靠移除原因 reason 分流：
         //   8 APP_CANCEL：LINE 自己收掉（在 LINE 內已讀，最主要）  9 APP_CANCEL_ALL：一次清光（開 App/全部已讀）

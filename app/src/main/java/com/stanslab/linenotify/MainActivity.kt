@@ -84,6 +84,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.booleanResource
 import androidx.compose.ui.res.dimensionResource
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -592,7 +593,11 @@ private fun PermissionAlertCard(
     ) {
         Column(modifier = Modifier.padding(15.dp)) {
             Text(
-                text = stringResource(R.string.permission_guide_title_remaining, remaining.coerceAtLeast(1)),
+                text = pluralStringResource(
+                    R.plurals.permission_guide_title_remaining,
+                    remaining.coerceAtLeast(1),
+                    remaining.coerceAtLeast(1),
+                ),
                 fontSize = 16.sp,
                 fontWeight = FontWeight.ExtraBold,
                 color = MaterialTheme.colorScheme.onErrorContainer,

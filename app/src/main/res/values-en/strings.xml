@@ -31,7 +31,10 @@
     <string name="permission_post_notifications_body">Allow the app to post new stack version notifications. Android 12 and below do not require this extra permission.</string>
     <string name="permission_status_granted">Ready</string>
     <string name="permission_status_missing">Needs setup</string>
-    <string name="permission_guide_title_remaining">%1$d more step(s) and it will start working</string>
+    <plurals name="permission_guide_title_remaining">
+        <item quantity="one">%1$d more step and it will start working</item>
+        <item quantity="other">%1$d more steps and it will start working</item>
+    </plurals>
     <string name="permission_go_to_settings">Go to settings</string>
     <string name="privacy_footer">Notify+ has no network permission. Messages never leave this device</string>
     <string name="settings_title">Settings</string>
