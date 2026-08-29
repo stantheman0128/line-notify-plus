@@ -1,6 +1,35 @@
 # Project Handoff — Notify+
 
-## Latest Session: 2026-08-29（Codex：Accessibility 聊天室開啟同步實機候選）
+## Latest Session: 2026-08-29（Codex：UI Refresh 對齊 Accessibility）
+
+### 狀態
+
+- branch：`integration/ui-accessibility-2026-08-29`
+- App commit：`204c0a4`，版本 `v1.6.0 / vc32`；尚未 push、merge 或上傳 Play。
+- 從已完成 Nothing Phone Accessibility 驗證的 `f74e87c` 出發，手動移植
+  `feat/ui-refresh-2026-08-29` 的介面，沒有直接合併造成版本或通知核心回退。
+
+### 本輪完成
+
+- 首頁改為固定品牌色與清楚的狀態／主控制層級，通知風格改成並排卡片；平板維持雙欄。
+- 聊天室改成常駐搜尋、好友／群組／社群分區、狀態副標與明確的批次選取入口。
+- 實驗性的 LINE 聊天室開啟偵測已整合進新版首頁，保留獨立資料揭露、Android 授權狀態、
+  同名或辨識不完整時保留通知的 fail-open 說明，以及前往無障礙設定入口。
+- 「已讀後自動清除」不再提供關閉開關；MainActivity 啟動時會將舊版 `false` 偏好固定回 `true`。
+  「回覆後清除」仍可自由開關。
+- Main／Chat／Help／About 的中性頂欄與背景已統一；一般說明文字至少 12sp，淺色次要文字提高對比。
+
+### 驗證
+
+- `testDebugUnitTest --rerun-tasks`：**50 passed / 0 failed / 0 errors / 0 skipped**（XML 加總）。
+- `assembleDebug`：`BUILD SUCCESSFUL`。
+- `AndroidManifest.xml`、`service/` 相對 `f74e87c` 零變更；debug APK 權限仍只有
+  `BIND_NOTIFICATION_LISTENER_SERVICE` 與 `POST_NOTIFICATIONS`，沒有 `INTERNET`。
+- 尚未將 vc32 安裝到實機；需補手機／平板、淺色／深色、Accessibility 授權往返、舊偏好遷移與真實 LINE 通知回歸。
+
+---
+
+## Previous Session: 2026-08-29（Codex：Accessibility 聊天室開啟同步實機候選）
 
 ### 狀態
 
