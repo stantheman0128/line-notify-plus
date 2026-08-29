@@ -1,6 +1,35 @@
 # Project Handoff — Notify+
 
-## Latest Session: 2026-07-15（Claude Code：修好「跳兩則」、收編全部工作、vc17 待上架）
+## Latest Session: 2026-08-29（Codex：Accessibility 聊天室開啟同步實機候選）
+
+### 狀態
+
+- branch：`feat/accessibility-read-sync-2026-08-29`
+- App commit：`09140c8`，版本 `v1.5.0 / vc31`；尚未 push、merge 或上傳 Play。
+- 實機：Nothing A065 / Android 16（API 36）/ LINE 26.13.1。
+- vc29（Grok v1.4.4）直接覆蓋安裝 vc31 成功，App 資料保留；通知監聽與選配 Accessibility 都已授權並綁定。
+
+### 2026-08-29 實機結果
+
+- 收到 2 個個人聊天室共 7 則真實訊息；每則 conversation + legacy mirror 雙 callback 都成功合併，
+  同房計數正常累積到 5，沒有觀察到重複卡或漏接。
+- 取代模式下，測試後 active records 只剩 Notify+，新收到的 LINE 原生通知均已取消。
+- LINE 聊天列表持續回報 `headerMatches=0 / bottomEditable=false`，沒有誤清。
+- 進入目標聊天室後回報 `headerMatches=1 / bottomEditable=true`，經二次確認約 567ms 清除該房；
+  另一房通知仍保留，證明沒有連帶清除。
+- 以同 UID `kill -9` 模擬程序被系統回收，PID 1800 → 13302；NotificationListener 與
+  AccessibilityService 都由 Android 自動重建並重新綁定，既有 Notify+ 通知仍在，無 crash／ANR。
+- 尚未在程序重建後收到下一則真實 LINE 訊息，因此「重建後新訊息仍可收到」仍待補最後一格。
+
+### 還要測
+
+- 程序重建後第一則新訊息、同名聊天室／雙開 fail-open、群組／OpenChat／官方帳號、Apple 分組、
+  停留聊天室時收到新訊息，以及 OPPO／realme 回歸。
+- Play 上傳前仍需 Accessibility declaration、操作示範影片、線上隱私政策部署與 vc31 可用性確認。
+
+---
+
+## Previous Session: 2026-07-15（Claude Code：修好「跳兩則」、收編全部工作、vc17 待上架）
 
 > 接手的第一件事：**先讀 `AGENTS.md`（鐵則），再讀本節。** 下面兩節是歷史，僅供追溯。
 

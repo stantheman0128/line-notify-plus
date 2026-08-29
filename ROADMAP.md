@@ -76,7 +76,9 @@
 - [~] **取代模式下直接開啟 LINE 後清除 Notify+**：v1.5.0 加入預設關閉的實驗性聊天室開啟偵測，
       只監聽既有 LINE package、比對頂部聊天室名稱與輸入區，連續兩次確認且 active room 唯一時才清除；
       不保存訊息本文、不模擬操作，同名／雙開歧義與未知畫面一律保留通知。純邏輯已有 JVM 測試，
-      仍需 Nothing／OPPO／realme 實機與真實 LINE 訊息驗證，並完成 Play Accessibility declaration。
+      2026-08-29 已在 Nothing A065 / Android 16 / LINE 26.13.1 以真實訊息驗證：列表不誤清、進房二次確認後
+      約 567ms 清除目標房且保留另一房。仍需同名／雙開、群組／OpenChat、Apple 分組、OPPO／realme 回歸，
+      並完成 Play Accessibility declaration。
 - [x] **Android 15+ 私密通知占位字重複轉發**：辨識 framework redacted clone；不建立「LINE」假聊天室、
       不重發占位內容、也不取消原始 LINE 通知。FAQ 補上 OPPO／realme 的「增強型通知／智慧通知隱藏」排查。
       系統在 callback 前移除的原文無法由一般 App 還原。

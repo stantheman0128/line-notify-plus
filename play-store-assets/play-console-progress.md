@@ -43,7 +43,8 @@ release 產物已建好並驗證：
 
 - 新增預設關閉的 LINE 聊天室開啟偵測；屬 `isAccessibilityTool=false` 的窄範圍 AccessibilityService。
 - App 內已有獨立顯著揭露與同意流程；只監聽兩個既有 LINE package，不模擬手勢／輸入，也不保存訊息本文。
-- 純邏輯測試與 Debug build 已通過；真實 LINE 畫面辨識、通知清除、同名／雙開 fail-open 仍待實機驗證。
+- 純邏輯測試與 Debug/Release build 已通過。2026-08-29 已在 Nothing A065 / Android 16 / LINE 26.13.1
+  以真實訊息驗證：聊天列表不誤清、進入唯一匹配聊天室約 567ms 後只清目標房；同名／雙開及其他 OEM 仍待回歸。
 - **不可直接上傳 Play**：Stan 尚須完成 Accessibility declaration、示範影片、線上隱私政策部署與 vc31 可用性確認。
 
 ## 帳號狀態
