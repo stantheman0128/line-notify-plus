@@ -23,6 +23,8 @@
 
 - `testDebugUnitTest --rerun-tasks`：**50 passed / 0 failed / 0 errors / 0 skipped**（XML 加總）。
 - `assembleDebug`：`BUILD SUCCESSFUL`。
+- `lintDebug --rerun-tasks`：**0 errors / 65 warnings**；本輪新增的剩餘權限步數文案已改用 plurals，
+  不再產生新的 `PluralsCandidate`。其餘 warning 為既有項目。
 - `AndroidManifest.xml` 與通知組裝流程相對 `f74e87c` 零變更；兩個背景 service 只移除已淘汰的
   `clear_after_read=false` gate，確保 Play 背景更新後即使尚未開啟主畫面，已讀清除仍固定生效。
   debug APK 權限仍只有 `BIND_NOTIFICATION_LISTENER_SERVICE` 與 `POST_NOTIFICATIONS`，沒有 `INTERNET`。
