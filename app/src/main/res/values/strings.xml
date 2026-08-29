@@ -31,6 +31,9 @@
     <string name="permission_post_notifications_body">允許 App 發出新的堆疊版本通知。Android 12 以下不需要另外授權。</string>
     <string name="permission_status_granted">已完成</string>
     <string name="permission_status_missing">待設定</string>
+    <string name="permission_guide_title_remaining">還差 %1$d 步就會開始運作</string>
+    <string name="permission_go_to_settings">前往設定</string>
+    <string name="privacy_footer">Notify+ 沒有網路權限，訊息不會離開這台裝置</string>
     <string name="settings_title">設定</string>
     <string name="enable_stack_notifications_title">啟用完整通知</string>
     <string name="enable_stack_notifications_subtitle">攔截 LINE 通知，把訊息整理成完整對話顯示</string>
@@ -78,6 +81,11 @@
     <string name="changelog_1_2_0_clear">新增回覆後、已讀後自動清除通知的設定</string>
     <string name="changelog_1_2_0_dual">雙開 LINE 時可以區分不同帳號的訊息來源</string>
     <string name="changelog_1_2_0_ui">介面改版，文案調整讓功能更好懂</string>
+    <string name="changelog_1_4_0_layout">介面全面改版，重要的設定不再被摺疊起來</string>
+    <string name="changelog_1_4_0_style">通知風格（對話串／Apple 分組）移到首頁，一眼就能切換</string>
+    <string name="changelog_1_4_0_chats">聊天室清單改成顯示目前狀態，並依好友／群組／社群分區</string>
+    <string name="changelog_1_4_0_color">App 顏色固定為品牌綠，不再跟著手機桌布變色</string>
+    <string name="changelog_1_4_0_clear">補上「已讀後自動清除」開關，之前有功能但畫面上找不到</string>
     <string name="changelog_1_3_1_dupe">真正修好同一則訊息跳出兩張通知卡的問題，群組訊息原本甚至會跳四張。v1.3.0 宣稱修好但實際上沒有生效</string>
     <string name="changelog_1_3_0_redacted">修正私密訊息被系統隱藏時，會跑出一個空的「LINE」聊天室、原始通知還被蓋掉的問題</string>
     <string name="changelog_1_3_0_mute">聊天室關閉改為「完全靜音」，連 LINE 原本的通知也一起收掉。舊設定維持原本行為，要重新開啟再關閉才會套用新的靜音方式</string>
@@ -127,7 +135,7 @@
     <string name="chat_detail_empty_body">在左側選擇聊天室，就能查看類型並切換完整通知。</string>
     <string name="chat_status_enabled">已啟用完整通知</string>
     <string name="chat_status_disabled">已完全靜音</string>
-    <string name="chat_legacy_original_only">%1$s · 舊設定：保留 LINE 原通知</string>
+    <string name="chat_legacy_original_only">舊設定：保留 LINE 原通知</string>
     <string name="chat_toggle_title">允許這個聊天室通知</string>
     <string name="chat_filter_all">全部</string>
     <string name="chat_sort_label">排序</string>
@@ -154,6 +162,9 @@
     <string name="chat_edit_type_title">更正聊天室分類</string>
     <string name="chat_edit_type_body">「%1$s」應該歸在哪一類？手動選擇後會固定使用此分類。</string>
     <string name="chat_type_manual">%1$s · 手動</string>
+    <string name="chat_manual_tag">手動</string>
+    <string name="chat_section_count">%1$s · %2$d</string>
+    <string name="chat_enter_selection">批次選取</string>
     <string name="info_demo_pending">示範動畫製作中，敬請期待 🎬</string>
     <string name="info_icon_desc">說明</string>
 

@@ -144,6 +144,19 @@ fun AboutScreen(onBack: () -> Unit) {
                         verticalArrangement = Arrangement.spacedBy(12.dp)
                     ) {
                     ChangelogEntry(
+                        "v1.4.0",
+                        listOf(
+                            stringResource(R.string.changelog_1_4_0_layout),
+                            stringResource(R.string.changelog_1_4_0_style),
+                            stringResource(R.string.changelog_1_4_0_chats),
+                            stringResource(R.string.changelog_1_4_0_color),
+                            stringResource(R.string.changelog_1_4_0_clear),
+                        )
+                    )
+
+                    HorizontalDivider()
+
+                    ChangelogEntry(
                         "v1.3.1",
                         listOf(
                             stringResource(R.string.changelog_1_3_1_dupe),

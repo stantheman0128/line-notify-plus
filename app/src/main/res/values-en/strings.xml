@@ -31,6 +31,9 @@
     <string name="permission_post_notifications_body">Allow the app to post new stack version notifications. Android 12 and below do not require this extra permission.</string>
     <string name="permission_status_granted">Ready</string>
     <string name="permission_status_missing">Needs setup</string>
+    <string name="permission_guide_title_remaining">%1$d more step(s) and it will start working</string>
+    <string name="permission_go_to_settings">Go to settings</string>
+    <string name="privacy_footer">Notify+ has no network permission. Messages never leave this device</string>
     <string name="settings_title">Settings</string>
     <string name="enable_stack_notifications_title">Enable complete notifications</string>
     <string name="enable_stack_notifications_subtitle">Intercept LINE notifications and combine messages into complete conversations</string>
@@ -78,6 +81,11 @@
     <string name="changelog_1_2_0_clear">Added settings to auto-clear notifications after replying or reading</string>
     <string name="changelog_1_2_0_dual">Tell apart different accounts when running dual LINE</string>
     <string name="changelog_1_2_0_ui">Refreshed interface with clearer wording</string>
+    <string name="changelog_1_4_0_layout">Redesigned the home screen so important settings are no longer hidden</string>
+    <string name="changelog_1_4_0_style">Notification style (thread / Apple grouping) is now on the home screen</string>
+    <string name="changelog_1_4_0_chats">Chat list now shows each chat\'s status, grouped by friend, group and community</string>
+    <string name="changelog_1_4_0_color">App color is now the brand green, and no longer follows your wallpaper</string>
+    <string name="changelog_1_4_0_clear">Added the missing \"Clear after read\" switch — the feature was there, but you couldn\'t turn it off</string>
     <string name="changelog_1_3_1_dupe">Actually fixed the same message showing up as two notification cards, or four for group chats. The v1.3.0 fix never took effect</string>
     <string name="changelog_1_3_0_redacted">Fixed private messages hidden by the system creating an empty "LINE" chat and hiding the original notification</string>
     <string name="changelog_1_3_0_mute">Turning a chat off now fully mutes it, clearing LINE\'s own notification too. Existing settings keep the old behaviour until you turn the chat back on and off again</string>
@@ -127,7 +135,7 @@
     <string name="chat_detail_empty_body">Choose a chat on the left to view its type and toggle complete notifications.</string>
     <string name="chat_status_enabled">Complete notifications enabled</string>
     <string name="chat_status_disabled">Fully muted</string>
-    <string name="chat_legacy_original_only">%1$s · Legacy setting: keep original LINE notifications</string>
+    <string name="chat_legacy_original_only">Legacy setting: keep original LINE notifications</string>
     <string name="chat_toggle_title">Allow notifications from this chat</string>
     <string name="chat_filter_all">All</string>
     <string name="chat_sort_label">Sort</string>
@@ -154,6 +162,9 @@
     <string name="chat_edit_type_title">Correct chat category</string>
     <string name="chat_edit_type_body">Which category should "%1$s" use? Your manual choice stays in effect.</string>
     <string name="chat_type_manual">%1$s · Manual</string>
+    <string name="chat_manual_tag">Manual</string>
+    <string name="chat_section_count">%1$s · %2$d</string>
+    <string name="chat_enter_selection">Select multiple</string>
     <string name="info_demo_pending">Demo animation coming soon 🎬</string>
     <string name="info_icon_desc">Info</string>
 

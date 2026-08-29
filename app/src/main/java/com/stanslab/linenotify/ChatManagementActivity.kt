@@ -7,6 +7,7 @@ import android.os.Bundle
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.appcompat.app.AppCompatActivity
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
@@ -24,11 +25,11 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.outlined.Info
@@ -41,6 +42,8 @@ import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
+import androidx.compose.material3.FilterChipDefaults
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -49,6 +52,7 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Switch
+import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
@@ -62,6 +66,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.layout.ContentScale
@@ -75,7 +80,11 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.stanslab.linenotify.service.LineNotificationListener
 import com.stanslab.linenotify.service.NotificationClassifier
+import com.stanslab.linenotify.ui.theme.ActionGreen
+import com.stanslab.linenotify.ui.theme.FillGreen
 import com.stanslab.linenotify.ui.theme.LineNotifyTheme
+import com.stanslab.linenotify.ui.theme.inkGreen
+import com.stanslab.linenotify.ui.theme.legacyAmber
 
 class ChatManagementActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -121,9 +130,7 @@ fun ChatManagementScreen(onBack: () -> Unit) {
     }
     fun reload() { allChats = loadAllChats(context, prefs) }
 
-    // Search state
     var searchQuery by remember { mutableStateOf("") }
-    var searchActive by remember { mutableStateOf(false) }
 
     // Info dialog state
     var showInfo by remember { mutableStateOf(false) }
@@ -135,10 +142,14 @@ fun ChatManagementScreen(onBack: () -> Unit) {
 
     val shown = remember(allChats, category, sortMode) { applyFilterSort(allChats, category, sortMode) }
 
-    // Final displayed list: apply search filter on top of filter/sort
     val displayed = remember(shown, searchQuery) {
         if (searchQuery.isBlank()) shown
         else shown.filter { it.name.contains(searchQuery, ignoreCase = true) }
+    }
+    val grouped = remember(displayed) {
+        listOf(TYPE_PERSONAL, TYPE_GROUP, TYPE_COMMUNITY)
+            .map { type -> type to displayed.filter { it.type == type } }
+            .filter { it.second.isNotEmpty() }
     }
 
     val horizontalPadding = dimensionResource(R.dimen.screen_horizontal_padding)
@@ -188,10 +199,17 @@ fun ChatManagementScreen(onBack: () -> Unit) {
         )
     }
 
+    val barColors = TopAppBarDefaults.topAppBarColors(
+        containerColor = MaterialTheme.colorScheme.background,
+        titleContentColor = MaterialTheme.colorScheme.onBackground,
+        actionIconContentColor = MaterialTheme.colorScheme.onSurfaceVariant,
+        navigationIconContentColor = MaterialTheme.colorScheme.onSurfaceVariant
+    )
+
     Scaffold(
+        containerColor = MaterialTheme.colorScheme.background,
         topBar = {
             if (selectionMode) {
-                // Contextual selection bar
                 val allDisplayedSelected = displayed.isNotEmpty() &&
                     displayed.all { it.name in selected }
                 TopAppBar(
@@ -203,8 +221,7 @@ fun ChatManagementScreen(onBack: () -> Unit) {
                         }) {
                             Icon(
                                 Icons.Filled.Close,
-                                contentDescription = null,
-                                tint = MaterialTheme.colorScheme.onPrimaryContainer
+                                contentDescription = stringResource(R.string.chat_exit_selection)
                             )
                         }
                     },
@@ -249,59 +266,31 @@ fun ChatManagementScreen(onBack: () -> Unit) {
                     )
                 )
             } else {
-                // Normal top app bar
                 TopAppBar(
-                    title = {
-                        if (searchActive) {
-                            OutlinedTextField(
-                                value = searchQuery,
-                                onValueChange = { searchQuery = it },
-                                placeholder = { Text(stringResource(R.string.chat_search_hint)) },
-                                singleLine = true,
-                                modifier = Modifier.fillMaxWidth()
-                            )
-                        } else {
-                            Text(stringResource(R.string.chat_management_title))
-                        }
-                    },
+                    title = { Text(stringResource(R.string.chat_management_title), fontWeight = FontWeight.Bold) },
                     navigationIcon = {
-                        IconButton(onClick = {
-                            if (searchActive) {
-                                searchActive = false
-                                searchQuery = ""
-                            } else {
-                                onBack()
-                            }
-                        }) {
+                        IconButton(onClick = onBack) {
                             Icon(
                                 Icons.AutoMirrored.Filled.ArrowBack,
-                                contentDescription = stringResource(R.string.action_back),
-                                tint = MaterialTheme.colorScheme.onPrimaryContainer
+                                contentDescription = stringResource(R.string.action_back)
                             )
                         }
                     },
                     actions = {
-                        // Search icon (left of info)
-                        IconButton(onClick = { searchActive = true }) {
+                        IconButton(onClick = { selectionMode = true }) {
                             Icon(
-                                Icons.Outlined.Search,
-                                contentDescription = stringResource(R.string.chat_search_content_description),
-                                tint = MaterialTheme.colorScheme.onPrimaryContainer
+                                Icons.Filled.CheckCircle,
+                                contentDescription = stringResource(R.string.chat_enter_selection)
                             )
                         }
-                        // Info icon (right of search)
                         IconButton(onClick = { showInfo = true }) {
                             Icon(
                                 Icons.Outlined.Info,
-                                contentDescription = stringResource(R.string.chat_info_content_description),
-                                tint = MaterialTheme.colorScheme.onPrimaryContainer
+                                contentDescription = stringResource(R.string.chat_info_content_description)
                             )
                         }
                     },
-                    colors = TopAppBarDefaults.topAppBarColors(
-                        containerColor = MaterialTheme.colorScheme.primaryContainer,
-                        titleContentColor = MaterialTheme.colorScheme.onPrimaryContainer
-                    )
+                    colors = barColors
                 )
             }
         }
@@ -319,6 +308,22 @@ fun ChatManagementScreen(onBack: () -> Unit) {
                     .fillMaxSize()
                     .padding(innerPadding)
             ) {
+                OutlinedTextField(
+                    value = searchQuery,
+                    onValueChange = { searchQuery = it },
+                    placeholder = { Text(stringResource(R.string.chat_search_hint), fontSize = 13.sp) },
+                    leadingIcon = {
+                        Icon(
+                            Icons.Outlined.Search,
+                            contentDescription = stringResource(R.string.chat_search_content_description)
+                        )
+                    },
+                    singleLine = true,
+                    shape = RoundedCornerShape(11.dp),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = horizontalPadding, vertical = 4.dp)
+                )
                 FilterSortBar(
                     category = category,
                     sortMode = sortMode,
@@ -338,30 +343,59 @@ fun ChatManagementScreen(onBack: () -> Unit) {
                         end = horizontalPadding,
                         top = 4.dp,
                         bottom = verticalPadding
-                    ),
-                    verticalArrangement = Arrangement.spacedBy(6.dp)
+                    )
                 ) {
-                    items(displayed, key = { "${it.type}_${it.name}" }) { chat ->
-                        val isSelected = chat.name in selected
-                        ChatRow(
-                            chat = chat,
-                            selectionMode = selectionMode,
-                            isSelected = isSelected,
-                            onToggle = { enabled ->
-                                setChatEnabled(prefs, chat.name, enabled)
-                                reload()
-                            },
-                            onLongClick = {
-                                selectionMode = true
-                                searchActive = false
-                                if (chat.name !in selected) selected.add(chat.name)
-                            },
-                            onClickInSelection = {
-                                if (isSelected) selected.remove(chat.name)
-                                else selected.add(chat.name)
-                            },
-                            onOpenSettings = { editingChat = chat },
-                        )
+                    grouped.forEach { (type, chats) ->
+                        item(key = "section_$type") {
+                            Column(modifier = Modifier.padding(bottom = 8.dp)) {
+                                Text(
+                                    text = stringResource(
+                                        R.string.chat_section_count,
+                                        chatSectionTitle(type),
+                                        chats.size
+                                    ),
+                                    fontSize = 11.sp,
+                                    fontWeight = FontWeight.ExtraBold,
+                                    letterSpacing = 1.sp,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    modifier = Modifier.padding(start = 2.dp, top = 6.dp, bottom = 6.dp)
+                                )
+                                Card(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    shape = RoundedCornerShape(16.dp),
+                                    colors = CardDefaults.cardColors(
+                                        containerColor = MaterialTheme.colorScheme.surface
+                                    ),
+                                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline),
+                                    elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
+                                ) {
+                                    Column {
+                                        chats.forEachIndexed { index, chat ->
+                                            val isSelected = chat.name in selected
+                                            ChatRow(
+                                                chat = chat,
+                                                selectionMode = selectionMode,
+                                                isSelected = isSelected,
+                                                showDivider = index != chats.lastIndex,
+                                                onToggle = { enabled ->
+                                                    setChatEnabled(prefs, chat.name, enabled)
+                                                    reload()
+                                                },
+                                                onLongClick = {
+                                                    selectionMode = true
+                                                    if (chat.name !in selected) selected.add(chat.name)
+                                                },
+                                                onClickInSelection = {
+                                                    if (isSelected) selected.remove(chat.name)
+                                                    else selected.add(chat.name)
+                                                },
+                                                onOpenSettings = { editingChat = chat },
+                                            )
+                                        }
+                                    }
+                                }
+                            }
+                        }
                     }
                 }
             }
@@ -410,7 +444,11 @@ private fun CategoryChip(
     FilterChip(
         selected = current == value,
         onClick = { onClick(value) },
-        label = { Text(label, fontSize = 13.sp) }
+        label = { Text(label, fontSize = 13.sp, fontWeight = FontWeight.Bold) },
+        colors = FilterChipDefaults.filterChipColors(
+            selectedContainerColor = FillGreen,
+            selectedLabelColor = Color.White
+        )
     )
 }
 
@@ -449,32 +487,40 @@ private fun ChatRow(
     chat: ChatItem,
     selectionMode: Boolean,
     isSelected: Boolean,
+    showDivider: Boolean,
     onToggle: (Boolean) -> Unit,
     onLongClick: () -> Unit,
     onClickInSelection: () -> Unit,
     onOpenSettings: () -> Unit,
 ) {
-    val containerColor = if (isSelected) {
+    val rowColor = if (isSelected) {
         MaterialTheme.colorScheme.secondaryContainer
     } else {
-        MaterialTheme.colorScheme.surface
+        Color.Transparent
     }
-    Card(
-        modifier = Modifier
-            .fillMaxWidth()
-            .combinedClickable(
-                onLongClick = onLongClick,
-                onClick = {
-                    if (selectionMode) onClickInSelection()
-                    else onOpenSettings()
-                }
-            ),
-        colors = CardDefaults.cardColors(containerColor = containerColor)
-    ) {
+    val statusText = when {
+        chat.legacyOriginalOnly -> stringResource(R.string.chat_legacy_original_only)
+        chat.enabled -> stringResource(R.string.chat_status_enabled)
+        else -> stringResource(R.string.chat_status_disabled)
+    }
+    val statusColor = when {
+        chat.legacyOriginalOnly -> legacyAmber()
+        chat.enabled -> inkGreen()
+        else -> MaterialTheme.colorScheme.onSurfaceVariant
+    }
+    Column {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(start = 12.dp, end = 12.dp, top = 12.dp, bottom = 12.dp),
+                .background(rowColor)
+                .combinedClickable(
+                    onLongClick = onLongClick,
+                    onClick = {
+                        if (selectionMode) onClickInSelection()
+                        else onOpenSettings()
+                    }
+                )
+                .padding(horizontal = 13.dp, vertical = 10.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
             if (selectionMode) {
@@ -485,31 +531,55 @@ private fun ChatRow(
                 )
             }
             ChatAvatar(chat)
-            Spacer(modifier = Modifier.size(12.dp))
+            Spacer(modifier = Modifier.size(11.dp))
             Column(modifier = Modifier.weight(1f)) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(
+                        text = chat.name,
+                        fontSize = 14.sp,
+                        fontWeight = FontWeight.Bold,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                        modifier = Modifier.weight(1f)
+                    )
+                    if (chat.manuallyClassified) {
+                        Text(
+                            text = stringResource(R.string.chat_manual_tag),
+                            fontSize = 10.sp,
+                            fontWeight = FontWeight.ExtraBold,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier
+                                .padding(start = 6.dp)
+                                .clip(RoundedCornerShape(5.dp))
+                                .background(MaterialTheme.colorScheme.surfaceVariant)
+                                .padding(horizontal = 6.dp, vertical = 2.dp)
+                        )
+                    }
+                }
                 Text(
-                    text = chat.name,
-                    fontSize = 15.sp,
-                    fontWeight = FontWeight.Medium,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
-                )
-                Text(
-                    text = if (chat.legacyOriginalOnly) {
-                        stringResource(R.string.chat_legacy_original_only, chatTypeLabel(chat.type))
-                    } else if (chat.manuallyClassified) {
-                        stringResource(R.string.chat_type_manual, chatTypeLabel(chat.type))
-                    } else {
-                        chatTypeLabel(chat.type)
-                    },
-                    fontSize = 12.sp,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                    text = statusText,
+                    fontSize = 11.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    color = statusColor,
+                    modifier = Modifier.padding(top = 1.dp)
                 )
             }
             Switch(
                 checked = chat.enabled,
                 onCheckedChange = if (selectionMode) null else onToggle,
-                enabled = !selectionMode
+                enabled = !selectionMode,
+                modifier = Modifier.scale(0.85f),
+                colors = SwitchDefaults.colors(
+                    checkedTrackColor = ActionGreen,
+                    checkedBorderColor = ActionGreen,
+                    checkedThumbColor = Color.White
+                )
+            )
+        }
+        if (showDivider) {
+            HorizontalDivider(
+                color = MaterialTheme.colorScheme.outline.copy(alpha = 0.5f),
+                modifier = Modifier.padding(start = 58.dp)
             )
         }
     }
@@ -567,7 +637,8 @@ private fun ChatAvatar(chat: ChatItem) {
             runCatching { BitmapFactory.decodeFile(it)?.asImageBitmap() }.getOrNull()
         }
     }
-    val avatarSize = 44.dp
+    val avatarSize = 34.dp
+    val avatarShape = RoundedCornerShape(11.dp)
     if (img != null) {
         Image(
             bitmap = img,
@@ -575,24 +646,31 @@ private fun ChatAvatar(chat: ChatItem) {
             contentScale = ContentScale.Crop,
             modifier = Modifier
                 .size(avatarSize)
-                .clip(CircleShape)
+                .clip(avatarShape)
         )
     } else {
         Box(
             modifier = Modifier
                 .size(avatarSize)
-                .clip(CircleShape)
+                .clip(avatarShape)
                 .background(avatarColor(chat.name)),
             contentAlignment = Alignment.Center
         ) {
             Text(
                 text = initialOf(chat.name),
                 color = Color.White,
-                fontSize = 17.sp,
-                fontWeight = FontWeight.Bold
+                fontSize = 13.sp,
+                fontWeight = FontWeight.ExtraBold
             )
         }
     }
+}
+
+@Composable
+private fun chatSectionTitle(type: String): String = when (type) {
+    TYPE_COMMUNITY -> stringResource(R.string.chat_section_communities)
+    TYPE_GROUP -> stringResource(R.string.chat_section_groups)
+    else -> stringResource(R.string.chat_section_personal)
 }
 
 @Composable

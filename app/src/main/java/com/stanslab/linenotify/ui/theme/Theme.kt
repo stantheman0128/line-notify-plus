@@ -2,28 +2,55 @@ package com.stanslab.linenotify.ui.theme
 
 import android.os.Build
 import androidx.compose.foundation.isSystemInDarkTheme
-import androidx.compose.material3.*
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.darkColorScheme
+import androidx.compose.material3.dynamicDarkColorScheme
+import androidx.compose.material3.dynamicLightColorScheme
+import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 
 private val DarkColorScheme = darkColorScheme(
-    primary = Green80,
+    primary = DarkGreen40,
+    onPrimary = Color(0xFF003918),
     secondary = GreenGrey80,
+    onSecondary = Color(0xFF1A1C1E),
     primaryContainer = DarkGreen,
-    onPrimaryContainer = Green80,
+    onPrimaryContainer = DarkGreen40,
+    background = DarkBackground,
+    onBackground = Color(0xFFE4E6EC),
+    surface = DarkSurface,
+    onSurface = Color(0xFFE4E6EC),
+    surfaceVariant = DarkSurfaceVariant,
+    onSurfaceVariant = Color(0xFFB0B6C3),
+    outline = DarkOutline,
+    errorContainer = Color(0xFF4A1C1C),
+    onErrorContainer = Color(0xFFF5C6C6),
 )
 
 private val LightColorScheme = lightColorScheme(
-    primary = Green40,
+    primary = ActionGreen,
+    onPrimary = Color.White,
     secondary = GreenGrey40,
+    onSecondary = Color.White,
     primaryContainer = LightGreen,
     onPrimaryContainer = DarkGreen,
+    background = LightBackground,
+    onBackground = Color(0xFF14161C),
+    surface = Color.White,
+    onSurface = Color(0xFF14161C),
+    surfaceVariant = LightMuted,
+    onSurfaceVariant = Color(0xFF767D8E),
+    outline = LightOutline,
+    errorContainer = Color(0xFFFFF5F5),
+    onErrorContainer = Color(0xFF9F1239),
 )
 
 @Composable
 fun LineNotifyTheme(
     darkTheme: Boolean = isSystemInDarkTheme(),
-    dynamicColor: Boolean = true,
+    dynamicColor: Boolean = false,
     content: @Composable () -> Unit
 ) {
     val colorScheme = when {
