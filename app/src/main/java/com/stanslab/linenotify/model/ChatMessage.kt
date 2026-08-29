@@ -25,8 +25,9 @@ data class ChatRoom(
     var senderIcon: Bitmap? = null, // 最近的發送者頭貼
 ) {
     companion object {
-        // NotificationCompat.MessagingStyle 本身最多保留 25 則；多留只會增加長駐 listener
-        // 的 Bitmap/文字記憶體，畫面也不會顯示。
+        // NotificationCompat.MessagingStyle 本身最多保留 25「則訊息」，不是 25 行文字。
+        // 每一則仍保留 LINE android.messages 提供的完整本文；多留只會增加長駐 listener
+        // 的 Bitmap/文字記憶體，系統通知也不會顯示。
         const val MAX_MESSAGES = 25
     }
 

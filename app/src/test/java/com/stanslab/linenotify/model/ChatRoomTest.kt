@@ -31,4 +31,23 @@ class ChatRoomTest {
         assertEquals(25, room.messages.size)
         assertEquals("5", room.messages.first().text)
     }
+
+    @Test
+    fun message_line_count_is_not_truncated_by_room_limit() {
+        val room = ChatRoom("群組", isGroup = true)
+        val longText = (1..40).joinToString("\n") { "第 $it 行" }
+
+        room.addMessage(
+            ChatMessage(
+                sender = "好友",
+                text = longText,
+                timestamp = 1L,
+                isGroup = true,
+                chatTitle = "群組",
+            )
+        )
+
+        assertEquals(40, room.messages.single().text.lineSequence().count())
+        assertEquals(longText, room.messages.single().text)
+    }
 }

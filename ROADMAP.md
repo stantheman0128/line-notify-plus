@@ -74,6 +74,10 @@
 - [ ] **收回訊息保留**（在通知中顯示已被收回的訊息）
 
 ### 使用者回饋修正（2026-07-14）
+- [~] **v1.6.1 長訊息完整顯示**：LINE 的 `EXTRA_TEXT` 可能只有通知預覽，現在先用預覽欄位完成
+      Android 私密內容遮蔽判斷，再優先採用 `android.messages` 最後一則完整文字；對話串沿用
+      MessagingStyle，Apple 分組 child 加入可展開全文。仍只在記憶體保留最多 25「則」訊息，不新增
+      聊天紀錄資料庫。純邏輯測試已覆蓋，仍需 Nothing 實收超過 25 行訊息確認 LINE 26.13.1 行為。
 - [x] **v1.6.0 UI Refresh**：首頁重整服務狀態、主控制與並排通知風格卡；聊天室加入常駐搜尋、分類分區、
       狀態副標與批次入口，並把 Accessibility 聊天室開啟偵測接回新版卡片。Main／Chat／Help／About
       頂欄與背景統一，一般說明文字至少 12sp 並提高淺色次要文字對比。
@@ -101,7 +105,7 @@
       時窗或 active source 重驗不符都 fail-open 保留原通知，避免把兩則真訊息誤刪。
 - [ ] **同名／雙開聊天室設定隔離**：目前通知顯示以 profile+名稱分房，但分類、靜音、最後活躍與頭貼的
       持久設定仍主要以顯示名稱為 key；同名聊天室可能共用設定。後續需引入 package+profile+shortcut 的 roomId schema。
-- [ ] **通知核心的自動化整合測試**：目前 50 個 JVM 測試涵蓋純分類／偏好遷移／mirror 配對／ChatRoom／Accessibility 配對／舊 snooze 遷移，但 listener 的 burst、
+- [ ] **通知核心的自動化整合測試**：目前 55 個 JVM 測試涵蓋純分類／偏好遷移／mirror 配對／長訊息全文選擇／ChatRoom／Accessibility 配對／舊 snooze 遷移，但 listener 的 burst、
       SystemUI active 查詢失敗、快速回覆與 eviction transaction 仍主要靠 code review＋實機；應再抽出純 planner/state machine 測試。
 - [ ] **長時間壓力與 I/O**：頭貼 PNG 目前會在通知 callback 同步壓縮寫檔；thread 模式也沒有全域 active room
       budget。需用大量聊天室／訊息做 soak test，再決定背景寫入與 thread budget。
@@ -113,7 +117,7 @@
 - [預期，不處理] **無 deobfuscation 檔（R8 mapping）**：因 `isMinifyEnabled = false`（鐵則 6，故意關 R8 怕 release crash），沒混淆就沒對照表可傳，這警告本來就會出現。crash 的 stack trace 不混淆、本來就可讀，直接忽略即可。除非哪天決定開 R8，才需要連 mapping 一起傳。
 
 ## 長期 (v2.0)
-- [~] 上架 Google Play（目前整合候選為 v1.6.0 / vc32；重新送審前仍須完成 Accessibility API 聲明、
+- [~] 上架 Google Play（目前修正候選為 v1.6.1 / vc33；重新送審前仍須完成 Accessibility API 聲明、
       操作示範影片、實機回歸與線上隱私政策部署，並確認 vc31 未被使用；詳見 play-store-assets/play-console-progress.md）
 - [ ] 訊息搜尋（跨聊天室搜尋通知歷史）
 - [ ] 自訂通知音效 / 震動模式

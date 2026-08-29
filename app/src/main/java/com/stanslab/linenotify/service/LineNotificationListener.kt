@@ -175,6 +175,37 @@ class LineNotificationListener : NotificationListenerService() {
     }
 
     /**
+     * LINE 的 EXTRA_TEXT 可能只是通知列預覽；android.messages 才保有最新一則完整文字。
+     * 不保存額外歷史，只把完整文字交給既有的 25 則 in-memory buffer。
+     */
+    private fun completeMessageText(notification: Notification, previewText: String): String {
+        val compatText = runCatching {
+            NotificationCompat.MessagingStyle
+                .extractMessagingStyleFromNotification(notification)
+                ?.messages
+                ?.lastOrNull()
+                ?.text
+                ?.toString()
+        }.getOrNull()
+
+        // 某些 LINE legacy mirror 缺少完整的 MessagingStyle metadata，Compat 可能整體解析失敗；
+        // 此時只讀 framework android.messages 最後一筆的 text，不碰 sender 或訊息歷史。
+        @Suppress("DEPRECATION")
+        val bundledText = runCatching {
+            (notification.extras
+                .getParcelableArray(Notification.EXTRA_MESSAGES)
+                ?.lastOrNull() as? android.os.Bundle)
+                ?.getCharSequence("text")
+                ?.toString()
+        }.getOrNull()
+
+        return LineMessageTextResolver.resolve(
+            previewText = previewText,
+            latestMessagingText = bundledText?.takeIf { it.isNotEmpty() } ?: compatText,
+        )
+    }
+
+    /**
      * LINE 26.10.1 在 Nothing OS 會為同一訊息各發一個 conversation record 與 legacy mirror。
      * 只有完整 MessagingStyle payload 可建立可靠 identity；缺 timestamp／style 就不合併。
      * 回傳值是 SHA-256，不把訊息原文留在 cache。
@@ -236,8 +267,12 @@ class LineNotificationListener : NotificationListenerService() {
                         val extras = source.notification.extras
                         val sourceTitle = extras.getCharSequence("android.title")?.toString()
                             ?: return@any false
-                        val sourceText = extras.getCharSequence("android.text")?.toString()
+                        val sourcePreviewText = extras.getCharSequence("android.text")?.toString()
                             ?: return@any false
+                        val sourceText = completeMessageText(
+                            source.notification,
+                            sourcePreviewText,
+                        )
                         val sourceSubText = extras.getCharSequence("android.subText")?.toString()
                         val sourceRoomKey = profileKeyOf(source) + KEY_SEP +
                             NotificationClassifier.chatTitleOf(sourceTitle, sourceSubText)
@@ -806,7 +841,7 @@ class LineNotificationListener : NotificationListenerService() {
         val extras = notification.extras
 
         val title = extras.getCharSequence("android.title")?.toString() ?: return
-        val text = extras.getCharSequence("android.text")?.toString() ?: return
+        val previewText = extras.getCharSequence("android.text")?.toString() ?: return
         val subText = extras.getCharSequence("android.subText")?.toString()
 
         // Android 15+ 可能在通知交給第三方 listener 前，就把敏感內容換成 framework 占位字串。
@@ -817,7 +852,7 @@ class LineNotificationListener : NotificationListenerService() {
         }.getOrNull()
         if (NotificationClassifier.isSystemRedactedNotification(
                 title = title,
-                text = text,
+                text = previewText,
                 subText = subText,
                 sourceAppLabel = sourceAppLabel,
                 systemRedactedText = systemRedactedText(),
@@ -825,6 +860,13 @@ class LineNotificationListener : NotificationListenerService() {
         ) {
             Log.w(TAG, "系統已遮蔽敏感通知；保留原始通知且不建立 Notify+ 副本")
             return
+        }
+
+        // 先用預覽文字做系統遮蔽判斷，避免完整 MessagingStyle 意外繞過隱私保護；
+        // 確認不是遮蔽通知後，才優先採用 android.messages 的完整最新本文。
+        val text = completeMessageText(notification, previewText)
+        if (text != previewText) {
+            Log.d(TAG, "使用完整通知文字 previewLen=${previewText.length} fullLen=${text.length}")
         }
 
         // LINE summary 沒有可靠的單一聊天室識別，也可能比 child 先到。永遠 fail-open 保留；
@@ -1411,6 +1453,7 @@ class LineNotificationListener : NotificationListenerService() {
                 }
             )
             .setContentText(newMessage.text)
+            .setStyle(NotificationCompat.BigTextStyle().bigText(newMessage.text))
             .setWhen(newMessage.timestamp)
             .setAutoCancel(true)
             .setGroup(groupKey)

@@ -100,6 +100,7 @@
     <string name="changelog_1_2_0_clear">新增回覆後、已讀後自動清除通知的設定</string>
     <string name="changelog_1_2_0_dual">雙開 LINE 時可以區分不同帳號的訊息來源</string>
     <string name="changelog_1_2_0_ui">介面改版，文案調整讓功能更好懂</string>
+    <string name="changelog_1_6_1_long_message">修正較長的 LINE 訊息可能只顯示部分內容；現在會優先使用通知提供的完整文字</string>
     <string name="changelog_1_6_0_home">首頁重新整理，服務狀態、主要開關與通知風格更容易找到</string>
     <string name="changelog_1_6_0_chats">聊天室支援常駐搜尋、分類分區與批次選取</string>
     <string name="changelog_1_6_0_read_sync">聊天室開啟偵測整合進新版首頁；已讀後清除固定開啟，不必再另外設定</string>

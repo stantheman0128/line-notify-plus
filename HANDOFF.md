@@ -1,6 +1,38 @@
 # Project Handoff — Notify+
 
-## Latest Session: 2026-08-29（Codex：UI Refresh 對齊 Accessibility）
+## Latest Session: 2026-08-30（Codex：長訊息改讀完整 android.messages）
+
+### 狀態
+
+- branch：`fix/long-message-text-2026-08-30`
+- 版本：`v1.6.1 / vc33`；尚未 push、merge 或上傳 Play。
+- 從 `integration/ui-accessibility-2026-08-29` 的 v1.6.0/vc32 出發；使用者原有的
+  `local.properties` 與 `design/redesign-proposals.html` 沒有納入本輪修改。
+
+### 根因與修正
+
+- 程式裡的 `ChatRoom.MAX_MESSAGES = 25` 是每個聊天室最多保留 25「則訊息」，不是每則只能有 25 行。
+- 真正問題在入口：Notify+ 原本直接把 LINE `Notification.EXTRA_TEXT` 當正文；LINE 可能把它做成預覽，
+  未截短的最新本文仍在 `android.messages`。
+- 現在先用 `EXTRA_TEXT` 判斷 Android 私密通知遮蔽，通過後才優先取 MessagingStyle／
+  `android.messages` 最後一則文字；解析不到仍安全退回 `EXTRA_TEXT`。
+- 對話串繼續使用 MessagingStyle；Apple 分組 child 加上 BigTextStyle，展開後可閱讀較長內容。
+- 沒有新增訊息資料庫、全文頁、網路或任何權限；全文仍只存在既有的 process 內 25 則 buffer。
+
+### 驗證與待驗
+
+- 新增純 JVM 測試：完整文字優先、無／空 MessagingStyle fallback、換行與空白保留，以及 40 行單則訊息
+  不受 25 則 buffer 上限截斷。
+- `testDebugUnitTest --rerun-tasks`：**55 passed / 0 failed / 0 errors / 0 skipped**（XML 加總）。
+- `lintDebug --rerun-tasks`：**0 errors / 65 warnings**；`assembleDebug`：`BUILD SUCCESSFUL`。
+- debug APK 為 `v1.6.1 / vc33`；權限仍只有 `BIND_NOTIFICATION_LISTENER_SERVICE` 與
+  `POST_NOTIFICATIONS`，沒有 `INTERNET`。
+- 行為仍需 Nothing A065 / LINE 26.13.1 實收一則超過 25 行的訊息，分別驗證對話串與 Apple 分組；
+  同時確認 conversation/legacy mirror 仍只合併一次。沒有這筆真實訊息前不可宣稱行為已實機通過。
+
+---
+
+## Previous Session: 2026-08-29（Codex：UI Refresh 對齊 Accessibility）
 
 ### 狀態
 
