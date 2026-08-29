@@ -37,12 +37,12 @@
     <string name="replace_original_title">取代原始通知</string>
     <string name="replace_original_subtitle">隱藏 LINE 原本的通知，僅顯示完整通知</string>
     <string name="replace_original_info_title">「取代原始通知」說明</string>
-    <string name="replace_original_info_body">關閉時：LINE 原本的通知照常出現，你會看到兩則。好處是你在 LINE 裡把訊息讀掉時，這則會自動跟著消失。\n\n開啟時：用一則完整通知取代 LINE 原本的，畫面只留一則，比較乾淨。你在 LINE App 裡點開或讀掉該則訊息後，這則也會跟著消失。</string>
+    <string name="replace_original_info_body">關閉時：LINE 原本的通知照常出現，你會看到兩則。好處是你在 LINE 裡把訊息讀掉時，這則會自動跟著消失。\n\n開啟時：用一則完整通知取代 LINE 原本的，畫面只留一則，比較乾淨。若直接在 LINE App 裡讀掉訊息，Android 不一定會通知 Notify+，請點 Notify+ 通知進入 LINE，或手動滑掉通知。</string>
     <string name="clear_timing_title">通知清除時機</string>
     <string name="clear_after_reply_title">回覆後清除通知</string>
     <string name="clear_after_reply_subtitle">在通知上回覆後過一秒，自動清除該則通知</string>
     <string name="clear_after_read_title">已讀後自動清除通知</string>
-    <string name="clear_after_read_subtitle">在 LINE 裡讀過後同步關閉</string>
+    <string name="clear_after_read_subtitle">在 LINE 裡讀過後盡量同步關閉（取代模式下可能無法偵測）</string>
     <string name="notification_style_title">通知風格</string>
     <string name="style_guide_dialog_title">對話串 vs Apple 分組</string>
     <string name="style_guide_open_content_description">查看通知風格示意圖</string>
@@ -78,6 +78,7 @@
     <string name="changelog_1_2_0_clear">新增回覆後、已讀後自動清除通知的設定</string>
     <string name="changelog_1_2_0_dual">雙開 LINE 時可以區分不同帳號的訊息來源</string>
     <string name="changelog_1_2_0_ui">介面改版，文案調整讓功能更好懂</string>
+    <string name="changelog_1_4_5_reliability">修正舊訊息重新跳出或新訊息沒有通知的問題，恢復穩定的通知處理</string>
     <string name="changelog_1_4_4_readsync">修正上一版為了停掉重複訊息，結果在 LINE 裡讀掉後通知不會消失的問題</string>
     <string name="changelog_1_4_3_loop">修正通知裡同一則訊息會不停長出來的問題</string>
     <string name="changelog_1_4_2_speed">在 LINE 裡讀掉訊息後，Notify+ 的通知會更快跟著消失</string>
@@ -196,7 +197,7 @@
     <string name="faq_q_network">App 會上傳我的訊息嗎？</string>
     <string name="faq_a_network">不會。App 沒有 INTERNET 權限，也沒有 analytics、後端或自我更新功能。</string>
     <string name="faq_q_original">取代原始通知是什麼？</string>
-    <string name="faq_a_original">開啟後會隱藏 LINE 原本的通知，只留下 Notify+ 重新整理後的通知。你在 LINE App 裡點開或讀掉該則訊息後，Notify+ 的通知也會跟著消失。</string>
+    <string name="faq_a_original">開啟後會隱藏 LINE 原本的通知，只留下 Notify+ 重新整理後的通知。點 Notify+ 通知進入 LINE 時會一起清除；若直接在 LINE App 裡讀取，Android 不一定會把已讀狀態通知 Notify+，可手動滑掉通知。</string>
     <string name="faq_q_reply">快速回覆送不出去怎麼辦？</string>
     <string name="faq_a_reply">這是 closed testing 期間仍在追的行為類 bug。請保留當下通知，回報手機型號、Android 版本與 LINE 版本。</string>
     <string name="faq_q_sensitive_hidden">為什麼顯示「系統已隱藏含有私密資訊」？</string>
