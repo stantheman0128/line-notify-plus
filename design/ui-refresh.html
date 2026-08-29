@@ -1,0 +1,648 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Notify+ — UI Refresh（功能完全不動）</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --ink:#14161c; --ink2:#454b5a; --ink3:#767d8e; --line:#e4e6ec; --bg:#f5f6f8; --card:#fff;
+  --new:#05873c; --brand:#06c755; --ui:#05a847; --gink:#04672c;
+  --font:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang TC","Noto Sans TC","Helvetica Neue",sans-serif;
+  --mono:ui-monospace,SFMono-Regular,"SF Mono",Menlo,monospace;
+}
+html{scroll-behavior:smooth}
+body{font-family:var(--font);background:var(--bg);color:var(--ink);-webkit-font-smoothing:antialiased;line-height:1.6}
+.wrap{max-width:1300px;margin:0 auto;padding:0 32px}
+
+header.hero{padding:70px 0 42px;border-bottom:1px solid var(--line);
+  background:radial-gradient(900px 320px at 15% -10%,rgba(6,199,85,.16),transparent 60%)}
+.kicker{font-size:12px;letter-spacing:.16em;text-transform:uppercase;color:var(--ink3);font-weight:700}
+h1{font-size:clamp(32px,4.6vw,48px);line-height:1.1;letter-spacing:-.03em;margin:14px 0 18px;font-weight:800}
+.lede{font-size:17.5px;color:var(--ink2);max-width:72ch}
+.rules{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-top:30px;max-width:960px}
+@media(max-width:820px){.rules{grid-template-columns:1fr}}
+.rule{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:16px 18px}
+.rule b{display:block;font-size:13.5px;margin-bottom:5px}
+.rule.no b{color:#b91c1c}.rule.yes b{color:#15803d}
+.rule ul{list-style:none;font-size:13px;color:var(--ink2)}
+.rule li{padding-left:15px;position:relative;margin-bottom:4px;line-height:1.5}
+.rule li:before{content:"";position:absolute;left:0;top:8px;width:4px;height:4px;border-radius:50%;background:var(--ink3)}
+
+h2.sec{font-size:13px;letter-spacing:.16em;text-transform:uppercase;color:var(--ink3);font-weight:700;margin-bottom:8px}
+h3.big{font-size:clamp(24px,3vw,33px);letter-spacing:-.025em;font-weight:800;line-height:1.15;margin-bottom:12px}
+section{padding:64px 0;border-bottom:1px solid var(--line)}
+
+/* problems */
+.pgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:14px;margin-top:26px}
+.pc{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:20px}
+.pc .n{font-family:var(--mono);font-size:11px;font-weight:700;color:var(--new);letter-spacing:.06em}
+.pc b{display:block;font-size:15.5px;margin:7px 0 7px;letter-spacing:-.01em}
+.pc p{font-size:13.5px;color:var(--ink3);line-height:1.55}
+.pc .fix{font-size:13px;color:var(--ink2);margin-top:11px;padding-top:11px;border-top:1px dashed var(--line)}
+.pc .fix span{color:var(--new);font-weight:700}
+
+/* compare rows */
+.cmp{display:grid;grid-template-columns:300px 300px 1fr;gap:30px;align-items:start;margin-top:34px;padding-top:34px;border-top:1px solid var(--line)}
+.cmp:first-of-type{border-top:none;padding-top:0}
+@media(max-width:1100px){.cmp{grid-template-columns:1fr 1fr;gap:20px}.cmp .notes{grid-column:1/-1}}
+.ptitle{font-size:11px;letter-spacing:.14em;text-transform:uppercase;font-weight:800;margin-bottom:9px}
+.ptitle.o{color:#9aa0ae}.ptitle.n{color:var(--new)}
+.notes h4{font-size:19px;letter-spacing:-.02em;margin-bottom:10px}
+.notes ul{list-style:none;font-size:14px;color:var(--ink2)}
+.notes li{padding-left:18px;position:relative;margin-bottom:9px;line-height:1.55}
+.notes li:before{content:"→";position:absolute;left:0;color:var(--new);font-weight:700}
+
+/* phone */
+.phone{width:300px;height:752px;border-radius:40px;padding:8px;background:#0b0b0d;
+  box-shadow:0 1px 2px rgba(0,0,0,.25),0 16px 34px -14px rgba(0,0,0,.35)}
+.screen{width:100%;height:100%;border-radius:33px;overflow:hidden;display:flex;flex-direction:column;font-size:13px}
+.sb{display:flex;justify-content:space-between;padding:10px 18px 4px;font-size:10.5px;font-weight:700;flex:0 0 auto}
+.body{flex:1;overflow:hidden;position:relative;
+  -webkit-mask-image:linear-gradient(to bottom,#000 90%,rgba(0,0,0,.2) 100%);
+  mask-image:linear-gradient(to bottom,#000 90%,rgba(0,0,0,.2) 100%)}
+.scroll{padding:14px;display:flex;flex-direction:column;gap:14px;height:100%}
+
+/* ---------- OLD (current build, reconstructed from source) ---------- */
+.O{background:#fbf9fa;color:#1a1c1e}
+.O .sb{color:#1a1c1e}
+.O-bar{background:#d7e3ea;padding:13px 15px;display:flex;align-items:center;gap:9px;flex:0 0 auto}
+.O-bar .lg{width:24px;height:24px;border-radius:6px;background:#06c755;display:flex;align-items:center;justify-content:center;font-size:12px}
+.O-bar .tt{font-size:16px;font-weight:500;flex:1}
+.O-bar .ia{font-size:14px;opacity:.6}
+.O-card{background:#e2e2e5;border-radius:12px;padding:18px}
+.O-card.stat{background:#cfe4f0}
+.O-card .h{font-size:17px;font-weight:700}
+.O-card .s{font-size:13px;margin-top:6px;color:#42474e}
+.O-card .ct{font-size:15px;font-weight:600;margin-bottom:13px}
+.O-row{display:flex;align-items:flex-start;gap:12px;padding:5px 0}
+.O-row .tx{flex:1}
+.O-row .t1{font-size:14px;font-weight:500}
+.O-row .t2{font-size:11.5px;color:#42474e;line-height:1.4;margin-top:2px}
+.O-sw{width:44px;height:26px;border-radius:99px;background:#5d6b60;position:relative;flex:0 0 auto;margin-top:2px}
+.O-sw i{position:absolute;top:3px;right:3px;width:20px;height:20px;border-radius:50%;background:#fff;display:block}
+.O-hr{height:1px;background:#c6c7ca;margin:11px 0}
+.O-btn{border:1px solid #a0a3ab;border-radius:99px;padding:12px;text-align:center;font-size:14px;color:#1a1c1e}
+.O-btn.f{background:#06c755;color:#fff;border:none;font-weight:600}
+.O-acc{background:#e2e2e5;border-radius:12px;padding:18px;display:flex;align-items:center}
+.O-acc .ct{flex:1;margin:0}
+.O-radio{display:flex;align-items:flex-start;gap:12px;padding:7px 0}
+.O-rd{width:19px;height:19px;border-radius:50%;border:2px solid #42474e;flex:0 0 auto;margin-top:2px}
+.O-rd.on{border-color:#06c755;background:radial-gradient(circle,#06c755 42%,transparent 45%)}
+.O-lbl{font-size:12px;color:#42474e;margin-bottom:3px}
+/* old chat list */
+.O-chip{font-size:12px;padding:6px 13px;border-radius:8px;border:1px solid #a0a3ab;color:#42474e;white-space:nowrap}
+.O-chip.on{background:#cfe4f0;border-color:#cfe4f0}
+.O-crow{display:flex;align-items:center;gap:12px;padding:11px 0}
+.O-crow .av{width:38px;height:38px;border-radius:50%;flex:0 0 auto;display:flex;align-items:center;justify-content:center;color:#fff;font-size:13px;font-weight:700}
+.O-crow .nm{font-size:14px;font-weight:500}
+.O-crow .ty{font-size:11.5px;color:#42474e;margin-top:1px}
+
+/* ---------- NEW (UI refresh) ---------- */
+.N{background:#fafbfc;color:#14161c}
+.N .sb{color:#14161c}
+.N-bar{padding:12px 17px 10px;display:flex;align-items:center;gap:9px;flex:0 0 auto;background:#fafbfc}
+.N-bar .lg{width:26px;height:26px;border-radius:8px;background:linear-gradient(140deg,#06c755,#04913f);
+  display:flex;align-items:center;justify-content:center;color:#fff;font-size:13px;font-weight:800}
+.N-bar .tt{font-size:17px;font-weight:800;letter-spacing:-.025em;flex:1}
+.N-bar .ia{width:26px;height:26px;border-radius:8px;background:#eef0f4;display:flex;align-items:center;justify-content:center;font-size:11px;color:#767d8e}
+/* slim status strip when healthy — 中性底 + 綠點。品牌色已是綠色，狀態不能再用綠底，否則失去訊號強度 */
+.N-strip{display:flex;align-items:center;gap:8px;background:#f1f3f6;border:1px solid #e4e6ec;border-radius:11px;padding:9px 12px}
+.N-strip i{width:7px;height:7px;border-radius:50%;background:#06c755;flex:0 0 auto;box-shadow:0 0 0 3px rgba(6,199,85,.2)}
+.N-strip .t{font-size:12.5px;font-weight:700;color:#14161c}
+.N-strip .s{font-size:11.5px;color:#767d8e;margin-left:auto}
+/* loud status when broken */
+.N-alert{background:#fff5f5;border:1px solid #fbc9c9;border-radius:16px;padding:15px}
+.N-alert .h{font-size:16px;font-weight:800;color:#9f1239;letter-spacing:-.02em}
+.N-alert .b{font-size:12.5px;color:#7c2d3e;line-height:1.5;margin-top:5px}
+.N-step{display:flex;gap:10px;align-items:center;padding:10px 0;border-top:1px solid #fbdada;margin-top:11px}
+.N-step:first-of-type{margin-top:13px}
+.N-step .k{width:20px;height:20px;border-radius:50%;font-size:10px;font-weight:800;display:flex;align-items:center;justify-content:center;flex:0 0 auto}
+.N-step .k.done{background:#dcfce7;color:#15803d}
+.N-step .k.todo{background:#fee2e2;color:#b91c1c}
+.N-step .tx{flex:1}
+.N-step .t1{font-size:12.5px;font-weight:700}
+.N-step .t2{font-size:11px;color:#7c2d3e;margin-top:1px;line-height:1.35}
+.N-step .go{font-size:11px;font-weight:800;color:#04672c}
+/* primary control */
+.N-master{background:#fff;border:1px solid #e4e6ec;border-radius:16px;padding:15px;box-shadow:0 1px 3px rgba(20,22,28,.05)}
+.N-mrow{display:flex;align-items:center;gap:12px}
+.N-mrow .tx{flex:1}
+.N-mrow .t1{font-size:15px;font-weight:800;letter-spacing:-.015em}
+.N-mrow .t2{font-size:11.5px;color:#767d8e;line-height:1.4;margin-top:3px}
+.sw{width:44px;height:26px;border-radius:99px;background:#d3d6de;position:relative;flex:0 0 auto}
+.sw i{position:absolute;top:3px;left:3px;width:20px;height:20px;border-radius:50%;background:#fff;display:block;box-shadow:0 1px 2px rgba(0,0,0,.2)}
+.sw.on{background:#05a847}.sw.on i{left:21px}
+.sw.sm{width:38px;height:22px}.sw.sm i{width:17px;height:17px;top:2.5px;left:2.5px}
+.sw.sm.on i{left:18.5px}
+/* nested child setting */
+.N-child{margin-top:13px;padding-top:13px;border-top:1px solid #eef0f4;padding-left:12px;border-left:2px solid #e4e6ec;margin-left:1px}
+.N-child .t1{font-size:13px;font-weight:600}
+.N-child .t2{font-size:11px;color:#767d8e;margin-top:2px;line-height:1.4}
+.N-inf{width:15px;height:15px;border-radius:50%;background:#eef0f4;color:#767d8e;font-size:9px;font-weight:800;
+  display:inline-flex;align-items:center;justify-content:center;margin-left:5px;vertical-align:1px}
+/* style picker promoted */
+.N-lbl{font-size:10.5px;letter-spacing:.13em;text-transform:uppercase;color:#767d8e;font-weight:800;padding:0 2px}
+.N-styles{display:grid;grid-template-columns:1fr 1fr;gap:9px}
+.N-style{background:#fff;border:1.5px solid #e4e6ec;border-radius:14px;padding:11px;position:relative}
+.N-style.on{border-color:#05a847;box-shadow:0 0 0 3px rgba(5,168,71,.11)}
+.N-style .nm{font-size:12.5px;font-weight:800;letter-spacing:-.01em}
+.N-style .ds{font-size:10px;color:#767d8e;line-height:1.35;margin-top:2px}
+.N-style .tick{position:absolute;top:9px;right:9px;width:15px;height:15px;border-radius:50%;border:1.5px solid #d3d6de}
+.N-style.on .tick{border-color:#05a847;background:radial-gradient(circle,#05a847 44%,transparent 47%)}
+/* mini notification preview inside style card */
+.N-prev{background:#f4f5f8;border-radius:8px;padding:6px;margin-top:8px;display:flex;flex-direction:column;gap:3px}
+.N-pv{background:#fff;border-radius:5px;padding:4px 5px;display:flex;gap:4px;align-items:center}
+.N-pv .d{width:9px;height:9px;border-radius:3px;background:#c3c7d1;flex:0 0 auto}
+.N-pv .l{height:3px;border-radius:99px;background:#dcdfe6;flex:1}
+.N-pv .l.s{flex:.5}
+.N-stack{position:relative;height:5px}
+.N-stack i{position:absolute;left:6px;right:6px;height:4px;border-radius:3px;background:#e3e5eb;display:block;top:0}
+/* grouped settings list */
+.N-group{background:#fff;border:1px solid #e4e6ec;border-radius:16px;overflow:hidden}
+.N-gr{display:flex;align-items:center;gap:11px;padding:12px 14px;border-bottom:1px solid #f0f1f5}
+.N-gr:last-child{border-bottom:none}
+.N-gr .tx{flex:1}
+.N-gr .t1{font-size:13px;font-weight:600}
+.N-gr .t2{font-size:10.5px;color:#767d8e;line-height:1.35;margin-top:2px}
+.N-gr .val{font-size:11.5px;color:#767d8e;font-weight:600}
+.N-gr .chev{font-size:12px;color:#c3c7d1}
+.N-gi{width:26px;height:26px;border-radius:8px;background:#eef0f4;display:flex;align-items:center;justify-content:center;font-size:11px;flex:0 0 auto}
+.N-foot{font-size:10.5px;color:#9aa0ae;text-align:center;line-height:1.5;padding:2px 8px}
+/* new chat list */
+.N-search{background:#eef0f4;border-radius:11px;padding:9px 12px;font-size:12px;color:#9aa0ae;display:flex;gap:7px}
+.N-chips{display:flex;gap:6px}
+.N-chip{font-size:11px;font-weight:700;padding:5px 11px;border-radius:8px;background:#fff;border:1px solid #e4e6ec;color:#454b5a;white-space:nowrap}
+.N-chip.on{background:#05873c;border-color:#05873c;color:#fff}
+.N-sec{font-size:10px;letter-spacing:.13em;text-transform:uppercase;color:#9aa0ae;font-weight:800;padding:0 2px}
+.N-crow{display:flex;align-items:center;gap:11px;padding:10px 13px;border-bottom:1px solid #f0f1f5}
+.N-crow:last-child{border-bottom:none}
+.N-crow .av{width:34px;height:34px;border-radius:11px;flex:0 0 auto;display:flex;align-items:center;justify-content:center;color:#fff;font-size:12px;font-weight:800}
+.N-crow .nm{font-size:13.5px;font-weight:700;letter-spacing:-.01em}
+.N-crow .st{font-size:10.5px;margin-top:1px;font-weight:600}
+.N-crow .st.on{color:#04672c}.N-crow .st.off{color:#9aa0ae}
+.N-crow .st.legacy{color:#b45309}
+.N-tag{font-size:9.5px;font-weight:800;padding:2px 6px;border-radius:5px;background:#eef0f4;color:#767d8e;margin-left:6px}
+
+/* tokens */
+.tok{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:14px;margin-top:24px}
+.tk{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:16px 18px}
+.tk .sws{display:flex;gap:6px;margin-bottom:11px}
+.tk .sws i{width:30px;height:30px;border-radius:8px;display:block}
+.tk b{font-size:13.5px;display:block;margin-bottom:4px}
+.tk p{font-size:12.5px;color:var(--ink3);line-height:1.5}
+.scale div{letter-spacing:-.02em;line-height:1.25}
+
+/* parity audit */
+table{width:100%;border-collapse:separate;border-spacing:0;background:#fff;border:1px solid var(--line);border-radius:16px;overflow:hidden;font-size:13.5px;margin-top:22px}
+th,td{padding:12px 16px;text-align:left;border-bottom:1px solid var(--line)}
+th{background:#f9fafb;font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--ink3);font-weight:700}
+tr:last-child td{border-bottom:none}
+td:first-child{font-weight:600;width:38%}
+td.k{color:#15803d;font-weight:700;width:90px}
+footer{padding:44px 0 80px;color:var(--ink3);font-size:13px}
+</style>
+</head>
+<body>
+
+<header class="hero">
+  <div class="wrap">
+    <div class="kicker">Notify+ · Option 0 — UI Refresh</div>
+    <h1>只改介面，不動任何功能</h1>
+    <p class="lede">
+      這一版把前面三個方向全部放掉，回到一個假設：<b>Notify+ 現有的功能就是對的，問題出在它們被排版的方式。</b>
+      實際讀過 <code>strings.xml</code> 與 <code>MainActivity.kt</code> 之後，這個假設更站得住腳——
+      像 OEM 背景常駐排查、隱私說明、批次選取、手動更正分類、權限兩步驟引導，其實<b>都已經做完了</b>，
+      只是被壓在 FAQ 與摺疊區裡，使用者看不到。
+    </p>
+    <div class="rules">
+      <div class="rule no">
+        <b>這一版明確不做</b>
+        <ul>
+          <li>不新增任何設定、頁面或能力</li>
+          <li>不加網路權限、不存訊息、不做帳號</li>
+          <li>不動 listener、classifier、通知組裝邏輯</li>
+          <li>不改 Data safety 答案（維持 No data collected）</li>
+        </ul>
+      </div>
+      <div class="rule yes">
+        <b>這一版只做</b>
+        <ul>
+          <li>資訊層級：誰該大、誰該小、誰從屬於誰</li>
+          <li>把既有但藏起來的東西（通知風格）提到檯面</li>
+          <li>綠色留著，但只用在對的元件上</li>
+          <li>元件與排版重做、補齊深色模式</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</header>
+
+<section>
+  <div class="wrap">
+    <h2 class="sec">診斷</h2>
+    <h3 class="big">六個純視覺／層級問題（都不需要動功能）</h3>
+    <div class="pgrid">
+      <div class="pc">
+        <div class="n">01</div>
+        <b>所有東西都是同一種份量</b>
+        <p><code>Arrangement.spacedBy(16.dp)</code> 把狀態卡、設定卡、三顆按鈕、進階卡排成一串等寬等重的方塊。畫面上沒有任何東西告訴你「先看這個」。</p>
+        <div class="fix"><span>做法：</span>建立三層階層——主控制、次要設定、入口連結，各自用不同的容器與字級。</div>
+      </div>
+      <div class="pc">
+        <div class="n">02</div>
+        <b>狀態卡在「沒事」時最吵</b>
+        <p><code>ServiceStatusCard</code> 永遠佔一整塊 primaryContainer。但服務正常時它不需要說話；真正需要它放大的是壞掉的時候，那時它卻跟平常一樣大。</p>
+        <div class="fix"><span>做法：</span>正常時縮成一行狀態條；異常時才膨脹成含行動步驟的警示卡。</div>
+      </div>
+      <div class="pc">
+        <div class="n">03</div>
+        <b>核心決策被摺在「進階功能」裡</b>
+        <p>對話串 vs Apple 分組是使用者唯一真正要選的東西，也是這個 App 的賣點，卻收在 <code>AdvancedSettingsCard</code> 的摺疊區，新使用者永遠不會展開。</p>
+        <div class="fix"><span>做法：</span>提到首頁第二順位，做成兩張帶縮圖的選擇卡，取代 radio 清單。</div>
+      </div>
+      <div class="pc">
+        <div class="n">04</div>
+        <b>從屬關係沒有被畫出來</b>
+        <p>「取代原始通知」在邏輯上依賴主開關，後果也更大（會蓋掉 LINE 自己的通知），但視覺上跟主開關長得一模一樣、並排在同一張卡。</p>
+        <div class="fix"><span>做法：</span>主開關獨立放大，「取代原始通知」縮排成子項，主開關關閉時淡化。</div>
+      </div>
+      <div class="pc">
+        <div class="n">05</div>
+        <b>視覺重量完全倒置</b>
+        <p>整頁最搶眼的是綠色實心的「加入 Notify+ 官方帳號」，但它是最不重要的動作。真正的主開關反而是灰卡裡的一列。</p>
+        <div class="fix"><span>做法：</span>三個入口（聊天室／FAQ／官方帳號）降級成一組列表，把實心按鈕留給主要動作。</div>
+      </div>
+      <div class="pc">
+        <div class="n">06</div>
+        <b>綠色沒問題，但它其實沒有出現</b>
+        <p><code>dynamicColor = true</code> 讓 Android 12+ 直接改用使用者桌布取色。也就是說大多數使用者看到的<b>根本不是 LINE 綠</b>，而是隨機的紫、橘、藍。你的品牌色形同虛設，截圖也永遠對不上實機。</p>
+        <div class="fix"><span>做法：</span>關掉動態取色，讓綠色真的是綠色；並把綠色從「最不重要的按鈕」移到主控制與選取態。</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section>
+  <div class="wrap">
+    <h2 class="sec">畫面對照</h2>
+    <h3 class="big">Before / After</h3>
+    <p class="lede" style="font-size:15px;margin-bottom:8px">
+      左邊的「現況」是<b>依 <code>MainActivity.kt</code> 與 <code>strings.xml</code> 重建</b>的，不是 <code>design/</code> 裡那批舊截圖——
+      那些截圖還停在「LINE Notify+ / 啟用增強通知」，跟目前 source 已經對不上了。
+    </p>
+
+    <!-- 1 -->
+    <div class="cmp">
+      <div>
+        <div class="ptitle o">現況 · 首頁（已授權）</div>
+        <div class="phone"><div class="screen O">
+          <div class="sb"><span>1:41</span><span>▮▮ ◍ 100</span></div>
+          <div class="O-bar"><div class="lg">💬</div><div class="tt">Notify+</div><span class="ia">⤴</span><span class="ia">ⓘ</span></div>
+          <div class="body"><div class="scroll">
+            <div class="O-card stat"><div class="h">✓ 服務運行中</div><div class="s">正在接聽 LINE 通知</div></div>
+            <div class="O-card">
+              <div class="ct">設定</div>
+              <div class="O-row"><div class="tx"><div class="t1">啟用完整通知</div><div class="t2">攔截 LINE 通知，把訊息整理成完整對話顯示</div></div><div class="O-sw"><i></i></div></div>
+              <div class="O-hr"></div>
+              <div class="O-row"><div class="tx"><div class="t1">取代原始通知</div><div class="t2">隱藏 LINE 原本的通知，僅顯示完整通知</div></div><div class="O-sw"><i></i></div></div>
+            </div>
+            <div class="O-btn">管理個別聊天室</div>
+            <div class="O-acc"><div class="ct">進階功能</div><span style="font-size:13px">⌄</span></div>
+            <div class="O-btn">教學與 FAQ</div>
+            <div class="O-btn f">加入 Notify+ 官方帳號</div>
+          </div></div>
+        </div></div>
+      </div>
+      <div>
+        <div class="ptitle n">改版 · 首頁（已授權）</div>
+        <div class="phone"><div class="screen N">
+          <div class="sb"><span>1:41</span><span>▮▮ ◍ 100</span></div>
+          <div class="N-bar"><div class="lg">N</div><div class="tt">Notify+</div><span class="ia">⤴</span><span class="ia">ⓘ</span></div>
+          <div class="body"><div class="scroll" style="gap:11px">
+            <div class="N-strip"><i></i><span class="t">服務運行中</span><span class="s">正在接聽 LINE 通知</span></div>
+
+            <div class="N-master">
+              <div class="N-mrow">
+                <div class="tx">
+                  <div class="t1">啟用完整通知</div>
+                  <div class="t2">攔截 LINE 通知，把訊息整理成完整對話顯示</div>
+                </div>
+                <div class="sw on"><i></i></div>
+              </div>
+              <div class="N-child">
+                <div class="N-mrow">
+                  <div class="tx">
+                    <div class="t1">取代原始通知<span class="N-inf">i</span></div>
+                    <div class="t2">隱藏 LINE 原本的通知，僅顯示完整通知</div>
+                  </div>
+                  <div class="sw sm on"><i></i></div>
+                </div>
+              </div>
+            </div>
+
+            <div class="N-lbl">通知風格</div>
+            <div class="N-styles">
+              <div class="N-style on">
+                <div class="tick"></div>
+                <div class="nm">對話串</div>
+                <div class="ds">同聊天室合併成一則</div>
+                <div class="N-prev">
+                  <div class="N-pv"><span class="d"></span><span class="l"></span></div>
+                  <div class="N-pv" style="padding:4px 5px 5px"><span class="d" style="opacity:0"></span>
+                    <div style="flex:1;display:flex;flex-direction:column;gap:2.5px"><span class="l"></span><span class="l s"></span></div></div>
+                </div>
+              </div>
+              <div class="N-style">
+                <div class="tick"></div>
+                <div class="nm">Apple 分組</div>
+                <div class="ds">每則訊息獨立顯示</div>
+                <div class="N-prev">
+                  <div class="N-pv"><span class="d"></span><span class="l"></span></div>
+                  <div class="N-stack"><i style="top:0;opacity:.85"></i></div>
+                  <div class="N-stack" style="height:4px"><i style="left:10px;right:10px;opacity:.5"></i></div>
+                </div>
+              </div>
+            </div>
+
+            <div class="N-lbl">通知清除時機</div>
+            <div class="N-group">
+              <div class="N-gr"><div class="N-gi">↩</div>
+                <div class="tx"><div class="t1">回覆後清除通知</div><div class="t2">回覆後過一秒自動清除</div></div>
+                <div class="sw sm on"><i></i></div></div>
+              <div class="N-gr"><div class="N-gi">👁</div>
+                <div class="tx"><div class="t1">已讀後自動清除</div><div class="t2">在 LINE 讀過後盡量同步關閉</div></div>
+                <div class="sw sm on"><i></i></div></div>
+            </div>
+
+            <div class="N-group">
+              <div class="N-gr"><div class="N-gi">💬</div><div class="tx"><div class="t1">管理個別聊天室</div></div><span class="chev">›</span></div>
+              <div class="N-gr"><div class="N-gi">🌐</div><div class="tx"><div class="t1">語言</div></div><span class="val">系統語言</span><span class="chev">›</span></div>
+              <div class="N-gr"><div class="N-gi">?</div><div class="tx"><div class="t1">教學與 FAQ</div></div><span class="chev">›</span></div>
+              <div class="N-gr"><div class="N-gi">＋</div><div class="tx"><div class="t1">加入 Notify+ 官方帳號</div></div><span class="chev">›</span></div>
+            </div>
+            <div class="N-foot">Notify+ 沒有網路權限，訊息不會離開這台裝置</div>
+          </div></div>
+        </div></div>
+      </div>
+      <div class="notes">
+        <h4>首頁：把層級畫出來</h4>
+        <ul>
+          <li><b>狀態縮成一行。</b>正常運作時它只需要一顆綠點加一行字，省下的整塊空間留給真正的控制項。</li>
+          <li><b>主開關獨立成一張白卡</b>，是全頁唯一有陰影、字最大的元件。「取代原始通知」縮排在它底下、開關變小，從屬關係一眼看得出來，資訊圖示也保留原本的 dialog 說明。</li>
+          <li><b>通知風格從摺疊區拉出來</b>，變成兩張帶通知縮圖的卡。這是原本就有的設定，只是第一次真的被看見——縮圖用的是 <code>NotificationStyleVisualGuide</code> 已經在畫的那組示意。</li>
+          <li><b>「通知清除時機」用回 strings 裡本來就有的 <code>clear_timing_title</code></b> 當分組標題，兩個開關終於有了歸屬，不再是一串平鋪的列。</li>
+          <li><b>四個入口收成一組列表。</b>官方帳號從全頁最搶眼的綠色實心按鈕，降級成一列——它本來就不是主要動作。</li>
+          <li><b>底部一行常駐聲明。</b>這句話 <code>chat_info_privacy_body</code> 裡已經有了，只是藏在聊天室說明的 dialog 深處。</li>
+        </ul>
+      </div>
+    </div>
+
+    <!-- 2 -->
+    <div class="cmp">
+      <div>
+        <div class="ptitle o">現況 · 尚未授權</div>
+        <div class="phone"><div class="screen O">
+          <div class="sb"><span>1:41</span><span>▮▮ ◍ 100</span></div>
+          <div class="O-bar"><div class="lg">💬</div><div class="tt">Notify+</div><span class="ia">⤴</span><span class="ia">ⓘ</span></div>
+          <div class="body"><div class="scroll">
+            <div class="O-card stat" style="background:#f9dedc">
+              <div class="h">✗ 服務未啟用</div><div class="s">需要授權通知存取權限才能運作</div>
+            </div>
+            <div class="O-card" style="background:#f3f0f4">
+              <div class="ct" style="font-size:17px;font-weight:700">完成 2 個權限設定</div>
+              <div style="font-size:12.5px;color:#42474e;line-height:1.5">Notify+ 需要先讀到 LINE 通知，再發出整理後的堆疊版本通知。兩個權限都完成後，服務才會開始運作。</div>
+              <div class="O-hr"></div>
+              <div class="O-row"><div class="tx"><div class="t1">通知存取權限</div><div class="t2">允許 App 讀取 LINE 原始通知，用來重新整理成對話串或 Apple 分組。</div></div><div style="font-size:11.5px;color:#42474e">待設定</div></div>
+              <div class="O-hr"></div>
+              <div class="O-row"><div class="tx"><div class="t1">通知發送權限</div><div class="t2">允許 App 發出新的堆疊版本通知。Android 12 以下不需要另外授權。</div></div><div style="font-size:11.5px;color:#42474e">已完成</div></div>
+            </div>
+            <div class="O-btn f">開啟通知存取權限</div>
+            <div class="O-btn">教學與 FAQ</div>
+          </div></div>
+        </div></div>
+      </div>
+      <div>
+        <div class="ptitle n">改版 · 尚未授權</div>
+        <div class="phone"><div class="screen N">
+          <div class="sb"><span>1:41</span><span>▮▮ ◍ 100</span></div>
+          <div class="N-bar"><div class="lg">N</div><div class="tt">Notify+</div><span class="ia">⤴</span><span class="ia">ⓘ</span></div>
+          <div class="body"><div class="scroll" style="gap:12px">
+            <div class="N-alert">
+              <div class="h">還差 1 步就會開始運作</div>
+              <div class="b">Notify+ 需要先讀到 LINE 通知，再發出整理後的完整通知。兩個權限都完成後，服務才會啟動。</div>
+              <div class="N-step">
+                <div class="k todo">1</div>
+                <div class="tx"><div class="t1">通知存取權限</div><div class="t2">允許讀取 LINE 原始通知</div></div>
+                <div class="go">前往設定 ›</div>
+              </div>
+              <div class="N-step">
+                <div class="k done">✓</div>
+                <div class="tx"><div class="t1">通知發送權限</div><div class="t2">已完成</div></div>
+              </div>
+            </div>
+            <div style="background:#05873c;color:#fff;border-radius:13px;padding:13px;text-align:center;font-size:14px;font-weight:800">
+              開啟通知存取權限
+            </div>
+            <div class="N-lbl">先了解一下</div>
+            <div class="N-group">
+              <div class="N-gr"><div class="N-gi">✦</div>
+                <div class="tx"><div class="t1">Notify+ 是什麼</div><div class="t2">把同一個聊天室的訊息整理成完整的一則</div></div><span class="chev">›</span></div>
+              <div class="N-gr"><div class="N-gi">?</div>
+                <div class="tx"><div class="t1">教學與 FAQ</div><div class="t2">含各廠牌背景常駐設定</div></div><span class="chev">›</span></div>
+            </div>
+            <div class="N-foot">Notify+ 沒有網路權限，訊息不會離開這台裝置</div>
+          </div></div>
+        </div></div>
+      </div>
+      <div class="notes">
+        <h4>未授權：狀態卡與引導卡不該同時存在</h4>
+        <ul>
+          <li><b>現況會同時出現兩張卡在講同一件事</b>：紅色的「✗ 服務未啟用」和底下的「完成 2 個權限設定」。第一張沒有帶任何資訊或動作，純粹是重複。</li>
+          <li><b>合併成一張。</b>標題改成進度導向的「還差 1 步」而不是失敗導向的「服務未啟用」——同樣的狀態，但告訴使用者離完成有多近。</li>
+          <li><b>已完成的那一步用綠勾收起來</b>，待辦那步直接掛上「前往設定」。使用者不用自己在卡片和底下的按鈕之間對應。</li>
+          <li><b>這一頁不顯示任何設定。</b>現況已經是這樣（<code>isListenerEnabled</code> 為 false 時不 render <code>SettingsCard</code>），改版維持相同邏輯，只是補上「先了解一下」讓等待中的使用者有事可做。</li>
+        </ul>
+      </div>
+    </div>
+
+    <!-- 3 -->
+    <div class="cmp">
+      <div>
+        <div class="ptitle o">現況 · 聊天室管理</div>
+        <div class="phone"><div class="screen O">
+          <div class="sb"><span>1:42</span><span>▮▮ ◍ 100</span></div>
+          <div class="O-bar"><span class="ia">←</span><div class="tt">聊天室管理</div><span class="ia">🔍</span><span class="ia">ⓘ</span></div>
+          <div class="body"><div class="scroll" style="gap:11px">
+            <div style="display:flex;gap:7px;align-items:center">
+              <span class="O-chip on">全部</span><span class="O-chip">好友</span><span class="O-chip">群組</span><span class="O-chip">社群</span>
+              <span class="O-chip" style="margin-left:auto">名稱 ⌄</span>
+            </div>
+            <div>
+              <div class="O-crow"><div class="av" style="background:#8e9aaf">柔</div><div style="flex:1"><div class="nm">陳雨柔</div><div class="ty">好友</div></div><div class="O-sw"><i></i></div></div>
+              <div class="O-crow"><div class="av" style="background:#1e6fd9">D</div><div style="flex:1"><div class="nm">Dcard 官方小秘書</div><div class="ty">好友</div></div><div class="O-sw"><i></i></div></div>
+              <div class="O-crow"><div class="av" style="background:#c48b9f">若</div><div style="flex:1"><div class="nm">Eva 若溱</div><div class="ty">好友</div></div><div class="O-sw"><i></i></div></div>
+              <div class="O-crow"><div class="av" style="background:#6b4f3f">F</div><div style="flex:1"><div class="nm">Franco 施</div><div class="ty">好友</div></div><div class="O-sw"><i></i></div></div>
+              <div class="O-crow"><div class="av" style="background:#06c755">發</div><div style="flex:1"><div class="nm">發票管家</div><div class="ty">好友</div></div><div class="O-sw"><i></i></div></div>
+              <div class="O-crow"><div class="av" style="background:#22c55e">禮</div><div style="flex:1"><div class="nm">禮物通知</div><div class="ty">好友</div></div><div class="O-sw"><i></i></div></div>
+              <div class="O-crow"><div class="av" style="background:#f97316">M</div><div style="flex:1"><div class="nm">Miko 手機館</div><div class="ty">好友</div></div><div class="O-sw"><i></i></div></div>
+              <div class="O-crow"><div class="av" style="background:#111">N</div><div style="flex:1"><div class="nm">Nothing Taiwan</div><div class="ty">群組</div></div><div class="O-sw"><i></i></div></div>
+            </div>
+          </div></div>
+        </div></div>
+      </div>
+      <div>
+        <div class="ptitle n">改版 · 聊天室管理</div>
+        <div class="phone"><div class="screen N">
+          <div class="sb"><span>1:42</span><span>▮▮ ◍ 100</span></div>
+          <div class="N-bar"><span class="ia">←</span><div class="tt" style="font-size:16px">聊天室管理</div><span class="ia">⌥</span><span class="ia">ⓘ</span></div>
+          <div class="body"><div class="scroll" style="gap:10px">
+            <div class="N-search">🔍　搜尋聊天室</div>
+            <div class="N-chips">
+              <span class="N-chip on">全部</span><span class="N-chip">好友</span><span class="N-chip">群組</span><span class="N-chip">社群</span>
+              <span class="N-chip" style="margin-left:auto">最新 ⌄</span>
+            </div>
+            <div class="N-sec">好友 · 34</div>
+            <div class="N-group">
+              <div class="N-crow"><div class="av" style="background:#8e9aaf">柔</div>
+                <div style="flex:1"><div class="nm">陳雨柔</div><div class="st on">已啟用完整通知</div></div><div class="sw sm on"><i></i></div></div>
+              <div class="N-crow"><div class="av" style="background:#1e6fd9">D</div>
+                <div style="flex:1"><div class="nm">Dcard 官方小秘書</div><div class="st off">已完全靜音</div></div><div class="sw sm"><i></i></div></div>
+              <div class="N-crow"><div class="av" style="background:#c48b9f">若</div>
+                <div style="flex:1"><div class="nm">Eva 若溱</div><div class="st on">已啟用完整通知</div></div><div class="sw sm on"><i></i></div></div>
+              <div class="N-crow"><div class="av" style="background:#f97316">M</div>
+                <div style="flex:1"><div class="nm">Miko 手機館<span class="N-tag">手動</span></div><div class="st legacy">舊設定：保留 LINE 原通知</div></div><div class="sw sm on"><i></i></div></div>
+              <div class="N-crow"><div class="av" style="background:#06c755">發</div>
+                <div style="flex:1"><div class="nm">發票管家</div><div class="st off">已完全靜音</div></div><div class="sw sm"><i></i></div></div>
+            </div>
+            <div class="N-sec">群組 · 12</div>
+            <div class="N-group">
+              <div class="N-crow"><div class="av" style="background:#111">N</div>
+                <div style="flex:1"><div class="nm">Nothing Taiwan</div><div class="st on">已啟用完整通知</div></div><div class="sw sm on"><i></i></div></div>
+              <div class="N-crow"><div class="av" style="background:#0891b2">設</div>
+                <div style="flex:1"><div class="nm">設計組</div><div class="st on">已啟用完整通知</div></div><div class="sw sm on"><i></i></div></div>
+            </div>
+          </div></div>
+        </div></div>
+      </div>
+      <div class="notes">
+        <h4>聊天室：讓狀態說話，而不是讓開關自己解釋</h4>
+        <ul>
+          <li><b>副標從「好友／群組」換成實際狀態。</b><code>chat_status_enabled</code>／<code>chat_status_disabled</code>／<code>chat_legacy_original_only</code> 這三個字串本來就存在，但目前列上顯示的是分類——而分類已經由上面的 chip 和分區標題表達過了，重複佔位。</li>
+          <li><b>「舊設定」用琥珀色標出來。</b>這是 v1.3.0 最容易讓人困惑的狀態（關了卻還會跳 LINE 原通知），現在能一眼掃出哪幾間需要重開再關。</li>
+          <li><b>依分類分區並顯示數量</b>，取代一條到底的長清單。142 間聊天室時，這是唯一能維持可讀性的做法。</li>
+          <li><b>右上角改成選取模式的入口。</b>批次選取（<code>chat_select_all</code>、<code>chat_bulk_enable</code>）已經實作了，但目前沒有明顯的進入點。</li>
+          <li><b>搜尋常駐</b>而不是藏在放大鏡後面——有幾百間聊天室時，搜尋是主要導覽方式，不是次要動作。</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section>
+  <div class="wrap">
+    <h2 class="sec">設計 Token</h2>
+    <h3 class="big">綠色留著，但要分成四階</h3>
+    <p class="lede" style="font-size:15px;margin-bottom:4px">
+      單一個 <code>#06C755</code> 撐不起整個介面——它太亮，白字放上去只有 <b>2.26:1</b> 對比，遠低於 WCAG AA 的 4.5:1。
+      解法不是換掉綠色，而是把它拆成「裝飾用」與「承載文字用」兩種深淺。
+      你的 <code>Color.kt</code> 其實已經有 <code>Green30 #059B43</code>、<code>LightGreen</code>、<code>DarkGreen</code>，只是沒被用起來。
+    </p>
+    <div class="tok">
+      <div class="tk">
+        <div class="sws">
+          <i style="background:#06c755"></i><i style="background:#05a847"></i><i style="background:#05873c"></i><i style="background:#04672c"></i>
+        </div>
+        <b>四階綠</b>
+        <p>
+          <code>#06C755</code> 標誌與狀態點（裝飾，不放字）<br>
+          <code>#05A847</code> 開關軌道、選取邊框（對白底 3.1:1 ✓）<br>
+          <code>#05873C</code> 實心按鈕底（白字 4.6:1 ✓）<br>
+          <code>#04672C</code> 綠色文字（白底 7.0:1 ✓）
+        </p>
+      </div>
+      <div class="tk">
+        <div class="sws"><i style="background:#f0f9f2;border:1px solid var(--line)"></i><i style="background:#1b3a21"></i></div>
+        <b>關掉 dynamicColor</b>
+        <p>這是最關鍵的一行。目前 <code>dynamicColor = true</code>，Android 12 以上會用桌布取色覆蓋掉你的綠色——大多數使用者看到的根本不是 LINE 綠。關掉之後綠色才真的會出現，Play 截圖也才會跟實機一致。</p>
+      </div>
+      <div class="tk">
+        <div class="sws"><i style="background:#fafbfc;border:1px solid var(--line)"></i><i style="background:#fff;border:1px solid var(--line)"></i><i style="background:#eef0f4"></i><i style="background:#14161c"></i></div>
+        <b>表面：白卡浮在淺灰底</b>
+        <p>現況是灰卡浮在白底，導致卡片看起來比背景「低」。反過來之後，主控制卡加一層極淺陰影就能自然浮起，不必靠顏色搶注意力。</p>
+      </div>
+      <div class="tk scale">
+        <div style="font-size:19px;font-weight:800">主控制 19/800</div>
+        <div style="font-size:15px;font-weight:700;margin-top:2px">區塊標題 15/700</div>
+        <div style="font-size:13px;font-weight:600;margin-top:2px">列標題 13/600</div>
+        <div style="font-size:11px;color:var(--ink3);margin-top:2px">說明文字 11/400</div>
+        <b style="margin-top:11px">四級字階</b>
+        <p>現況大多落在預設 M3 字級，主開關和說明文字的對比不夠。四級就足夠拉開層級。</p>
+      </div>
+      <div class="tk">
+        <div class="sws"><i style="background:#0f1115"></i><i style="background:#191c22"></i><i style="background:#252a33"></i><i style="background:#3ddc84"></i></div>
+        <b>深色模式</b>
+        <p>深色底上的綠要提亮到 <code>#3DDC84</code> 一帶才夠對比，直接沿用 <code>#06C755</code> 會顯得髒。現況靠 <code>dynamicDarkColorScheme</code>，品牌同樣不受控。</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section style="border-bottom:none">
+  <div class="wrap">
+    <h2 class="sec">功能對照</h2>
+    <h3 class="big">每一個控制項都還在</h3>
+    <p class="lede" style="font-size:15px">逐項核對現有 <code>MainActivity.kt</code> 的每個 composable 與 <code>strings.xml</code> 的每個設定，確認改版沒有刪掉或新增任何能力。</p>
+    <table>
+      <tr><th>現有控制項</th><th>狀態</th><th>改版後的位置</th></tr>
+      <tr><td>啟用完整通知（主開關）</td><td class="k">保留</td><td>首頁主控制卡，全頁最大的元件</td></tr>
+      <tr><td>取代原始通知 + ⓘ 說明 dialog</td><td class="k">保留</td><td>縮排為主開關的子項，dialog 不變</td></tr>
+      <tr><td>對話串／Apple 分組（radio）</td><td class="k">保留</td><td>從進階區提到首頁，改為兩張選擇卡</td></tr>
+      <tr><td>通知風格示意圖 dialog</td><td class="k">保留</td><td>點選擇卡上的 ⓘ 開啟，內容不變</td></tr>
+      <tr><td>回覆後清除通知</td><td class="k">保留</td><td>「通知清除時機」分組第 1 列</td></tr>
+      <tr><td>已讀後自動清除通知</td><td class="k">保留</td><td>「通知清除時機」分組第 2 列</td></tr>
+      <tr><td>語言（系統／繁中／English）</td><td class="k">保留</td><td>入口列表，右側顯示目前值</td></tr>
+      <tr><td>管理個別聊天室</td><td class="k">保留</td><td>入口列表第 1 列</td></tr>
+      <tr><td>教學與 FAQ</td><td class="k">保留</td><td>入口列表第 3 列</td></tr>
+      <tr><td>加入 Notify+ 官方帳號</td><td class="k">保留</td><td>入口列表第 4 列（降級，不再是實心按鈕）</td></tr>
+      <tr><td>分享 App / App 資訊</td><td class="k">保留</td><td>頂欄右側，位置不變</td></tr>
+      <tr><td>服務狀態（運行中／未啟用／已關閉）</td><td class="k">保留</td><td>正常＝一行狀態條，異常＝警示卡</td></tr>
+      <tr><td>權限兩步驟引導</td><td class="k">保留</td><td>與狀態卡合併為單一警示卡</td></tr>
+      <tr><td>開啟通知存取／允許通知發送</td><td class="k">保留</td><td>警示卡內的行動 + 主要按鈕</td></tr>
+      <tr><td>聊天室篩選 chip／排序／搜尋</td><td class="k">保留</td><td>搜尋改為常駐，chip 與排序位置不變</td></tr>
+      <tr><td>聊天室開關／批次選取／刪除／更正分類</td><td class="k">保留</td><td>列設計重做，批次選取補上明顯入口</td></tr>
+      <tr><td>平板雙欄（sw600dp / sw720dp）</td><td class="k">保留</td><td>同樣的分組，左欄控制、右欄清單與入口</td></tr>
+    </table>
+    <div class="rules" style="margin-top:26px;max-width:none;grid-template-columns:1fr 1fr 1fr">
+      <div class="rule yes"><b>不變的東西</b><ul>
+        <li>權限仍只有 2 個，沒有 INTERNET</li>
+        <li>Data safety 維持 No data collected</li>
+        <li>listener / classifier / 通知組裝完全沒動</li>
+        <li>42 個 JVM 測試不受影響</li>
+      </ul></div>
+      <div class="rule"><b>改動範圍</b><ul>
+        <li><code>ui/theme/Color.kt</code>、<code>Theme.kt</code></li>
+        <li><code>MainActivity.kt</code> 的 composable 排版</li>
+        <li><code>ChatManagementActivity.kt</code> 的列與分區</li>
+        <li>可選：少量 strings 的分組標題</li>
+      </ul></div>
+      <div class="rule"><b>送審影響</b><ul>
+        <li>需重拍 Play 截圖（本來就要重拍）</li>
+        <li>icon 維持現行綠底白氣泡，不需重做</li>
+        <li>不觸發任何新的政策審查項目</li>
+        <li>可在 vc17 送審前完成</li>
+      </ul></div>
+    </div>
+  </div>
+</section>
+
+<footer>
+  <div class="wrap">
+    Notify+ · Option 0 — UI Refresh：功能零變動的介面改版提案<br>
+    「現況」畫面依 <code>MainActivity.kt</code> 與 <code>strings.xml</code> 重建 · 聊天室名稱為虛構示意
+  </div>
+</footer>
+
+</body>
+</html>
