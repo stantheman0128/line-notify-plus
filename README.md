@@ -7,11 +7,11 @@ Android 上的 LINE 通知整理工具：攔截原始訊息通知並重新組合
 | | |
 |---|---|
 | **Package** | `com.stanslab.linenotify` |
-| **目前版本** | versionName `1.2.1` / versionCode `15` |
+| **目前版本** | versionName `1.5.0` / versionCode `31` |
 | **狀態** | **尚未上架**（vc12 因 Impersonation policy 退件 → 已改名「Notify+」，待重交 Production；見 `play-store-assets/play-console-progress.md`） |
 | **GitHub** | https://github.com/stantheman0128/line-notify-plus |
 | **技術** | Kotlin · Jetpack Compose · Gradle（minSdk 26 / targetSdk 35） |
-| **核心機制** | `NotificationListenerService`（**非** AccessibilityService）讀通知；`POST_NOTIFICATIONS` 重發 |
+| **核心機制** | `NotificationListenerService` 讀通知、`POST_NOTIFICATIONS` 重發；選配的窄範圍 `AccessibilityService` 只用來偵測 LINE 聊天室已開啟 |
 
 ## 資料夾結構
 
@@ -27,7 +27,7 @@ line-notify/
 │       │       ├── drawable/ic_launcher_foreground.xml  ← ⭐ icon 向量唯一正解（0.80 縮放、齒輪不裁切）
 │       │       ├── values/ · values-en/          ← i18n（繁中 / 英，新字串兩份都要加）
 │       │       └── values-sw600dp/ · values-sw720dp/  ← 平板 layout
-│       └── test/             ← JVM 單元測試：分類／偏好／mirror 配對／ChatRoom 回歸（38 案例）
+│       └── test/             ← JVM 單元測試：分類／偏好／mirror 配對／ChatRoom／畫面配對／升級遷移（50 案例）
 │                                跑 ./gradlew.bat testDebugUnitTest
 ├── docs/                     ← GitHub Pages：privacy-policy.html（Play Console 用的隱私權 URL）
 ├── play-store-assets/        ← 上架素材（見下方說明）

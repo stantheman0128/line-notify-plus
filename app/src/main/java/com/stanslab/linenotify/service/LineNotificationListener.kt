@@ -27,12 +27,13 @@ import androidx.core.graphics.drawable.IconCompat
 import com.stanslab.linenotify.R
 import com.stanslab.linenotify.model.ChatMessage
 import com.stanslab.linenotify.model.ChatRoom
+import org.json.JSONObject
 
 class LineNotificationListener : NotificationListenerService() {
 
     companion object {
         private const val TAG = "LineNotify"
-        private val LINE_PACKAGES = setOf(
+        internal val LINE_PACKAGES = setOf(
             "jp.naver.line.android",
             "com.linecorp.line",
         )
@@ -48,9 +49,16 @@ class LineNotificationListener : NotificationListenerService() {
         const val KEY_NOTIFICATION_STYLE = "notification_style"
         const val KEY_CLEAR_AFTER_REPLY = "clear_after_reply"
         const val KEY_CLEAR_AFTER_READ = "clear_after_read"
+        const val KEY_ACCESSIBILITY_READ_SYNC = "accessibility_read_sync"
         const val KEY_CHAT_LAST_ACTIVE = "chat_last_active"   // JSON {聊天室名: epochMillis}
         const val KEY_CHAT_SORT = "chat_sort"                 // "recent" | "name" | "type"
-        private const val KEY_LEGACY_SENTINEL_CLEANUP = "legacy_sentinel_cleanup_v1_4_5"
+        // 使用新 key，確保曾跑過 vc30 舊清理流程的安裝仍會執行 v1.5.0 的安全遷移。
+        private const val KEY_LEGACY_SENTINEL_CLEANUP = "legacy_sentinel_cleanup_v1_5_0"
+        private const val KEY_LEGACY_SENTINEL_RELEASE_MARKERS =
+            "legacy_sentinel_release_markers_v1_5_0"
+        // 100ms release callback 正常會立刻抵達；15 秒只用來跨越短暫 process/service 重建，
+        // 避免標記留太久而碰到同 key、同內容的真正新訊息。
+        private const val LEGACY_SENTINEL_RELEASE_WINDOW_MS = 15_000L
         private const val AVATAR_DIR = "chat_avatars"
 
         // roomKey 分隔字元：profileKey 是純數字（hashCode），用 ":" 即保證 (profile,聊天室) 唯一對應
@@ -66,11 +74,11 @@ class LineNotificationListener : NotificationListenerService() {
         private const val THREAD_NOTIFICATION_ID = 1
         private const val SUMMARY_NOTIFICATION_ID = 2
         private const val APPLE_CHILD_NOTIFICATION_ID = 3
-        private const val EXTRA_ROOM_KEY = "com.stanslab.linenotify.extra.ROOM_KEY"
-        private const val EXTRA_CHAT_TITLE = "com.stanslab.linenotify.extra.CHAT_TITLE"
+        internal const val EXTRA_ROOM_KEY = "com.stanslab.linenotify.extra.ROOM_KEY"
+        internal const val EXTRA_CHAT_TITLE = "com.stanslab.linenotify.extra.CHAT_TITLE"
         private const val EXTRA_NOTIFICATION_KIND = "com.stanslab.linenotify.extra.NOTIFICATION_KIND"
         private const val EXTRA_IS_GROUP = "com.stanslab.linenotify.extra.IS_GROUP"
-        private const val EXTRA_PROFILE_KEY = "com.stanslab.linenotify.extra.PROFILE_KEY"
+        internal const val EXTRA_PROFILE_KEY = "com.stanslab.linenotify.extra.PROFILE_KEY"
         private const val EXTRA_POST_GENERATION = "com.stanslab.linenotify.extra.POST_GENERATION"
         private const val MAX_APPLE_CHILDREN_PER_ROOM = 8
         private const val MAX_APPLE_CHILDREN_TOTAL = 24
@@ -123,6 +131,8 @@ class LineNotificationListener : NotificationListenerService() {
     private val pendingAppleRefCounts = mutableMapOf<NotificationRef, Int>()
     private val pendingThreadRefCounts = mutableMapOf<NotificationRef, Int>()
     private val pendingOriginalCancels = mutableMapOf<String, Runnable>()
+    private val legacySentinelReleaseMarkers =
+        mutableMapOf<String, LegacySentinelMigration.Marker>()
     private val recentMirroredVariants = linkedMapOf<String, MirroredVariantEntry>()
     private val mirrorPoisonUntil = mutableMapOf<String, Long>()
     private val nextPostGeneration = java.util.concurrent.atomic.AtomicLong(System.currentTimeMillis())
@@ -497,6 +507,7 @@ class LineNotificationListener : NotificationListenerService() {
         super.onCreate()
         instance = this
         prefs = getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+        loadLegacySentinelReleaseMarkers()
         createNotificationChannel()
         Log.d(TAG, "Notify+ 服務啟動")
     }
@@ -536,25 +547,151 @@ class LineNotificationListener : NotificationListenerService() {
 
     /**
      * v1.4.1～v1.4.4 曾把 LINE 原通知 snooze 最長七天。移除該方案後，Android 仍會保留
-     * 那些系統層紀錄，導致同 key 的新訊息繼續被藏住；升級後只做一次短期 snooze，讓未取消的
-     * 通知回到正常佇列，已被 LINE 取消的紀錄則會由系統直接丟棄。
+     * 那些系統層紀錄，導致同 key 的新訊息繼續被藏住；升級後只做一次短期 snooze。未取消的
+     * 舊通知回放會先以持久 marker 攔下再丟棄，已被 LINE 取消的紀錄則由系統直接丟棄。
      */
     private fun releaseLegacyLineSentinelsOnce() {
+        discardActiveLegacySentinelReposts()
         if (prefs.getBoolean(KEY_LEGACY_SENTINEL_CLEANUP, false)) return
         val snoozed = runCatching { getSnoozedNotifications().orEmpty() }.getOrElse {
             Log.w(TAG, "無法查詢舊版 snooze 通知；下次連線再重試", it)
             return
         }
-        val lineKeys = snoozed
+        val lineNotifications = snoozed
             .filter { it.packageName in LINE_PACKAGES }
             .filter { NotificationClassifier.isSupportedMessageChannel(it.notification.channelId) }
             .filterNot { isCallNotification(it.notification) }
-            .map { it.key }
-        lineKeys.forEach { key -> runCatching { snoozeNotification(key, 100L) } }
-        prefs.edit().putBoolean(KEY_LEGACY_SENTINEL_CLEANUP, true).apply()
-        if (lineKeys.isNotEmpty()) {
-            Log.w(TAG, "已釋放舊版隱藏的 LINE 通知 count=${lineKeys.size}")
+        val expiresAt = System.currentTimeMillis() + LEGACY_SENTINEL_RELEASE_WINDOW_MS
+        lineNotifications.forEach { sbn ->
+            legacySentinelReleaseMarkers[sbn.key] = LegacySentinelMigration.Marker(
+                fingerprint = legacySentinelFingerprint(sbn),
+                expiresAtMillis = expiresAt,
+            )
         }
+        if (lineNotifications.isNotEmpty() && !persistLegacySentinelReleaseMarkers()) {
+            Log.w(TAG, "無法保存舊 snooze 清理標記；保留原狀並在下次連線重試")
+            legacySentinelReleaseMarkers.clear()
+            return
+        }
+        var releasedCount = 0
+        lineNotifications.forEach { sbn ->
+            runCatching { snoozeNotification(sbn.key, 100L) }
+                .onSuccess { releasedCount++ }
+                .onFailure {
+                    legacySentinelReleaseMarkers.remove(sbn.key)
+                    Log.w(TAG, "無法釋放一則舊 snooze 通知；下次連線再重試", it)
+                }
+        }
+        persistLegacySentinelReleaseMarkers()
+        if (releasedCount == lineNotifications.size) {
+            prefs.edit().putBoolean(KEY_LEGACY_SENTINEL_CLEANUP, true).commit()
+        }
+        scheduleLegacySentinelMarkerExpiry()
+        if (releasedCount > 0) {
+            Log.w(TAG, "正在安全移除舊版隱藏的 LINE 通知 count=$releasedCount")
+        }
+    }
+
+    private fun loadLegacySentinelReleaseMarkers() {
+        val raw = prefs.getString(KEY_LEGACY_SENTINEL_RELEASE_MARKERS, null) ?: return
+        runCatching {
+            val root = JSONObject(raw)
+            root.keys().forEach { key ->
+                val marker = root.getJSONObject(key)
+                legacySentinelReleaseMarkers[key] = LegacySentinelMigration.Marker(
+                    fingerprint = marker.getString("fingerprint"),
+                    expiresAtMillis = marker.getLong("expiresAtMillis"),
+                )
+            }
+            pruneLegacySentinelReleaseMarkers(System.currentTimeMillis())
+        }.onFailure {
+            legacySentinelReleaseMarkers.clear()
+            prefs.edit().remove(KEY_LEGACY_SENTINEL_RELEASE_MARKERS).apply()
+            Log.w(TAG, "舊 snooze 清理標記損壞，已捨棄", it)
+        }
+    }
+
+    private fun persistLegacySentinelReleaseMarkers(): Boolean {
+        val root = JSONObject()
+        legacySentinelReleaseMarkers.forEach { (key, marker) ->
+            root.put(
+                key,
+                JSONObject()
+                    .put("fingerprint", marker.fingerprint)
+                    .put("expiresAtMillis", marker.expiresAtMillis),
+            )
+        }
+        val editor = prefs.edit()
+        if (legacySentinelReleaseMarkers.isEmpty()) {
+            editor.remove(KEY_LEGACY_SENTINEL_RELEASE_MARKERS)
+        } else {
+            editor.putString(KEY_LEGACY_SENTINEL_RELEASE_MARKERS, root.toString())
+        }
+        return editor.commit()
+    }
+
+    private fun pruneLegacySentinelReleaseMarkers(nowMillis: Long) {
+        val removed = legacySentinelReleaseMarkers.entries.removeAll { (_, marker) ->
+            nowMillis > marker.expiresAtMillis
+        }
+        if (removed) persistLegacySentinelReleaseMarkers()
+    }
+
+    private fun scheduleLegacySentinelMarkerExpiry() {
+        val nextExpiry = legacySentinelReleaseMarkers.values
+            .minOfOrNull { it.expiresAtMillis }
+            ?: return
+        val delay = (nextExpiry - System.currentTimeMillis() + 1L).coerceAtLeast(1L)
+        handler.postDelayed({
+            pruneLegacySentinelReleaseMarkers(System.currentTimeMillis())
+            scheduleLegacySentinelMarkerExpiry()
+        }, delay)
+    }
+
+    private fun legacySentinelFingerprint(sbn: StatusBarNotification): String {
+        val notification = sbn.notification
+        val extras = notification.extras
+        val style = runCatching {
+            NotificationCompat.MessagingStyle.extractMessagingStyleFromNotification(notification)
+        }.getOrNull()
+        val messages = style?.messages.orEmpty().joinToString(separator = "\u0001") { message ->
+            "${message.timestamp}\u0000${message.person?.name}\u0000${message.text}"
+        }
+        val canonical = buildString {
+            append(notification.channelId).append('\u0000')
+            append(extras.getCharSequence(Notification.EXTRA_TITLE)).append('\u0000')
+            append(extras.getCharSequence(Notification.EXTRA_SUB_TEXT)).append('\u0000')
+            append(extras.getCharSequence(Notification.EXTRA_TEXT)).append('\u0000')
+            // snooze/repost 可能改動 Notification.when；原 StatusBarNotification.postTime
+            // 會隨 framework 保存的 record 回來，新 notify() 才會得到新的 postTime。
+            append(sbn.postTime).append('\u0000')
+            append(messages)
+        }
+        return NotificationClassifier.dedupeFingerprint(sbn.key, canonical, sbn.postTime)
+    }
+
+    private fun consumeLegacySentinelRepost(sbn: StatusBarNotification): Boolean {
+        val marker = legacySentinelReleaseMarkers[sbn.key] ?: return false
+        val now = System.currentTimeMillis()
+        val fingerprint = legacySentinelFingerprint(sbn)
+        val discard = LegacySentinelMigration.shouldDiscardRepost(marker, fingerprint, now)
+        if (discard || LegacySentinelMigration.shouldRemoveMarker(marker, fingerprint, now)) {
+            legacySentinelReleaseMarkers.remove(sbn.key)
+            persistLegacySentinelReleaseMarkers()
+        }
+        if (!discard) return false
+        cancelNotification(sbn.key)
+        Log.d(TAG, "已捨棄舊 snooze 回放 keyHash=${sbn.key.hashCode()}")
+        return true
+    }
+
+    private fun discardActiveLegacySentinelReposts() {
+        if (legacySentinelReleaseMarkers.isEmpty()) return
+        runCatching { activeNotifications.orEmpty() }
+            .getOrDefault(emptyArray())
+            .filter { it.packageName in LINE_PACKAGES }
+            .forEach(::consumeLegacySentinelRepost)
+        scheduleLegacySentinelMarkerExpiry()
     }
 
     override fun onListenerDisconnected() {
@@ -637,6 +774,7 @@ class LineNotificationListener : NotificationListenerService() {
 
     override fun onNotificationPosted(sbn: StatusBarNotification) {
         if (sbn.packageName !in LINE_PACKAGES) return
+        if (consumeLegacySentinelRepost(sbn)) return
 
         // LINE 可能在 200ms 取消延遲內用相同 key 更新通知。先撤掉舊任務，否則舊訊息的
         // runnable 會誤殺剛更新的敏感占位通知或來電通知。
@@ -1016,6 +1154,11 @@ class LineNotificationListener : NotificationListenerService() {
             if (ref.tag.isEmpty()) manager.cancel(ref.id) else manager.cancel(ref.tag, ref.id)
         }
         chatRooms.remove(roomKey)?.clearMessages()
+    }
+
+    internal fun clearChatGroupFromAccessibility(roomKey: String) {
+        clearChatGroup(roomKey)
+        Log.d(TAG, "Accessibility 已清除 Notify+ 聊天室 room=${roomKey.hashCode()}")
     }
 
     /** 聊天室在管理頁被關閉時，立即清除目前仍顯示的 Notify+ 與原始 LINE 通知。 */

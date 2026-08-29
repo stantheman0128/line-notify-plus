@@ -1,6 +1,6 @@
 # Play Console 上架進度（Notify+）
 
-最後更新：2026-07-14
+最後更新：2026-08-29
 App ID: 4975318820563729104 (com.stanslab.linenotify)
 Dev account ID: 7824252807370180483（URL 用得到）
 
@@ -39,6 +39,13 @@ release 產物已建好並驗證：
 （連刻意傳驗證碼格式也沒觸發系統的敏感內容分類器），所以四個判斷條件裡只有「系統字串比對」拿到實證，
 其餘三條沒有真實資料佐證。上線後請留意回報。
 
+## 🧪 Repo 實驗候選：versionCode 31 / 1.5.0（2026-08-29）
+
+- 新增預設關閉的 LINE 聊天室開啟偵測；屬 `isAccessibilityTool=false` 的窄範圍 AccessibilityService。
+- App 內已有獨立顯著揭露與同意流程；只監聽兩個既有 LINE package，不模擬手勢／輸入，也不保存訊息本文。
+- 純邏輯測試與 Debug build 已通過；真實 LINE 畫面辨識、通知清除、同名／雙開 fail-open 仍待實機驗證。
+- **不可直接上傳 Play**：Stan 尚須完成 Accessibility declaration、示範影片、線上隱私政策部署與 vc31 可用性確認。
+
 ## 帳號狀態
 - ✅ Google identity verification 通過
 - ✅ App entry 已建立（Free, 繁中 zh-TW）
@@ -65,11 +72,12 @@ release 產物已建好並驗證：
 | 表單 | 答案 | 性質 |
 |---|---|---|
 | **Privacy policy** | `https://stantheman0128.github.io/line-notify-plus/privacy-policy.html`；目前線上仍是舊版，部署 repo `docs/` 後才可提交 | 🔴待部署與複查 |
+| **Accessibility API** | vc31 的聊天室開啟偵測為選配且預設關閉，`isAccessibilityTool=false`；送審前須完成 Accessibility declaration、上架文案與操作示範影片，並確認線上隱私政策已部署 | 🔴待 Stan 於 Console 填寫與複查 |
 | **App access** | All functionality available without special access（無登入機制；通知存取權是用戶授權，不算 login gate） | 純事實 |
 | **Ads** | No, my app does not contain ads | 純事實 |
 | **Content rating** | 開發者 email: stan@stan-shih.com；類別: Utility/Communication；所有暴力/性/毒品/賭博問題皆答 No → 預期 Everyone/3+ | ⚠️法律聲明 |
 | **Target audience** | 建議 13 歲以上（避開 Families policy 額外合規）；不針對兒童 | ⚠️決策 |
-| **Data safety** | No data collected / No data shared（純本機處理，無 analytics、無上傳、無網路）。v1.1.0 已移除 in-app updater，App 現在完全無網路存取 | ⚠️法律聲明（最重要） |
+| **Data safety** | No data collected / No data shared（純本機處理，無 analytics、無上傳、無網路）。選配 Accessibility 也只在裝置上即時比對；仍須依提交當下 Console 的最新題目逐項確認 | ⚠️法律聲明（最重要） |
 | **Government apps** | No | 純事實 |
 | **Financial features** | No | 純事實 |
 | **Health** | No | 純事實 |

@@ -76,6 +76,21 @@
             </intent-filter>
         </service>
 
+        <!-- 選配的 LINE 聊天畫面偵測。只觀察畫面結構，不模擬點擊或輸入。 -->
+        <service
+            android:name=".service.LineAccessibilityService"
+            android:description="@string/accessibility_service_description"
+            android:exported="true"
+            android:label="@string/accessibility_service_label"
+            android:permission="android.permission.BIND_ACCESSIBILITY_SERVICE">
+            <intent-filter>
+                <action android:name="android.accessibilityservice.AccessibilityService" />
+            </intent-filter>
+            <meta-data
+                android:name="android.accessibilityservice"
+                android:resource="@xml/line_accessibility_service" />
+        </service>
+
     </application>
 
 </manifest>

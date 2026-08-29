@@ -8,7 +8,7 @@
 
 Android App，攔截原始 LINE 通知並重新組合顯示（對話串 / Apple 分組），支援狀態欄快速回覆。
 Package `com.stanslab.linenotify`，Kotlin + Jetpack Compose，minSdk 26 / targetSdk 35。
-目前 versionName `1.2.1` / versionCode `15`（權威來源：`app/build.gradle.kts:27-28`）。
+目前 versionName `1.5.0` / versionCode `31`（權威來源：`app/build.gradle.kts:27-28`）。
 
 狀態：**尚未上架**。2026-06-23 上傳的 vc12 因 Google Play 的 Impersonation policy 被退件，已改名為
 「Notify+」、重做 feature graphic、商店描述改成不主打 LINE，**待 Stan 重新提交 Production**。
@@ -21,7 +21,7 @@ Package `com.stanslab.linenotify`，Kotlin + Jetpack Compose，minSdk 26 / targe
    沒有版本足跡的改動 = 沒交付。漏改過兩次雷：(1) 只 bump `versionCode`、App 內版號卻停在舊的
    v1.2.0（2026-06-30）；(2) 1957 行通知核心改動零版本足裡、連 commit 都沒有（2026-07-14）。
    - **① `versionCode` +1**（`app/build.gradle.kts`）——一旦**上傳 Play** 就永久燒掉、不能重用
-     （草稿/退件也算）。目前已到 **vc16**。沒上傳過的版號可以自由改。
+     （草稿/退件也算）。目前 source 已到 **vc31**；是否已上傳仍以 Play Console 為準。沒上傳過的版號可以自由改。
    - **② `versionName` 也要 bump**——App「關於」頁顯示的就是它（`AboutActivity` 讀
      `getPackageInfo().versionName`）。純修 bug 走 patch（1.2.1 → 1.2.2）；改到通知核心行為
      或加新功能走 minor（1.2.x → 1.3.0）。
@@ -29,8 +29,8 @@ Package `com.stanslab.linenotify`，Kotlin + Jetpack Compose，minSdk 26 / targe
      （`values/` 與 `values-en/` 兩份都要）。**用使用者看得懂的白話寫，不要寫技術術語。**
    - ⚠️ **「bump 版號」跟「發版到 Play」是兩件事，別混。** 前者是你收工的義務，後者只有 Stan 能做
      （見下方 autonomous 守則）。**曾經因為把這兩句寫成一句，導致 agent 以為版號不能碰。**
-2. **權限只能有兩個**：`BIND_NOTIFICATION_LISTENER_SERVICE` + `POST_NOTIFICATIONS`。加任何敏感權限（尤其 `REQUEST_INSTALL_PACKAGES`、`INTERNET`）都會害 Play Console 退件。
-3. **絕不加 AccessibilityService。** 本 App 用 `NotificationListenerService` 讀通知（正解），不是無障礙。加無障礙 = 觸發 Google 嚴格審查。
+2. **`<uses-permission>` 只能有兩個**：`BIND_NOTIFICATION_LISTENER_SERVICE` + `POST_NOTIFICATIONS`。加任何其他敏感權限（尤其 `REQUEST_INSTALL_PACKAGES`、`INTERNET`）都會害 Play Console 退件。
+3. **AccessibilityService 只有一個窄範圍例外。** Stan 已於 2026-08-29 明確同意用選配的 AccessibilityService 偵測「LINE 聊天室已開啟」並清除 Notify+ 通知。服務只能監聽兩個既有 LINE package、讀聊天室標題與必要畫面結構；禁止讀取／保存訊息本文、監聽其他 App、模擬點擊／手勢／輸入或新增網路傳輸。功能預設關閉，開啟前必須顯示獨立的資料揭露與同意畫面，並以 `isAccessibilityTool=false` 誠實申報。任何擴大用途都要 Stan 重新明確核准。
 4. **App 完全無網路存取**（沒有 `INTERNET` 權限）。別加任何網路呼叫 / analytics / 自我更新——會打破 Play Console「No data collected / shared」的聲明。in-app updater 就是為此被移除的。
 5. **別碰 `keystore/` 和 `keystore.properties`。** 那是 release 簽章金鑰，弄丟 = 這個 App 永遠無法再更新。密碼在 1Password，git-ignored。
 6. **R8 / minify 故意關著**（`isMinifyEnabled = false`）。想開要單獨開 PR 驗證 release 不 crash。
@@ -70,9 +70,9 @@ export JAVA_HOME="/c/Program Files/Android/Android Studio/jbr"
 
 - Android SDK: `C:\Users\stans\AppData\Local\Android\Sdk`（已寫在 `local.properties`；雖有 ignore 規則，
   目前仍是歷史 tracked 檔，日後應另開清理變更停止追蹤）。
-- **有 JVM 單元測試**：`app/src/test/java/...`（38 個案例，涵蓋
+- **有 JVM 單元測試**：`app/src/test/java/...`（50 個案例，涵蓋
   聊天分類、社群 sticky/手動 override、敏感通知辨識、legacy/mute migration、頻道過濾、
-  LINE conversation/legacy mirror 配對與 ChatRoom 邊界）。
+  LINE conversation/legacy mirror 配對、ChatRoom 邊界、Accessibility 房間配對與舊 snooze 釋放）。
   跑 `./gradlew.bat testDebugUnitTest`，**改動 `NotificationClassifier.kt` 或通知核心邏輯後必跑**。
   2026-07-14 實測 38 passed / 0 failed / 0 errors / 0 skipped。
   - ⚠️ Gradle 會對沒變動的 task 回 `UP-TO-DATE` 直接跳過、卻仍印 `BUILD SUCCESSFUL`——**那不代表測試跑過**。

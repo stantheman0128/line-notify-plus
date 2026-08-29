@@ -1,7 +1,7 @@
 # Notify+ — Play Store 文案素材
 
-最後更新：2026-07-14
-版本：v1.2.1 (versionCode 15)
+最後更新：2026-08-29
+版本：v1.5.0 (versionCode 31，實驗候選，尚未實機驗證或上傳)
 
 > ⚠️ 2026-06-23 因 Impersonation policy 被退件（舊名「LINE Notify+」+ 舊 feature graphic 模仿 LINE 識別）。
 > 本檔已改名為 Notify+、去掉 LINE 品牌主打、開頭即聲明第三方非官方。商店描述可以「描述功能會用到 LINE 通知」，但名稱與識別不可暗示官方關聯。
@@ -51,7 +51,7 @@ Notify+ 會接管原始通知顯示，避免一則訊息出現兩個通知卡的
 同時登入兩個帳號時，會分清楚每則訊息是哪個帳號收到的。
 
 ▸ 點擊跳轉與自動消失
-點 Notify+ 通知會直接打開對應聊天室；也可設定快速回覆後清除。保留 LINE 原通知時，LINE 通知被處理後可同步清除 Notify+；取代模式無法偵測你直接在 LINE 裡已讀。
+點 Notify+ 通知會直接打開對應聊天室；也可設定快速回覆後清除。保留 LINE 原通知時，LINE 通知被處理後可同步清除 Notify+。取代模式可選擇啟用實驗性的聊天室開啟偵測，在你直接進入 LINE 聊天室時嘗試清除對應通知。
 
 【適合誰】
 
@@ -63,6 +63,7 @@ Notify+ 會接管原始通知顯示，避免一則訊息出現兩個通知卡的
 【權限說明】
 
 - 通知存取權：用來讀取通知並重組顯示。所有資料只在你手機本機處理，不上傳任何伺服器。
+- 無障礙服務（選配、預設關閉）：只用來辨識目前開啟的 LINE 聊天室並清除對應 Notify+ 通知；不保存訊息內容、不操作 LINE，其他功能不需啟用。
 - App 完全沒有網路權限，不會上傳資料。完整訊息歷史不會寫入 App 自己的檔案；通知內容會交給 Android 顯示，並可能依系統通知紀錄設定保留。聊天室名稱、分類、開關、最後活躍時間與頭貼會保存在裝置本機。
 - 只有你主動使用快速回覆時，輸入文字才會交給 LINE 的回覆介面完成傳送。
 
@@ -81,6 +82,24 @@ GitHub：https://github.com/stantheman0128/line-notify-plus
 ```
 
 字數：約 720 / 4000
+
+---
+
+## Release notes v1.5.0 / vc31（實驗候選）
+
+### 繁體中文
+
+```
+新增選配的 LINE 聊天室開啟偵測：直接進入聊天室時，嘗試清除對應的 Notify+ 通知。同名、雙開或辨識不完整時會保留通知。另修正從舊版升級時，先前隱藏的 LINE 通知可能再次出現的問題。
+```
+
+### English
+
+```
+Added optional LINE chat-open detection to try clearing the matching Notify+ notification when you enter a chat. Notifications stay when a chat is ambiguous or cannot be confirmed. Also fixed previously hidden LINE notifications possibly reappearing after an upgrade.
+```
+
+> 送審前仍須完成真實 LINE 實機回歸、Accessibility declaration 與示範影片。
 
 ---
 

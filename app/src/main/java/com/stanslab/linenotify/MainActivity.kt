@@ -1,6 +1,7 @@
 package com.stanslab.linenotify
 
 import android.Manifest
+import android.accessibilityservice.AccessibilityServiceInfo
 import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
@@ -9,6 +10,7 @@ import android.os.Build
 import android.os.Bundle
 import android.provider.Settings
 import android.service.notification.NotificationListenerService
+import android.view.accessibility.AccessibilityManager
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -82,6 +84,7 @@ import androidx.core.os.LocaleListCompat
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LifecycleEventEffect
 import com.stanslab.linenotify.service.LineNotificationListener
+import com.stanslab.linenotify.service.LineAccessibilityService
 import com.stanslab.linenotify.ui.theme.Green40
 import com.stanslab.linenotify.ui.theme.LineNotifyTheme
 
@@ -151,6 +154,14 @@ fun MainScreen(windowWidthSizeClass: WindowWidthSizeClass) {
     var clearAfterRead by remember {
         mutableStateOf(prefs.getBoolean(LineNotificationListener.KEY_CLEAR_AFTER_READ, true))
     }
+    var accessibilityReadSync by remember {
+        mutableStateOf(
+            prefs.getBoolean(LineNotificationListener.KEY_ACCESSIBILITY_READ_SYNC, false)
+        )
+    }
+    var hasAccessibilityAccess by remember {
+        mutableStateOf(isLineAccessibilityServiceEnabled(context))
+    }
     var hasPostNotificationsPermission by remember {
         mutableStateOf(hasPostNotificationsPermission(context))
     }
@@ -184,6 +195,12 @@ fun MainScreen(windowWidthSizeClass: WindowWidthSizeClass) {
         clearAfterRead = it
         prefs.edit().putBoolean(LineNotificationListener.KEY_CLEAR_AFTER_READ, it).apply()
     }
+    val onAccessibilityReadSyncChange: (Boolean) -> Unit = {
+        accessibilityReadSync = it
+        prefs.edit()
+            .putBoolean(LineNotificationListener.KEY_ACCESSIBILITY_READ_SYNC, it)
+            .apply()
+    }
     val onLanguageChange: (String) -> Unit = {
         languageTag = it
         AppCompatDelegate.setApplicationLocales(LocaleListCompat.forLanguageTags(it))
@@ -191,6 +208,9 @@ fun MainScreen(windowWidthSizeClass: WindowWidthSizeClass) {
 
     val onOpenPermissionSettings = {
         context.startActivity(Intent(Settings.ACTION_NOTIFICATION_LISTENER_SETTINGS))
+    }
+    val onOpenAccessibilitySettings = {
+        context.startActivity(Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS))
     }
     val onRequestPostNotifications = {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
@@ -215,6 +235,7 @@ fun MainScreen(windowWidthSizeClass: WindowWidthSizeClass) {
     LifecycleEventEffect(Lifecycle.Event.ON_RESUME) {
         isListenerEnabled = isNotificationListenerEnabled(context)
         hasPostNotificationsPermission = hasPostNotificationsPermission(context)
+        hasAccessibilityAccess = isLineAccessibilityServiceEnabled(context)
     }
 
     Scaffold(
@@ -301,6 +322,17 @@ fun MainScreen(windowWidthSizeClass: WindowWidthSizeClass) {
                     } else {
                         PermissionButton(onClick = onOpenPermissionSettings)
                     }
+                    if (isListenerEnabled || accessibilityReadSync || hasAccessibilityAccess) {
+                        AccessibilityReadSyncCard(
+                            enabled = accessibilityReadSync,
+                            permissionGranted = hasAccessibilityAccess,
+                            featuresEnabled = isListenerEnabled && serviceEnabled,
+                            replaceOriginal = replaceOriginal,
+                            clearAfterRead = clearAfterRead,
+                            onEnabledChange = onAccessibilityReadSyncChange,
+                            onOpenSettings = onOpenAccessibilitySettings,
+                        )
+                    }
                     if (!hasPostNotificationsPermission &&
                         Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU
                     ) {
@@ -361,6 +393,19 @@ fun MainScreen(windowWidthSizeClass: WindowWidthSizeClass) {
                         onServiceEnabledChange = onServiceEnabledChange,
                         onReplaceOriginalChange = onReplaceOriginalChange
                     )
+                }
+                if (isListenerEnabled || accessibilityReadSync || hasAccessibilityAccess) {
+                    AccessibilityReadSyncCard(
+                        enabled = accessibilityReadSync,
+                        permissionGranted = hasAccessibilityAccess,
+                        featuresEnabled = isListenerEnabled && serviceEnabled,
+                        replaceOriginal = replaceOriginal,
+                        clearAfterRead = clearAfterRead,
+                        onEnabledChange = onAccessibilityReadSyncChange,
+                        onOpenSettings = onOpenAccessibilitySettings,
+                    )
+                }
+                if (isListenerEnabled) {
                     if (!hasPostNotificationsPermission &&
                         Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU
                     ) {
@@ -595,6 +640,102 @@ private fun SettingsCard(
 }
 
 @Composable
+private fun AccessibilityReadSyncCard(
+    enabled: Boolean,
+    permissionGranted: Boolean,
+    featuresEnabled: Boolean,
+    replaceOriginal: Boolean,
+    clearAfterRead: Boolean,
+    onEnabledChange: (Boolean) -> Unit,
+    onOpenSettings: () -> Unit,
+) {
+    var showDisclosure by remember { mutableStateOf(false) }
+    // 前置條件失效時不可新開，但已經勾選的使用者永遠要能手動關閉。
+    val toggleEnabled = enabled || (featuresEnabled && replaceOriginal && clearAfterRead)
+    val statusText = when {
+        !enabled && permissionGranted ->
+            stringResource(R.string.accessibility_status_off_authorized)
+        !featuresEnabled -> stringResource(R.string.accessibility_status_service_required)
+        !replaceOriginal -> stringResource(R.string.accessibility_status_replace_required)
+        !clearAfterRead -> stringResource(R.string.accessibility_status_clear_required)
+        !enabled -> stringResource(R.string.accessibility_status_off)
+        permissionGranted -> stringResource(R.string.accessibility_status_active)
+        else -> stringResource(R.string.accessibility_status_permission_missing)
+    }
+
+    Card(modifier = Modifier.fillMaxWidth()) {
+        Column(
+            modifier = Modifier.padding(20.dp),
+            verticalArrangement = Arrangement.spacedBy(10.dp),
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = stringResource(R.string.accessibility_read_sync_title),
+                        fontSize = 16.sp,
+                        fontWeight = FontWeight.Medium,
+                    )
+                    Text(
+                        text = stringResource(R.string.accessibility_read_sync_subtitle),
+                        fontSize = 13.sp,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+                Spacer(modifier = Modifier.size(12.dp))
+                Switch(
+                    checked = enabled,
+                    enabled = toggleEnabled,
+                    onCheckedChange = { checked ->
+                        if (checked) showDisclosure = true else onEnabledChange(false)
+                    },
+                )
+            }
+
+            Text(
+                text = statusText,
+                fontSize = 13.sp,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+
+            if (enabled || permissionGranted) {
+                OutlinedButton(
+                    onClick = onOpenSettings,
+                    modifier = Modifier.fillMaxWidth(),
+                ) {
+                    Text(stringResource(R.string.accessibility_open_settings))
+                }
+            }
+        }
+    }
+
+    if (showDisclosure) {
+        AlertDialog(
+            onDismissRequest = { showDisclosure = false },
+            title = { Text(stringResource(R.string.accessibility_disclosure_title)) },
+            text = { Text(stringResource(R.string.accessibility_disclosure_body)) },
+            dismissButton = {
+                TextButton(onClick = { showDisclosure = false }) {
+                    Text(stringResource(R.string.accessibility_disclosure_decline))
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = {
+                    showDisclosure = false
+                    onEnabledChange(true)
+                    onOpenSettings()
+                }) {
+                    Text(stringResource(R.string.accessibility_disclosure_accept))
+                }
+            },
+        )
+    }
+}
+
+@Composable
 private fun ManageChatsRow(onClick: () -> Unit) {
     OutlinedButton(
         onClick = onClick,
@@ -630,6 +771,8 @@ private fun AdvancedSettingsCard(
     val appleBody = stringResource(R.string.style_help_apple_body)
     val clearReplyTitle = stringResource(R.string.clear_after_reply_title)
     val clearReplySubtitle = stringResource(R.string.clear_after_reply_subtitle)
+    val clearReadTitle = stringResource(R.string.clear_after_read_title)
+    val clearReadSubtitle = stringResource(R.string.clear_after_read_subtitle)
     val demoPending = stringResource(R.string.info_demo_pending)
 
     Card(
@@ -693,6 +836,17 @@ private fun AdvancedSettingsCard(
                     enabled = featuresEnabled,
                     onCheckedChange = onClearAfterReplyChange,
                     onInfo = { infoDialog = clearReplyTitle to "$clearReplySubtitle\n\n$demoPending" }
+                )
+
+                HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
+
+                SettingToggle(
+                    title = clearReadTitle,
+                    subtitle = clearReadSubtitle,
+                    checked = clearAfterRead,
+                    enabled = featuresEnabled,
+                    onCheckedChange = onClearAfterReadChange,
+                    onInfo = { infoDialog = clearReadTitle to clearReadSubtitle }
                 )
 
                 HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
@@ -916,6 +1070,17 @@ private fun isNotificationListenerEnabled(context: Context): Boolean {
         "enabled_notification_listeners"
     ) ?: return false
     return enabledListeners.contains(componentName.flattenToString())
+}
+
+private fun isLineAccessibilityServiceEnabled(context: Context): Boolean {
+    val component = ComponentName(context, LineAccessibilityService::class.java)
+    val manager = context.getSystemService(Context.ACCESSIBILITY_SERVICE) as AccessibilityManager
+    return manager
+        .getEnabledAccessibilityServiceList(AccessibilityServiceInfo.FEEDBACK_ALL_MASK)
+        .any { info ->
+            val serviceInfo = info.resolveInfo.serviceInfo
+            ComponentName(serviceInfo.packageName, serviceInfo.name) == component
+        }
 }
 
 private fun hasPostNotificationsPermission(context: Context): Boolean {

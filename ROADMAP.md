@@ -73,6 +73,10 @@
 - [ ] **收回訊息保留**（在通知中顯示已被收回的訊息）
 
 ### 使用者回饋修正（2026-07-14）
+- [~] **取代模式下直接開啟 LINE 後清除 Notify+**：v1.5.0 加入預設關閉的實驗性聊天室開啟偵測，
+      只監聽既有 LINE package、比對頂部聊天室名稱與輸入區，連續兩次確認且 active room 唯一時才清除；
+      不保存訊息本文、不模擬操作，同名／雙開歧義與未知畫面一律保留通知。純邏輯已有 JVM 測試，
+      仍需 Nothing／OPPO／realme 實機與真實 LINE 訊息驗證，並完成 Play Accessibility declaration。
 - [x] **Android 15+ 私密通知占位字重複轉發**：辨識 framework redacted clone；不建立「LINE」假聊天室、
       不重發占位內容、也不取消原始 LINE 通知。FAQ 補上 OPPO／realme 的「增強型通知／智慧通知隱藏」排查。
       系統在 callback 前移除的原文無法由一般 App 還原。
@@ -91,7 +95,7 @@
       時窗或 active source 重驗不符都 fail-open 保留原通知，避免把兩則真訊息誤刪。
 - [ ] **同名／雙開聊天室設定隔離**：目前通知顯示以 profile+名稱分房，但分類、靜音、最後活躍與頭貼的
       持久設定仍主要以顯示名稱為 key；同名聊天室可能共用設定。後續需引入 package+profile+shortcut 的 roomId schema。
-- [ ] **通知核心的自動化整合測試**：目前 38 個 JVM 測試涵蓋純分類／偏好遷移／mirror 配對／ChatRoom 回歸，但 listener 的 burst、
+- [ ] **通知核心的自動化整合測試**：目前 50 個 JVM 測試涵蓋純分類／偏好遷移／mirror 配對／ChatRoom／Accessibility 配對／舊 snooze 遷移，但 listener 的 burst、
       SystemUI active 查詢失敗、快速回覆與 eviction transaction 仍主要靠 code review＋實機；應再抽出純 planner/state machine 測試。
 - [ ] **長時間壓力與 I/O**：頭貼 PNG 目前會在通知 callback 同步壓縮寫檔；thread 模式也沒有全域 active room
       budget。需用大量聊天室／訊息做 soak test，再決定背景寫入與 thread budget。
@@ -103,8 +107,8 @@
 - [預期，不處理] **無 deobfuscation 檔（R8 mapping）**：因 `isMinifyEnabled = false`（鐵則 6，故意關 R8 怕 release crash），沒混淆就沒對照表可傳，這警告本來就會出現。crash 的 stack trace 不混淆、本來就可讀，直接忽略即可。除非哪天決定開 R8，才需要連 mapping 一起傳。
 
 ## 長期 (v2.0)
-- [~] 上架 Google Play（repo 為 v1.2.1 / vc15；vc12 因 Impersonation policy 退件。重新送審前仍須確認
-      vc15 是否已用、部署新版政策、重做 icon/截圖並重建 release；詳見 play-store-assets/play-console-progress.md）
+- [~] 上架 Google Play（目前實驗候選為 v1.5.0 / vc31；重新送審前仍須完成 Accessibility API 聲明、
+      操作示範影片、實機回歸與線上隱私政策部署，並確認 vc31 未被使用；詳見 play-store-assets/play-console-progress.md）
 - [ ] 訊息搜尋（跨聊天室搜尋通知歷史）
 - [ ] 自訂通知音效 / 震動模式
 - [ ] Widget（桌面小工具顯示最近訊息）
