@@ -72,22 +72,28 @@ fun AboutScreen(onBack: () -> Unit) {
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text(stringResource(R.string.about_title)) },
+                title = {
+                    Text(
+                        text = stringResource(R.string.about_title),
+                        fontWeight = FontWeight.Bold,
+                    )
+                },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
                         Icon(
                             Icons.AutoMirrored.Filled.ArrowBack,
                             contentDescription = stringResource(R.string.action_back),
-                            tint = MaterialTheme.colorScheme.onPrimaryContainer
                         )
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.primaryContainer,
-                    titleContentColor = MaterialTheme.colorScheme.onPrimaryContainer
+                    containerColor = MaterialTheme.colorScheme.background,
+                    titleContentColor = MaterialTheme.colorScheme.onBackground,
+                    navigationIconContentColor = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             )
-        }
+        },
+        containerColor = MaterialTheme.colorScheme.background,
     ) { innerPadding ->
         Column(
             modifier = Modifier
@@ -143,6 +149,17 @@ fun AboutScreen(onBack: () -> Unit) {
                             .verticalScroll(rememberScrollState()),
                         verticalArrangement = Arrangement.spacedBy(12.dp)
                     ) {
+                    ChangelogEntry(
+                        "v1.6.0",
+                        listOf(
+                            stringResource(R.string.changelog_1_6_0_home),
+                            stringResource(R.string.changelog_1_6_0_chats),
+                            stringResource(R.string.changelog_1_6_0_read_sync),
+                        )
+                    )
+
+                    HorizontalDivider()
+
                     ChangelogEntry(
                         "v1.5.0",
                         listOf(

@@ -31,6 +31,9 @@
     <string name="permission_post_notifications_body">Allow the app to post new stack version notifications. Android 12 and below do not require this extra permission.</string>
     <string name="permission_status_granted">Ready</string>
     <string name="permission_status_missing">Needs setup</string>
+    <string name="permission_guide_title_remaining">%1$d more step(s) and it will start working</string>
+    <string name="permission_go_to_settings">Go to settings</string>
+    <string name="privacy_footer">Notify+ has no network permission. Messages never leave this device</string>
     <string name="settings_title">Settings</string>
     <string name="enable_stack_notifications_title">Enable complete notifications</string>
     <string name="enable_stack_notifications_subtitle">Intercept LINE notifications and combine messages into complete conversations</string>
@@ -38,6 +41,7 @@
     <string name="replace_original_subtitle">Hide the original LINE notification and show only the complete notification</string>
     <string name="replace_original_info_title">About \"Replace original notifications\"</string>
     <string name="replace_original_info_body">Off: LINE\'s own notification still appears, so you\'ll see two. The upside is that when you read the message in LINE, this one clears automatically too.\n\nOn: one complete notification replaces LINE\'s, so you only see one. To also clear Notify+ after opening a chat directly in LINE, enable the experimental chat-open detection option.</string>
+    <string name="accessibility_section_title">Open-chat sync in LINE</string>
     <string name="accessibility_read_sync_title">LINE chat-open detection (experimental)</string>
     <string name="accessibility_read_sync_subtitle">Try to clear the matching Notify+ notification when you open a chat directly in LINE</string>
     <string name="accessibility_status_off">Off. Turning this on shows a data-use disclosure first.</string>
@@ -46,7 +50,6 @@
     <string name="accessibility_status_permission_missing">The feature is selected, but Notify+ still needs to be enabled in Android Accessibility settings.</string>
     <string name="accessibility_status_service_required">Turn on the Notify+ complete notification service first.</string>
     <string name="accessibility_status_replace_required">Turn on Replace original notifications first. Non-replace mode already syncs using LINE\'s original notification.</string>
-    <string name="accessibility_status_clear_required">Turn on Clear after read in Advanced first.</string>
     <string name="accessibility_open_settings">Open Accessibility settings</string>
     <string name="accessibility_disclosure_title">Use LINE screen information to clear notifications</string>
     <string name="accessibility_disclosure_body">When enabled, the Notify+ accessibility service can access LINE screen structure and visible text. Notify+ only uses the current chat name and screen state to determine that you opened a chat and clear its matching notification.\n\nData is matched on your device only. It is not uploaded or shared, and message content, typed text, and tap history are not saved. Notifications are kept when detection is incomplete or chat names are ambiguous.\n\nThis feature is optional. Other notification features work without it.</string>
@@ -94,6 +97,9 @@
     <string name="changelog_1_2_0_clear">Added settings to auto-clear notifications after replying or reading</string>
     <string name="changelog_1_2_0_dual">Tell apart different accounts when running dual LINE</string>
     <string name="changelog_1_2_0_ui">Refreshed interface with clearer wording</string>
+    <string name="changelog_1_6_0_home">Redesigned the home screen so service status, key controls, and notification styles are easier to find</string>
+    <string name="changelog_1_6_0_chats">Added always-available chat search, category sections, and multi-select</string>
+    <string name="changelog_1_6_0_read_sync">Integrated chat-open detection into the new home screen; clear-after-read now stays on without another setting</string>
     <string name="changelog_1_5_0_accessibility">Added experimental LINE chat-open detection to try clearing Notify+ after you enter a chat directly</string>
     <string name="changelog_1_5_0_migration">Fixed previously hidden LINE notifications possibly reappearing after an upgrade</string>
     <string name="changelog_1_4_5_reliability">Fixed old messages reappearing or new messages arriving without a notification, restoring reliable notification handling</string>
@@ -151,7 +157,7 @@
     <string name="chat_detail_empty_body">Choose a chat on the left to view its type and toggle complete notifications.</string>
     <string name="chat_status_enabled">Complete notifications enabled</string>
     <string name="chat_status_disabled">Fully muted</string>
-    <string name="chat_legacy_original_only">%1$s · Legacy setting: keep original LINE notifications</string>
+    <string name="chat_legacy_original_only">Legacy setting: keep original LINE notifications</string>
     <string name="chat_toggle_title">Allow notifications from this chat</string>
     <string name="chat_filter_all">All</string>
     <string name="chat_sort_label">Sort</string>
@@ -178,6 +184,9 @@
     <string name="chat_edit_type_title">Correct chat category</string>
     <string name="chat_edit_type_body">Which category should "%1$s" use? Your manual choice stays in effect.</string>
     <string name="chat_type_manual">%1$s · Manual</string>
+    <string name="chat_manual_tag">Manual</string>
+    <string name="chat_section_count">%1$s · %2$d</string>
+    <string name="chat_enter_selection">Select multiple</string>
     <string name="info_demo_pending">Demo animation coming soon 🎬</string>
     <string name="info_icon_desc">Info</string>
 

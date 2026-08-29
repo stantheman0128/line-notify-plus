@@ -31,6 +31,9 @@
     <string name="permission_post_notifications_body">允許 App 發出新的堆疊版本通知。Android 12 以下不需要另外授權。</string>
     <string name="permission_status_granted">已完成</string>
     <string name="permission_status_missing">待設定</string>
+    <string name="permission_guide_title_remaining">還差 %1$d 步就會開始運作</string>
+    <string name="permission_go_to_settings">前往設定</string>
+    <string name="privacy_footer">Notify+ 沒有網路權限，訊息不會離開這台裝置</string>
     <string name="settings_title">設定</string>
     <string name="enable_stack_notifications_title">啟用完整通知</string>
     <string name="enable_stack_notifications_subtitle">攔截 LINE 通知，把訊息整理成完整對話顯示</string>
@@ -38,6 +41,7 @@
     <string name="replace_original_subtitle">隱藏 LINE 原本的通知，僅顯示完整通知</string>
     <string name="replace_original_info_title">「取代原始通知」說明</string>
     <string name="replace_original_info_body">關閉時：LINE 原本的通知照常出現，你會看到兩則。好處是你在 LINE 裡把訊息讀掉時，這則會自動跟著消失。\n\n開啟時：用一則完整通知取代 LINE 原本的，畫面只留一則。若要在直接開啟 LINE 聊天室後也清除 Notify+，可另外啟用實驗性的聊天室開啟偵測。</string>
+    <string name="accessibility_section_title">LINE 內開啟同步</string>
     <string name="accessibility_read_sync_title">LINE 聊天室開啟偵測（實驗性）</string>
     <string name="accessibility_read_sync_subtitle">直接在 LINE 開啟聊天室時，嘗試清除對應的 Notify+ 通知</string>
     <string name="accessibility_status_off">目前關閉；點開關後會先顯示資料使用說明。</string>
@@ -46,7 +50,6 @@
     <string name="accessibility_status_permission_missing">功能已選擇，但還需要在 Android 無障礙設定中啟用 Notify+。</string>
     <string name="accessibility_status_service_required">請先開啟 Notify+ 完整通知服務。</string>
     <string name="accessibility_status_replace_required">請先開啟「取代原始通知」；非取代模式已能用 LINE 原通知同步清除。</string>
-    <string name="accessibility_status_clear_required">請先在進階功能中開啟「已讀後自動清除」。</string>
     <string name="accessibility_open_settings">開啟無障礙設定</string>
     <string name="accessibility_disclosure_title">使用 LINE 畫面資訊清除通知</string>
     <string name="accessibility_disclosure_body">啟用後，Notify+ 的無障礙服務可以讀取 LINE 畫面結構與可見文字。Notify+ 只會使用目前聊天室名稱和畫面狀態，判斷你是否已開啟聊天室並清除對應通知。\n\n資料只在裝置上即時比對，不會上傳或分享，也不會保存訊息內容、輸入文字或點擊紀錄。辨識不完整或有同名聊天室時不會清除。\n\n這是選配功能；不啟用時，其他通知功能仍可使用。</string>
@@ -94,6 +97,9 @@
     <string name="changelog_1_2_0_clear">新增回覆後、已讀後自動清除通知的設定</string>
     <string name="changelog_1_2_0_dual">雙開 LINE 時可以區分不同帳號的訊息來源</string>
     <string name="changelog_1_2_0_ui">介面改版，文案調整讓功能更好懂</string>
+    <string name="changelog_1_6_0_home">首頁重新整理，服務狀態、主要開關與通知風格更容易找到</string>
+    <string name="changelog_1_6_0_chats">聊天室支援常駐搜尋、分類分區與批次選取</string>
+    <string name="changelog_1_6_0_read_sync">聊天室開啟偵測整合進新版首頁；已讀後清除固定開啟，不必再另外設定</string>
     <string name="changelog_1_5_0_accessibility">新增實驗性的 LINE 聊天室開啟偵測，直接進入聊天室後也能嘗試清除 Notify+ 通知</string>
     <string name="changelog_1_5_0_migration">修正從舊版升級時，先前隱藏的 LINE 通知可能再次出現的問題</string>
     <string name="changelog_1_4_5_reliability">修正舊訊息重新跳出或新訊息沒有通知的問題，恢復穩定的通知處理</string>
@@ -151,7 +157,7 @@
     <string name="chat_detail_empty_body">在左側選擇聊天室，就能查看類型並切換完整通知。</string>
     <string name="chat_status_enabled">已啟用完整通知</string>
     <string name="chat_status_disabled">已完全靜音</string>
-    <string name="chat_legacy_original_only">%1$s · 舊設定：保留 LINE 原通知</string>
+    <string name="chat_legacy_original_only">舊設定：保留 LINE 原通知</string>
     <string name="chat_toggle_title">允許這個聊天室通知</string>
     <string name="chat_filter_all">全部</string>
     <string name="chat_sort_label">排序</string>
@@ -178,6 +184,9 @@
     <string name="chat_edit_type_title">更正聊天室分類</string>
     <string name="chat_edit_type_body">「%1$s」應該歸在哪一類？手動選擇後會固定使用此分類。</string>
     <string name="chat_type_manual">%1$s · 手動</string>
+    <string name="chat_manual_tag">手動</string>
+    <string name="chat_section_count">%1$s · %2$d</string>
+    <string name="chat_enter_selection">批次選取</string>
     <string name="info_demo_pending">示範動畫製作中，敬請期待 🎬</string>
     <string name="info_icon_desc">說明</string>
 

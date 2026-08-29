@@ -17,7 +17,10 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
 import androidx.appcompat.app.AppCompatDelegate
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Image
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -27,12 +30,19 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
+import androidx.compose.material.icons.automirrored.filled.List
+import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.outlined.Info
 import androidx.compose.material.icons.outlined.Share
@@ -48,10 +58,9 @@ import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
-import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Switch
+import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
@@ -66,9 +75,11 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.rotate
+import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.booleanResource
 import androidx.compose.ui.res.dimensionResource
@@ -85,8 +96,11 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LifecycleEventEffect
 import com.stanslab.linenotify.service.LineNotificationListener
 import com.stanslab.linenotify.service.LineAccessibilityService
-import com.stanslab.linenotify.ui.theme.Green40
+import com.stanslab.linenotify.ui.theme.ActionGreen
+import com.stanslab.linenotify.ui.theme.BrandGreen
+import com.stanslab.linenotify.ui.theme.FillGreen
 import com.stanslab.linenotify.ui.theme.LineNotifyTheme
+import com.stanslab.linenotify.ui.theme.inkGreen
 
 class MainActivity : AppCompatActivity() {
 
@@ -97,6 +111,13 @@ class MainActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
+
+        // v1.6 起「已讀後清除」是固定行為。覆寫舊版可能留下的 false，避免
+        // Accessibility 聊天室開啟同步看似啟用、實際卻被舊偏好值擋住。
+        getSharedPreferences(LineNotificationListener.PREFS_NAME, Context.MODE_PRIVATE)
+            .edit()
+            .putBoolean(LineNotificationListener.KEY_CLEAR_AFTER_READ, true)
+            .apply()
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             if (ContextCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS)
@@ -151,9 +172,6 @@ fun MainScreen(windowWidthSizeClass: WindowWidthSizeClass) {
     var clearAfterReply by remember {
         mutableStateOf(prefs.getBoolean(LineNotificationListener.KEY_CLEAR_AFTER_REPLY, true))
     }
-    var clearAfterRead by remember {
-        mutableStateOf(prefs.getBoolean(LineNotificationListener.KEY_CLEAR_AFTER_READ, true))
-    }
     var accessibilityReadSync by remember {
         mutableStateOf(
             prefs.getBoolean(LineNotificationListener.KEY_ACCESSIBILITY_READ_SYNC, false)
@@ -190,10 +208,6 @@ fun MainScreen(windowWidthSizeClass: WindowWidthSizeClass) {
     val onClearAfterReplyChange: (Boolean) -> Unit = {
         clearAfterReply = it
         prefs.edit().putBoolean(LineNotificationListener.KEY_CLEAR_AFTER_REPLY, it).apply()
-    }
-    val onClearAfterReadChange: (Boolean) -> Unit = {
-        clearAfterRead = it
-        prefs.edit().putBoolean(LineNotificationListener.KEY_CLEAR_AFTER_READ, it).apply()
     }
     val onAccessibilityReadSyncChange: (Boolean) -> Unit = {
         accessibilityReadSync = it
@@ -238,6 +252,10 @@ fun MainScreen(windowWidthSizeClass: WindowWidthSizeClass) {
         hasAccessibilityAccess = isLineAccessibilityServiceEnabled(context)
     }
 
+    val needsPermissionSetup = !isListenerEnabled || !hasPostNotificationsPermission
+    val isServiceRunning = isListenerEnabled && serviceEnabled
+    val sectionSpacing = 12.dp
+
     Scaffold(
         topBar = {
             TopAppBar(
@@ -248,10 +266,14 @@ fun MainScreen(windowWidthSizeClass: WindowWidthSizeClass) {
                             contentDescription = null,
                             modifier = Modifier
                                 .size(28.dp)
-                                .clip(RoundedCornerShape(6.dp))
+                                .clip(RoundedCornerShape(8.dp))
                         )
                         Spacer(Modifier.size(8.dp))
-                        Text(stringResource(R.string.main_title))
+                        Text(
+                            stringResource(R.string.main_title),
+                            fontWeight = FontWeight.ExtraBold,
+                            letterSpacing = (-0.4).sp
+                        )
                     }
                 },
                 actions = {
@@ -260,7 +282,7 @@ fun MainScreen(windowWidthSizeClass: WindowWidthSizeClass) {
                             Icons.Outlined.Share,
                             contentDescription = stringResource(R.string.main_share_content_description),
                             modifier = Modifier.size(26.dp),
-                            tint = MaterialTheme.colorScheme.onPrimaryContainer
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                     }
                     IconButton(onClick = {
@@ -270,16 +292,17 @@ fun MainScreen(windowWidthSizeClass: WindowWidthSizeClass) {
                             Icons.Outlined.Info,
                             contentDescription = stringResource(R.string.main_info_content_description),
                             modifier = Modifier.size(28.dp),
-                            tint = MaterialTheme.colorScheme.onPrimaryContainer
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.primaryContainer,
-                    titleContentColor = MaterialTheme.colorScheme.onPrimaryContainer
+                    containerColor = MaterialTheme.colorScheme.background,
+                    titleContentColor = MaterialTheme.colorScheme.onBackground
                 )
             )
-        }
+        },
+        containerColor = MaterialTheme.colorScheme.background
     ) { innerPadding ->
         val contentPadding = PaddingValues(
             start = horizontalPadding,
@@ -300,70 +323,45 @@ fun MainScreen(windowWidthSizeClass: WindowWidthSizeClass) {
                     modifier = Modifier
                         .weight(1f)
                         .verticalScroll(rememberScrollState()),
-                    verticalArrangement = Arrangement.spacedBy(16.dp)
+                    verticalArrangement = Arrangement.spacedBy(sectionSpacing)
                 ) {
-                    ServiceStatusCard(
+                    HomeStatusAndControls(
                         isListenerEnabled = isListenerEnabled,
-                        serviceEnabled = serviceEnabled
+                        serviceEnabled = serviceEnabled,
+                        isServiceRunning = isServiceRunning,
+                        needsPermissionSetup = needsPermissionSetup,
+                        hasPostNotificationsPermission = hasPostNotificationsPermission,
+                        replaceOriginal = replaceOriginal,
+                        notifStyle = notifStyle,
+                        onServiceEnabledChange = onServiceEnabledChange,
+                        onReplaceOriginalChange = onReplaceOriginalChange,
+                        onNotificationStyleChange = onNotificationStyleChange,
+                        onOpenPermissionSettings = onOpenPermissionSettings,
+                        onRequestPostNotifications = onRequestPostNotifications
                     )
-                    if (!isListenerEnabled || !hasPostNotificationsPermission) {
-                        PermissionGuideCard(
-                            isListenerEnabled = isListenerEnabled,
-                            hasPostNotificationsPermission = hasPostNotificationsPermission
-                        )
-                    }
-                    if (isListenerEnabled) {
-                        SettingsCard(
-                            serviceEnabled = serviceEnabled,
-                            replaceOriginal = replaceOriginal,
-                            onServiceEnabledChange = onServiceEnabledChange,
-                            onReplaceOriginalChange = onReplaceOriginalChange
-                        )
-                    } else {
-                        PermissionButton(onClick = onOpenPermissionSettings)
-                    }
-                    if (isListenerEnabled || accessibilityReadSync || hasAccessibilityAccess) {
-                        AccessibilityReadSyncCard(
-                            enabled = accessibilityReadSync,
-                            permissionGranted = hasAccessibilityAccess,
-                            featuresEnabled = isListenerEnabled && serviceEnabled,
-                            replaceOriginal = replaceOriginal,
-                            clearAfterRead = clearAfterRead,
-                            onEnabledChange = onAccessibilityReadSyncChange,
-                            onOpenSettings = onOpenAccessibilitySettings,
-                        )
-                    }
-                    if (!hasPostNotificationsPermission &&
-                        Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU
-                    ) {
-                        PostNotificationsButton(onClick = onRequestPostNotifications)
-                    }
                 }
 
                 Column(
                     modifier = Modifier
                         .weight(1f)
                         .verticalScroll(rememberScrollState()),
-                    verticalArrangement = Arrangement.spacedBy(16.dp)
+                    verticalArrangement = Arrangement.spacedBy(sectionSpacing)
                 ) {
-                    if (isListenerEnabled) {
-                        ManageChatsRow(onClick = onOpenChatManagement)
-                        AdvancedSettingsCard(
-                            notifStyle = notifStyle,
-                            clearAfterReply = clearAfterReply,
-                            clearAfterRead = clearAfterRead,
-                            languageTag = languageTag,
-                            featuresEnabled = serviceEnabled,
-                            onNotificationStyleChange = onNotificationStyleChange,
-                            onClearAfterReplyChange = onClearAfterReplyChange,
-                            onClearAfterReadChange = onClearAfterReadChange,
-                            onLanguageChange = onLanguageChange
-                        )
-                    }
-                    HelpEntryButton(onClick = onOpenHelp)
-                    if (isListenerEnabled) {
-                        OfficialAccountButton()
-                    }
+                    HomeSecondaryPane(
+                        isListenerEnabled = isListenerEnabled,
+                        featuresEnabled = serviceEnabled,
+                        replaceOriginal = replaceOriginal,
+                        clearAfterReply = clearAfterReply,
+                        accessibilityReadSync = accessibilityReadSync,
+                        hasAccessibilityAccess = hasAccessibilityAccess,
+                        languageTag = languageTag,
+                        onClearAfterReplyChange = onClearAfterReplyChange,
+                        onAccessibilityReadSyncChange = onAccessibilityReadSyncChange,
+                        onOpenAccessibilitySettings = onOpenAccessibilitySettings,
+                        onLanguageChange = onLanguageChange,
+                        onOpenChatManagement = onOpenChatManagement,
+                        onOpenHelp = onOpenHelp
+                    )
                 }
             }
         } else {
@@ -373,110 +371,252 @@ fun MainScreen(windowWidthSizeClass: WindowWidthSizeClass) {
                     .padding(innerPadding)
                     .padding(contentPadding)
                     .verticalScroll(rememberScrollState()),
-                verticalArrangement = Arrangement.spacedBy(16.dp)
+                verticalArrangement = Arrangement.spacedBy(sectionSpacing)
             ) {
-                ServiceStatusCard(
+                HomeStatusAndControls(
                     isListenerEnabled = isListenerEnabled,
-                    serviceEnabled = serviceEnabled
+                    serviceEnabled = serviceEnabled,
+                    isServiceRunning = isServiceRunning,
+                    needsPermissionSetup = needsPermissionSetup,
+                    hasPostNotificationsPermission = hasPostNotificationsPermission,
+                    replaceOriginal = replaceOriginal,
+                    notifStyle = notifStyle,
+                    onServiceEnabledChange = onServiceEnabledChange,
+                    onReplaceOriginalChange = onReplaceOriginalChange,
+                    onNotificationStyleChange = onNotificationStyleChange,
+                    onOpenPermissionSettings = onOpenPermissionSettings,
+                    onRequestPostNotifications = onRequestPostNotifications
                 )
-                if (!isListenerEnabled || !hasPostNotificationsPermission) {
-                    PermissionGuideCard(
-                        isListenerEnabled = isListenerEnabled,
-                        hasPostNotificationsPermission = hasPostNotificationsPermission
-                    )
-                }
-
-                if (isListenerEnabled) {
-                    SettingsCard(
-                        serviceEnabled = serviceEnabled,
-                        replaceOriginal = replaceOriginal,
-                        onServiceEnabledChange = onServiceEnabledChange,
-                        onReplaceOriginalChange = onReplaceOriginalChange
-                    )
-                }
-                if (isListenerEnabled || accessibilityReadSync || hasAccessibilityAccess) {
-                    AccessibilityReadSyncCard(
-                        enabled = accessibilityReadSync,
-                        permissionGranted = hasAccessibilityAccess,
-                        featuresEnabled = isListenerEnabled && serviceEnabled,
-                        replaceOriginal = replaceOriginal,
-                        clearAfterRead = clearAfterRead,
-                        onEnabledChange = onAccessibilityReadSyncChange,
-                        onOpenSettings = onOpenAccessibilitySettings,
-                    )
-                }
-                if (isListenerEnabled) {
-                    if (!hasPostNotificationsPermission &&
-                        Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU
-                    ) {
-                        PostNotificationsButton(onClick = onRequestPostNotifications)
-                    }
-                    ManageChatsRow(onClick = onOpenChatManagement)
-                    AdvancedSettingsCard(
-                        notifStyle = notifStyle,
-                        clearAfterReply = clearAfterReply,
-                        clearAfterRead = clearAfterRead,
-                        languageTag = languageTag,
-                        featuresEnabled = serviceEnabled,
-                        onNotificationStyleChange = onNotificationStyleChange,
-                        onClearAfterReplyChange = onClearAfterReplyChange,
-                        onClearAfterReadChange = onClearAfterReadChange,
-                        onLanguageChange = onLanguageChange
-                    )
-                    HelpEntryButton(onClick = onOpenHelp)
-                    OfficialAccountButton()
-                } else {
-                    PermissionButton(onClick = onOpenPermissionSettings)
-                    if (!hasPostNotificationsPermission &&
-                        Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU
-                    ) {
-                        PostNotificationsButton(onClick = onRequestPostNotifications)
-                    }
-                    HelpEntryButton(onClick = onOpenHelp)
-                }
+                HomeSecondaryPane(
+                    isListenerEnabled = isListenerEnabled,
+                    featuresEnabled = serviceEnabled,
+                    replaceOriginal = replaceOriginal,
+                    clearAfterReply = clearAfterReply,
+                    accessibilityReadSync = accessibilityReadSync,
+                    hasAccessibilityAccess = hasAccessibilityAccess,
+                    languageTag = languageTag,
+                    onClearAfterReplyChange = onClearAfterReplyChange,
+                    onAccessibilityReadSyncChange = onAccessibilityReadSyncChange,
+                    onOpenAccessibilitySettings = onOpenAccessibilitySettings,
+                    onLanguageChange = onLanguageChange,
+                    onOpenChatManagement = onOpenChatManagement,
+                    onOpenHelp = onOpenHelp
+                )
             }
         }
     }
 }
 
 @Composable
-private fun ServiceStatusCard(isListenerEnabled: Boolean, serviceEnabled: Boolean) {
-    val isServiceRunning = isListenerEnabled && serviceEnabled
-    val containerColor = if (isServiceRunning) {
-        MaterialTheme.colorScheme.primaryContainer
-    } else {
-        MaterialTheme.colorScheme.errorContainer
-    }
-    val contentColor = if (isServiceRunning) {
-        MaterialTheme.colorScheme.onPrimaryContainer
-    } else {
-        MaterialTheme.colorScheme.onErrorContainer
-    }
-    val bodyText = when {
-        isServiceRunning -> stringResource(R.string.service_listening)
-        isListenerEnabled -> stringResource(R.string.service_stack_disabled)
-        else -> stringResource(R.string.service_needs_permission)
+private fun HomeStatusAndControls(
+    isListenerEnabled: Boolean,
+    serviceEnabled: Boolean,
+    isServiceRunning: Boolean,
+    needsPermissionSetup: Boolean,
+    hasPostNotificationsPermission: Boolean,
+    replaceOriginal: Boolean,
+    notifStyle: String,
+    onServiceEnabledChange: (Boolean) -> Unit,
+    onReplaceOriginalChange: (Boolean) -> Unit,
+    onNotificationStyleChange: (String) -> Unit,
+    onOpenPermissionSettings: () -> Unit,
+    onRequestPostNotifications: () -> Unit
+) {
+    when {
+        isServiceRunning -> ServiceStatusStrip()
+        isListenerEnabled && !serviceEnabled && !needsPermissionSetup -> ServiceOffStrip()
     }
 
+    if (needsPermissionSetup) {
+        PermissionAlertCard(
+            isListenerEnabled = isListenerEnabled,
+            hasPostNotificationsPermission = hasPostNotificationsPermission,
+            onOpenPermissionSettings = onOpenPermissionSettings,
+            onRequestPostNotifications = onRequestPostNotifications
+        )
+    }
+
+    if (isListenerEnabled) {
+        MasterControlCard(
+            serviceEnabled = serviceEnabled,
+            replaceOriginal = replaceOriginal,
+            onServiceEnabledChange = onServiceEnabledChange,
+            onReplaceOriginalChange = onReplaceOriginalChange
+        )
+        NotificationStyleSection(
+            notifStyle = notifStyle,
+            featuresEnabled = serviceEnabled,
+            onNotificationStyleChange = onNotificationStyleChange
+        )
+    } else {
+        PermissionButton(onClick = onOpenPermissionSettings)
+    }
+
+    if (!hasPostNotificationsPermission &&
+        Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU
+    ) {
+        PostNotificationsButton(onClick = onRequestPostNotifications)
+    }
+}
+
+@Composable
+private fun HomeSecondaryPane(
+    isListenerEnabled: Boolean,
+    featuresEnabled: Boolean,
+    replaceOriginal: Boolean,
+    clearAfterReply: Boolean,
+    accessibilityReadSync: Boolean,
+    hasAccessibilityAccess: Boolean,
+    languageTag: String,
+    onClearAfterReplyChange: (Boolean) -> Unit,
+    onAccessibilityReadSyncChange: (Boolean) -> Unit,
+    onOpenAccessibilitySettings: () -> Unit,
+    onLanguageChange: (String) -> Unit,
+    onOpenChatManagement: () -> Unit,
+    onOpenHelp: () -> Unit
+) {
+    if (isListenerEnabled) {
+        ClearTimingCard(
+            clearAfterReply = clearAfterReply,
+            featuresEnabled = featuresEnabled,
+            onClearAfterReplyChange = onClearAfterReplyChange
+        )
+    }
+    if (isListenerEnabled || accessibilityReadSync || hasAccessibilityAccess) {
+        AccessibilityReadSyncCard(
+            enabled = accessibilityReadSync,
+            permissionGranted = hasAccessibilityAccess,
+            featuresEnabled = isListenerEnabled && featuresEnabled,
+            replaceOriginal = replaceOriginal,
+            onEnabledChange = onAccessibilityReadSyncChange,
+            onOpenSettings = onOpenAccessibilitySettings,
+        )
+    }
+    EntryListCard(
+        isListenerEnabled = isListenerEnabled,
+        languageTag = languageTag,
+        onLanguageChange = onLanguageChange,
+        onOpenChatManagement = onOpenChatManagement,
+        onOpenHelp = onOpenHelp
+    )
+    PrivacyFooter()
+}
+
+@Composable
+private fun ServiceStatusStrip() {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(11.dp))
+            .background(MaterialTheme.colorScheme.surfaceVariant)
+            .border(1.dp, MaterialTheme.colorScheme.outline, RoundedCornerShape(11.dp))
+            .padding(horizontal = 12.dp, vertical = 9.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Box(
+            modifier = Modifier
+                .size(13.dp)
+                .clip(CircleShape)
+                .background(BrandGreen.copy(alpha = 0.2f)),
+            contentAlignment = Alignment.Center
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(7.dp)
+                    .clip(CircleShape)
+                    .background(BrandGreen)
+            )
+        }
+        Spacer(Modifier.size(8.dp))
+        Text(
+            text = stringResource(R.string.service_running),
+            fontSize = 13.sp,
+            fontWeight = FontWeight.Bold,
+            color = MaterialTheme.colorScheme.onBackground
+        )
+        Text(
+            text = stringResource(R.string.service_listening),
+            fontSize = 12.sp,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier
+                .weight(1f)
+                .padding(start = 8.dp),
+            textAlign = TextAlign.End
+        )
+    }
+}
+
+@Composable
+private fun ServiceOffStrip() {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(11.dp))
+            .background(MaterialTheme.colorScheme.errorContainer)
+            .padding(horizontal = 12.dp, vertical = 10.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Text(
+            text = stringResource(R.string.service_disabled),
+            fontSize = 13.sp,
+            fontWeight = FontWeight.Bold,
+            color = MaterialTheme.colorScheme.onErrorContainer
+        )
+        Text(
+            text = stringResource(R.string.service_stack_disabled),
+            fontSize = 12.sp,
+            color = MaterialTheme.colorScheme.onErrorContainer,
+            modifier = Modifier
+                .weight(1f)
+                .padding(start = 8.dp),
+            textAlign = TextAlign.End
+        )
+    }
+}
+
+@Composable
+private fun PermissionAlertCard(
+    isListenerEnabled: Boolean,
+    hasPostNotificationsPermission: Boolean,
+    onOpenPermissionSettings: () -> Unit,
+    onRequestPostNotifications: () -> Unit
+) {
+    val remaining = listOf(isListenerEnabled, hasPostNotificationsPermission).count { !it }
     Card(
         modifier = Modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(containerColor = containerColor)
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.errorContainer
+        ),
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.onErrorContainer.copy(alpha = 0.28f)),
+        shape = RoundedCornerShape(16.dp)
     ) {
-        Column(
-            modifier = Modifier.padding(20.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp)
-        ) {
+        Column(modifier = Modifier.padding(15.dp)) {
             Text(
-                text = if (isServiceRunning) {
-                    stringResource(R.string.service_running)
-                } else {
-                    stringResource(R.string.service_disabled)
-                },
-                fontSize = 20.sp,
-                fontWeight = FontWeight.Bold,
-                color = contentColor
+                text = stringResource(R.string.permission_guide_title_remaining, remaining.coerceAtLeast(1)),
+                fontSize = 16.sp,
+                fontWeight = FontWeight.ExtraBold,
+                color = MaterialTheme.colorScheme.onErrorContainer,
+                letterSpacing = (-0.3).sp
             )
-            Text(text = bodyText, color = contentColor)
+            Text(
+                text = stringResource(R.string.permission_guide_body),
+                fontSize = 13.sp,
+                color = MaterialTheme.colorScheme.onErrorContainer,
+                modifier = Modifier.padding(top = 5.dp),
+                lineHeight = 18.sp
+            )
+            PermissionStepRow(
+                title = stringResource(R.string.permission_notification_access_title),
+                body = stringResource(R.string.permission_notification_access_body),
+                granted = isListenerEnabled,
+                onGoToSettings = onOpenPermissionSettings
+            )
+            PermissionStepRow(
+                title = stringResource(R.string.permission_post_notifications_title),
+                body = stringResource(R.string.permission_post_notifications_body),
+                granted = hasPostNotificationsPermission,
+                onGoToSettings = onRequestPostNotifications
+            )
         }
     }
 }
@@ -486,12 +626,18 @@ private fun PermissionButton(onClick: () -> Unit) {
     Button(
         onClick = onClick,
         modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(13.dp),
         colors = ButtonDefaults.buttonColors(
-            containerColor = Green40,
+            containerColor = FillGreen,
             contentColor = Color.White
         )
     ) {
-        Text(stringResource(R.string.open_notification_access), fontSize = 16.sp)
+        Text(
+            stringResource(R.string.open_notification_access),
+            fontSize = 15.sp,
+            fontWeight = FontWeight.Bold,
+            modifier = Modifier.padding(vertical = 4.dp)
+        )
     }
 }
 
@@ -499,43 +645,19 @@ private fun PermissionButton(onClick: () -> Unit) {
 private fun PostNotificationsButton(onClick: () -> Unit) {
     Button(
         onClick = onClick,
-        modifier = Modifier.fillMaxWidth()
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(13.dp),
+        colors = ButtonDefaults.buttonColors(
+            containerColor = FillGreen,
+            contentColor = Color.White
+        )
     ) {
-        Text(stringResource(R.string.request_post_notifications), fontSize = 16.sp)
-    }
-}
-
-@Composable
-private fun PermissionGuideCard(
-    isListenerEnabled: Boolean,
-    hasPostNotificationsPermission: Boolean
-) {
-    Card(modifier = Modifier.fillMaxWidth()) {
-        Column(
-            modifier = Modifier.padding(20.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp)
-        ) {
-            Text(
-                text = stringResource(R.string.permission_guide_title),
-                fontSize = 18.sp,
-                fontWeight = FontWeight.Bold
-            )
-            Text(
-                text = stringResource(R.string.permission_guide_body),
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-            PermissionStepRow(
-                title = stringResource(R.string.permission_notification_access_title),
-                body = stringResource(R.string.permission_notification_access_body),
-                granted = isListenerEnabled
-            )
-            HorizontalDivider()
-            PermissionStepRow(
-                title = stringResource(R.string.permission_post_notifications_title),
-                body = stringResource(R.string.permission_post_notifications_body),
-                granted = hasPostNotificationsPermission
-            )
-        }
+        Text(
+            stringResource(R.string.request_post_notifications),
+            fontSize = 15.sp,
+            fontWeight = FontWeight.Bold,
+            modifier = Modifier.padding(vertical = 4.dp)
+        )
     }
 }
 
@@ -543,50 +665,70 @@ private fun PermissionGuideCard(
 private fun PermissionStepRow(
     title: String,
     body: String,
-    granted: Boolean
+    granted: Boolean,
+    onGoToSettings: () -> Unit
 ) {
     Row(
-        modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.spacedBy(12.dp),
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(top = 11.dp)
+            .then(
+                if (!granted) Modifier.clickable(onClick = onGoToSettings) else Modifier
+            ),
+        horizontalArrangement = Arrangement.spacedBy(10.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        Column(modifier = Modifier.weight(1f)) {
-            Text(title, fontSize = 15.sp, fontWeight = FontWeight.Medium)
-            Text(body, fontSize = 13.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
-        }
-        StatusPill(granted = granted)
-    }
-}
-
-@Composable
-private fun StatusPill(granted: Boolean) {
-    val containerColor = if (granted) {
-        MaterialTheme.colorScheme.primaryContainer
-    } else {
-        MaterialTheme.colorScheme.errorContainer
-    }
-    val contentColor = if (granted) {
-        MaterialTheme.colorScheme.onPrimaryContainer
-    } else {
-        MaterialTheme.colorScheme.onErrorContainer
-    }
-    Card(colors = CardDefaults.cardColors(containerColor = containerColor)) {
-        Text(
-            text = if (granted) {
-                stringResource(R.string.permission_status_granted)
+        Box(
+            modifier = Modifier
+                .size(20.dp)
+                .clip(CircleShape)
+                .background(
+                    if (granted) Color(0xFFDCFCE7) else Color(0xFFFEE2E2)
+                ),
+            contentAlignment = Alignment.Center
+        ) {
+            if (granted) {
+                Icon(
+                    Icons.Filled.Check,
+                    contentDescription = null,
+                    modifier = Modifier.size(12.dp),
+                    tint = Color(0xFF15803D)
+                )
             } else {
-                stringResource(R.string.permission_status_missing)
-            },
-            modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
-            fontSize = 12.sp,
-            fontWeight = FontWeight.Medium,
-            color = contentColor
-        )
+                Text(
+                    text = "!",
+                    fontSize = 11.sp,
+                    fontWeight = FontWeight.ExtraBold,
+                    color = Color(0xFFB91C1C)
+                )
+            }
+        }
+        Column(modifier = Modifier.weight(1f)) {
+            Text(title, fontSize = 13.sp, fontWeight = FontWeight.Bold)
+            Text(
+                text = if (granted) {
+                    stringResource(R.string.permission_status_granted)
+                } else {
+                    body
+                },
+                fontSize = 12.sp,
+                color = MaterialTheme.colorScheme.onErrorContainer,
+                lineHeight = 15.sp
+            )
+        }
+        if (!granted) {
+            Text(
+                text = stringResource(R.string.permission_go_to_settings),
+                fontSize = 12.sp,
+                fontWeight = FontWeight.ExtraBold,
+                color = inkGreen()
+            )
+        }
     }
 }
 
 @Composable
-private fun SettingsCard(
+private fun MasterControlCard(
     serviceEnabled: Boolean,
     replaceOriginal: Boolean,
     onServiceEnabledChange: (Boolean) -> Unit,
@@ -596,47 +738,313 @@ private fun SettingsCard(
     val replaceInfoTitle = stringResource(R.string.replace_original_info_title)
     val replaceInfoBody = stringResource(R.string.replace_original_info_body)
 
-    Card(modifier = Modifier.fillMaxWidth()) {
-        Column(modifier = Modifier.padding(20.dp)) {
-            Text(
-                text = stringResource(R.string.settings_title),
-                fontSize = 18.sp,
-                fontWeight = FontWeight.Bold,
-                modifier = Modifier.padding(bottom = 12.dp)
-            )
-
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(16.dp),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline)
+    ) {
+        Column(modifier = Modifier.padding(15.dp)) {
             SettingToggle(
                 title = stringResource(R.string.enable_stack_notifications_title),
                 subtitle = stringResource(R.string.enable_stack_notifications_subtitle),
                 checked = serviceEnabled,
-                onCheckedChange = onServiceEnabledChange
+                onCheckedChange = onServiceEnabledChange,
+                titleSize = 15.sp,
+                titleWeight = FontWeight.ExtraBold
             )
 
-            HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
+            Row(
+                modifier = Modifier
+                    .padding(top = 13.dp)
+                    .alpha(if (serviceEnabled) 1f else 0.45f),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Box(
+                    modifier = Modifier
+                        .width(2.dp)
+                        .height(52.dp)
+                        .clip(RoundedCornerShape(1.dp))
+                        .background(MaterialTheme.colorScheme.outline)
+                )
+                Spacer(Modifier.size(12.dp))
+                SettingToggle(
+                    title = stringResource(R.string.replace_original_title),
+                    subtitle = stringResource(R.string.replace_original_subtitle),
+                    checked = replaceOriginal,
+                    enabled = serviceEnabled,
+                    compactSwitch = true,
+                    onCheckedChange = onReplaceOriginalChange,
+                    onInfo = { infoDialog = replaceInfoTitle to replaceInfoBody },
+                    titleSize = 13.sp,
+                    titleWeight = FontWeight.SemiBold,
+                    subtitleSize = 12.sp
+                )
+            }
+        }
+    }
 
-            SettingToggle(
-                title = stringResource(R.string.replace_original_title),
-                subtitle = stringResource(R.string.replace_original_subtitle),
-                checked = replaceOriginal,
-                enabled = serviceEnabled,
-                onCheckedChange = onReplaceOriginalChange,
-                onInfo = { infoDialog = replaceInfoTitle to replaceInfoBody }
+    InfoAlert(dialog = infoDialog, onDismiss = { infoDialog = null })
+}
+
+@Composable
+private fun NotificationStyleSection(
+    notifStyle: String,
+    featuresEnabled: Boolean,
+    onNotificationStyleChange: (String) -> Unit
+) {
+    var infoDialog by remember { mutableStateOf<Pair<String, String>?>(null) }
+    var showStyleGuideDialog by remember { mutableStateOf(false) }
+
+    if (showStyleGuideDialog) {
+        NotificationStyleGuideDialog(onDismiss = { showStyleGuideDialog = false })
+    }
+
+    val threadTitle = stringResource(R.string.style_thread_title)
+    val threadBody = stringResource(R.string.style_help_thread_body)
+    val appleTitle = stringResource(R.string.style_apple_title)
+    val appleBody = stringResource(R.string.style_help_apple_body)
+    val demoPending = stringResource(R.string.info_demo_pending)
+
+    Column(
+        modifier = Modifier.alpha(if (featuresEnabled) 1f else 0.45f),
+        verticalArrangement = Arrangement.spacedBy(8.dp)
+    ) {
+        SectionLabelWithInfo(
+            text = stringResource(R.string.notification_style_title),
+            onInfoClick = { showStyleGuideDialog = true }
+        )
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(9.dp)
+        ) {
+            StylePickerCard(
+                modifier = Modifier.weight(1f),
+                title = threadTitle,
+                subtitle = stringResource(R.string.style_thread_subtitle),
+                selected = notifStyle == "thread",
+                enabled = featuresEnabled,
+                onClick = { onNotificationStyleChange("thread") },
+                onInfo = { infoDialog = threadTitle to "$threadBody\n\n$demoPending" },
+                preview = { MiniThreadPreview() }
+            )
+            StylePickerCard(
+                modifier = Modifier.weight(1f),
+                title = appleTitle,
+                subtitle = stringResource(R.string.style_apple_subtitle),
+                selected = notifStyle == "apple",
+                enabled = featuresEnabled,
+                onClick = { onNotificationStyleChange("apple") },
+                onInfo = { infoDialog = appleTitle to "$appleBody\n\n$demoPending" },
+                preview = { MiniApplePreview() }
             )
         }
     }
 
-    if (infoDialog != null) {
-        AlertDialog(
-            onDismissRequest = { infoDialog = null },
-            title = { Text(infoDialog!!.first) },
-            text = { Text(infoDialog!!.second) },
-            confirmButton = {
-                TextButton(onClick = { infoDialog = null }) {
-                    Text(stringResource(android.R.string.ok))
+    InfoAlert(dialog = infoDialog, onDismiss = { infoDialog = null })
+}
+
+@Composable
+private fun StylePickerCard(
+    modifier: Modifier = Modifier,
+    title: String,
+    subtitle: String,
+    selected: Boolean,
+    enabled: Boolean,
+    onClick: () -> Unit,
+    onInfo: () -> Unit,
+    preview: @Composable () -> Unit
+) {
+    val borderColor = if (selected) ActionGreen else MaterialTheme.colorScheme.outline
+    Card(
+        modifier = modifier.clickable(enabled = enabled, onClick = onClick),
+        shape = RoundedCornerShape(14.dp),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+        border = BorderStroke(1.5.dp, borderColor),
+        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
+    ) {
+        Column(modifier = Modifier.padding(11.dp)) {
+            Row(verticalAlignment = Alignment.Top) {
+                Column(modifier = Modifier.weight(1f)) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text(
+                            text = title,
+                            fontSize = 13.sp,
+                            fontWeight = FontWeight.ExtraBold,
+                            modifier = Modifier.weight(1f, fill = false),
+                            maxLines = 2
+                        )
+                        Spacer(Modifier.size(4.dp))
+                        Icon(
+                            imageVector = Icons.Outlined.Info,
+                            contentDescription = stringResource(R.string.info_icon_desc),
+                            modifier = Modifier
+                                .size(16.dp)
+                                .clickable(onClick = onInfo),
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                    Text(
+                        text = subtitle,
+                        fontSize = 12.sp,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        lineHeight = 16.sp,
+                        modifier = Modifier.padding(top = 2.dp, end = 4.dp)
+                    )
+                }
+                Spacer(Modifier.size(6.dp))
+                Box(
+                    modifier = Modifier
+                        .size(15.dp)
+                        .border(1.5.dp, borderColor, CircleShape),
+                    contentAlignment = Alignment.Center
+                ) {
+                    if (selected) {
+                        Box(
+                            modifier = Modifier
+                                .size(7.dp)
+                                .clip(CircleShape)
+                                .background(ActionGreen)
+                        )
+                    }
                 }
             }
+            Box(modifier = Modifier.padding(top = 8.dp)) {
+                preview()
+            }
+        }
+    }
+}
+
+@Composable
+private fun MiniThreadPreview() {
+    val line = MaterialTheme.colorScheme.outline
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(8.dp))
+            .background(MaterialTheme.colorScheme.surfaceVariant)
+            .padding(6.dp),
+        verticalArrangement = Arrangement.spacedBy(3.dp)
+    ) {
+        MiniNotifBar(lineColor = line, secondLine = false)
+        MiniNotifBar(lineColor = line, secondLine = true, showDot = false)
+    }
+}
+
+@Composable
+private fun MiniApplePreview() {
+    val line = MaterialTheme.colorScheme.outline
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(8.dp))
+            .background(MaterialTheme.colorScheme.surfaceVariant)
+            .padding(6.dp),
+        verticalArrangement = Arrangement.spacedBy(3.dp)
+    ) {
+        MiniNotifBar(lineColor = line, secondLine = false)
+        Box(
+            modifier = Modifier
+                .padding(horizontal = 6.dp)
+                .fillMaxWidth()
+                .height(4.dp)
+                .clip(RoundedCornerShape(3.dp))
+                .background(line.copy(alpha = 0.85f))
+        )
+        Box(
+            modifier = Modifier
+                .padding(horizontal = 10.dp)
+                .fillMaxWidth()
+                .height(4.dp)
+                .clip(RoundedCornerShape(3.dp))
+                .background(line.copy(alpha = 0.5f))
         )
     }
+}
+
+@Composable
+private fun MiniNotifBar(lineColor: Color, secondLine: Boolean, showDot: Boolean = true) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(5.dp))
+            .background(MaterialTheme.colorScheme.surface)
+            .padding(horizontal = 5.dp, vertical = 4.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(4.dp)
+    ) {
+        Box(
+            modifier = Modifier
+                .size(9.dp)
+                .clip(RoundedCornerShape(3.dp))
+                .background(if (showDot) lineColor else Color.Transparent)
+        )
+        Column(
+            modifier = Modifier.weight(1f),
+            verticalArrangement = Arrangement.spacedBy(2.5.dp)
+        ) {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(3.dp)
+                    .clip(CircleShape)
+                    .background(lineColor)
+            )
+            if (secondLine) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth(0.5f)
+                        .height(3.dp)
+                        .clip(CircleShape)
+                        .background(lineColor)
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun ClearTimingCard(
+    clearAfterReply: Boolean,
+    featuresEnabled: Boolean,
+    onClearAfterReplyChange: (Boolean) -> Unit
+) {
+    var infoDialog by remember { mutableStateOf<Pair<String, String>?>(null) }
+    val clearReplyTitle = stringResource(R.string.clear_after_reply_title)
+    val clearReplySubtitle = stringResource(R.string.clear_after_reply_subtitle)
+    val demoPending = stringResource(R.string.info_demo_pending)
+
+    Column(
+        modifier = Modifier.alpha(if (featuresEnabled) 1f else 0.45f),
+        verticalArrangement = Arrangement.spacedBy(8.dp)
+    ) {
+        SectionLabel(stringResource(R.string.clear_timing_title))
+        Card(
+            modifier = Modifier.fillMaxWidth(),
+            shape = RoundedCornerShape(16.dp),
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline)
+        ) {
+            Column(modifier = Modifier.padding(horizontal = 14.dp, vertical = 4.dp)) {
+                SettingToggle(
+                    title = clearReplyTitle,
+                    subtitle = clearReplySubtitle,
+                    checked = clearAfterReply,
+                    enabled = featuresEnabled,
+                    compactSwitch = true,
+                    onCheckedChange = onClearAfterReplyChange,
+                    onInfo = { infoDialog = clearReplyTitle to "$clearReplySubtitle\n\n$demoPending" },
+                    titleSize = 13.sp,
+                    titleWeight = FontWeight.SemiBold,
+                    subtitleSize = 12.sp
+                )
+            }
+        }
+    }
+
+    InfoAlert(dialog = infoDialog, onDismiss = { infoDialog = null })
 }
 
 @Composable
@@ -645,68 +1053,85 @@ private fun AccessibilityReadSyncCard(
     permissionGranted: Boolean,
     featuresEnabled: Boolean,
     replaceOriginal: Boolean,
-    clearAfterRead: Boolean,
     onEnabledChange: (Boolean) -> Unit,
     onOpenSettings: () -> Unit,
 ) {
     var showDisclosure by remember { mutableStateOf(false) }
-    // 前置條件失效時不可新開，但已經勾選的使用者永遠要能手動關閉。
-    val toggleEnabled = enabled || (featuresEnabled && replaceOriginal && clearAfterRead)
+    // 前置條件失效時不能新開；已經啟用的使用者仍必須能直接關閉。
+    val toggleEnabled = enabled || (featuresEnabled && replaceOriginal)
     val statusText = when {
         !enabled && permissionGranted ->
             stringResource(R.string.accessibility_status_off_authorized)
         !featuresEnabled -> stringResource(R.string.accessibility_status_service_required)
         !replaceOriginal -> stringResource(R.string.accessibility_status_replace_required)
-        !clearAfterRead -> stringResource(R.string.accessibility_status_clear_required)
         !enabled -> stringResource(R.string.accessibility_status_off)
         permissionGranted -> stringResource(R.string.accessibility_status_active)
         else -> stringResource(R.string.accessibility_status_permission_missing)
     }
 
-    Card(modifier = Modifier.fillMaxWidth()) {
-        Column(
-            modifier = Modifier.padding(20.dp),
-            verticalArrangement = Arrangement.spacedBy(10.dp),
+    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        SectionLabel(stringResource(R.string.accessibility_section_title))
+        Card(
+            modifier = Modifier.fillMaxWidth(),
+            shape = RoundedCornerShape(16.dp),
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline),
         ) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically,
+            Column(
+                modifier = Modifier.padding(horizontal = 14.dp, vertical = 12.dp),
+                verticalArrangement = Arrangement.spacedBy(10.dp),
             ) {
-                Column(modifier = Modifier.weight(1f)) {
-                    Text(
-                        text = stringResource(R.string.accessibility_read_sync_title),
-                        fontSize = 16.sp,
-                        fontWeight = FontWeight.Medium,
-                    )
-                    Text(
-                        text = stringResource(R.string.accessibility_read_sync_subtitle),
-                        fontSize = 13.sp,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(12.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = stringResource(R.string.accessibility_read_sync_title),
+                            fontSize = 14.sp,
+                            fontWeight = FontWeight.Bold,
+                        )
+                        Text(
+                            text = stringResource(R.string.accessibility_read_sync_subtitle),
+                            fontSize = 12.sp,
+                            lineHeight = 17.sp,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.padding(top = 3.dp),
+                        )
+                    }
+                    BrandSwitch(
+                        checked = enabled,
+                        enabled = toggleEnabled,
+                        onCheckedChange = { checked ->
+                            if (checked) showDisclosure = true else onEnabledChange(false)
+                        },
                     )
                 }
-                Spacer(modifier = Modifier.size(12.dp))
-                Switch(
-                    checked = enabled,
-                    enabled = toggleEnabled,
-                    onCheckedChange = { checked ->
-                        if (checked) showDisclosure = true else onEnabledChange(false)
-                    },
+
+                Text(
+                    text = statusText,
+                    fontSize = 12.sp,
+                    lineHeight = 17.sp,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(10.dp))
+                        .background(MaterialTheme.colorScheme.surfaceVariant)
+                        .padding(horizontal = 10.dp, vertical = 8.dp),
                 )
-            }
 
-            Text(
-                text = statusText,
-                fontSize = 13.sp,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-
-            if (enabled || permissionGranted) {
-                OutlinedButton(
-                    onClick = onOpenSettings,
-                    modifier = Modifier.fillMaxWidth(),
-                ) {
-                    Text(stringResource(R.string.accessibility_open_settings))
+                if (enabled || permissionGranted) {
+                    TextButton(
+                        onClick = onOpenSettings,
+                        modifier = Modifier.fillMaxWidth(),
+                    ) {
+                        Text(
+                            text = stringResource(R.string.accessibility_open_settings),
+                            color = inkGreen(),
+                            fontWeight = FontWeight.Bold,
+                        )
+                    }
                 }
             }
         }
@@ -736,147 +1161,94 @@ private fun AccessibilityReadSyncCard(
 }
 
 @Composable
-private fun ManageChatsRow(onClick: () -> Unit) {
-    OutlinedButton(
-        onClick = onClick,
-        modifier = Modifier.fillMaxWidth()
-    ) {
-        Text(stringResource(R.string.manage_chats), fontSize = 16.sp)
-    }
-}
-
-@Composable
-private fun AdvancedSettingsCard(
-    notifStyle: String,
-    clearAfterReply: Boolean,
-    clearAfterRead: Boolean,
+private fun EntryListCard(
+    isListenerEnabled: Boolean,
     languageTag: String,
-    featuresEnabled: Boolean,
-    onNotificationStyleChange: (String) -> Unit,
-    onClearAfterReplyChange: (Boolean) -> Unit,
-    onClearAfterReadChange: (Boolean) -> Unit,
-    onLanguageChange: (String) -> Unit
+    onLanguageChange: (String) -> Unit,
+    onOpenChatManagement: () -> Unit,
+    onOpenHelp: () -> Unit
 ) {
-    var expanded by remember { mutableStateOf(false) }
-    var infoDialog by remember { mutableStateOf<Pair<String, String>?>(null) }
-    var showStyleGuideDialog by remember { mutableStateOf(false) }
-
-    if (showStyleGuideDialog) {
-        NotificationStyleGuideDialog(onDismiss = { showStyleGuideDialog = false })
-    }
-
-    val threadTitle = stringResource(R.string.style_thread_title)
-    val threadBody = stringResource(R.string.style_help_thread_body)
-    val appleTitle = stringResource(R.string.style_apple_title)
-    val appleBody = stringResource(R.string.style_help_apple_body)
-    val clearReplyTitle = stringResource(R.string.clear_after_reply_title)
-    val clearReplySubtitle = stringResource(R.string.clear_after_reply_subtitle)
-    val clearReadTitle = stringResource(R.string.clear_after_read_title)
-    val clearReadSubtitle = stringResource(R.string.clear_after_read_subtitle)
-    val demoPending = stringResource(R.string.info_demo_pending)
+    val context = LocalContext.current
+    val officialUrl = stringResource(R.string.line_official_url)
 
     Card(
         modifier = Modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surfaceVariant
-        )
+        shape = RoundedCornerShape(16.dp),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline)
     ) {
-        Column(modifier = Modifier.padding(horizontal = 20.dp, vertical = 6.dp)) {
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clickable { expanded = !expanded }
-                    .padding(vertical = 14.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text(
-                    text = stringResource(R.string.advanced_section_title),
-                    fontSize = 16.sp,
-                    fontWeight = FontWeight.Bold,
-                    modifier = Modifier.weight(1f)
+        Column {
+            if (isListenerEnabled) {
+                EntryRow(
+                    icon = Icons.AutoMirrored.Filled.List,
+                    title = stringResource(R.string.manage_chats),
+                    onClick = onOpenChatManagement
                 )
-                Icon(
-                    Icons.Filled.KeyboardArrowDown,
-                    contentDescription = null,
-                    modifier = Modifier.rotate(if (expanded) 180f else 0f),
-                    tint = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-            }
-
-            if (expanded) {
-                HorizontalDivider(modifier = Modifier.padding(bottom = 4.dp))
-
-                SectionLabelWithInfo(
-                    text = stringResource(R.string.notification_style_title),
-                    onInfoClick = { showStyleGuideDialog = true }
-                )
-                StyleOption(
-                    title = threadTitle,
-                    subtitle = stringResource(R.string.style_thread_subtitle),
-                    selected = notifStyle == "thread",
-                    enabled = featuresEnabled,
-                    onClick = { onNotificationStyleChange("thread") },
-                    onInfo = { infoDialog = threadTitle to "$threadBody\n\n$demoPending" }
-                )
-                StyleOption(
-                    title = appleTitle,
-                    subtitle = stringResource(R.string.style_apple_subtitle),
-                    selected = notifStyle == "apple",
-                    enabled = featuresEnabled,
-                    onClick = { onNotificationStyleChange("apple") },
-                    onInfo = { infoDialog = appleTitle to "$appleBody\n\n$demoPending" }
-                )
-
-                HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
-
-                SettingToggle(
-                    title = clearReplyTitle,
-                    subtitle = clearReplySubtitle,
-                    checked = clearAfterReply,
-                    enabled = featuresEnabled,
-                    onCheckedChange = onClearAfterReplyChange,
-                    onInfo = { infoDialog = clearReplyTitle to "$clearReplySubtitle\n\n$demoPending" }
-                )
-
-                HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
-
-                SettingToggle(
-                    title = clearReadTitle,
-                    subtitle = clearReadSubtitle,
-                    checked = clearAfterRead,
-                    enabled = featuresEnabled,
-                    onCheckedChange = onClearAfterReadChange,
-                    onInfo = { infoDialog = clearReadTitle to clearReadSubtitle }
-                )
-
-                HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
-
-                SectionLabel(stringResource(R.string.language_title))
-                LanguageDropdown(
+                HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.5f))
+                LanguageEntryRow(
                     languageTag = languageTag,
                     onLanguageChange = onLanguageChange
                 )
-                Spacer(modifier = Modifier.size(8.dp))
+                HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.5f))
+            }
+            EntryRow(
+                icon = Icons.Outlined.Info,
+                title = stringResource(R.string.open_help),
+                onClick = onOpenHelp
+            )
+            if (isListenerEnabled) {
+                HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.5f))
+                EntryRow(
+                    icon = Icons.Filled.Add,
+                    title = stringResource(R.string.join_official_account),
+                    onClick = { context.openExternalUri(officialUrl) }
+                )
             }
         }
     }
+}
 
-    if (infoDialog != null) {
-        AlertDialog(
-            onDismissRequest = { infoDialog = null },
-            title = { Text(infoDialog!!.first) },
-            text = { Text(infoDialog!!.second) },
-            confirmButton = {
-                TextButton(onClick = { infoDialog = null }) {
-                    Text(stringResource(android.R.string.ok))
-                }
-            }
+@Composable
+private fun EntryRow(
+    icon: ImageVector,
+    title: String,
+    onClick: () -> Unit,
+    value: String? = null
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(onClick = onClick)
+            .padding(horizontal = 14.dp, vertical = 12.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(11.dp)
+    ) {
+        EntryIcon(icon)
+        Text(
+            text = title,
+            fontSize = 13.sp,
+            fontWeight = FontWeight.SemiBold,
+            modifier = Modifier.weight(1f)
+        )
+        if (value != null) {
+            Text(
+                text = value,
+                fontSize = 12.sp,
+                fontWeight = FontWeight.SemiBold,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
+        Icon(
+            Icons.AutoMirrored.Filled.KeyboardArrowRight,
+            contentDescription = null,
+            modifier = Modifier.size(18.dp),
+            tint = MaterialTheme.colorScheme.outline
         )
     }
 }
 
 @Composable
-private fun LanguageDropdown(
+private fun LanguageEntryRow(
     languageTag: String,
     onLanguageChange: (String) -> Unit
 ) {
@@ -889,17 +1261,46 @@ private fun LanguageDropdown(
     }
 
     Box {
-        OutlinedButton(
-            onClick = { expanded = true },
-            modifier = Modifier.fillMaxWidth()
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .clickable { expanded = true }
+                .padding(horizontal = 14.dp, vertical = 12.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(11.dp)
         ) {
+            Box(
+                modifier = Modifier
+                    .size(26.dp)
+                    .clip(RoundedCornerShape(8.dp))
+                    .background(MaterialTheme.colorScheme.surfaceVariant),
+                contentAlignment = Alignment.Center
+            ) {
+                Text(
+                    text = "A",
+                    fontSize = 11.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+            Text(
+                text = stringResource(R.string.language_title),
+                fontSize = 13.sp,
+                fontWeight = FontWeight.SemiBold,
+                modifier = Modifier.weight(1f)
+            )
             Text(
                 text = label,
-                modifier = Modifier.weight(1f),
-                textAlign = TextAlign.Start,
-                fontSize = 15.sp
+                fontSize = 12.sp,
+                fontWeight = FontWeight.SemiBold,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
             )
-            Icon(Icons.Filled.KeyboardArrowDown, contentDescription = null)
+            Icon(
+                Icons.Filled.KeyboardArrowDown,
+                contentDescription = null,
+                modifier = Modifier.size(18.dp),
+                tint = MaterialTheme.colorScheme.outline
+            )
         }
         DropdownMenu(
             expanded = expanded,
@@ -922,19 +1323,50 @@ private fun LanguageDropdown(
 }
 
 @Composable
-private fun SectionLabelWithInfo(text: String, onInfoClick: () -> Unit) {
-    Row(
+private fun EntryIcon(icon: ImageVector) {
+    Box(
+        modifier = Modifier
+            .size(26.dp)
+            .clip(RoundedCornerShape(8.dp))
+            .background(MaterialTheme.colorScheme.surfaceVariant),
+        contentAlignment = Alignment.Center
+    ) {
+        Icon(
+            icon,
+            contentDescription = null,
+            modifier = Modifier.size(14.dp),
+            tint = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+    }
+}
+
+@Composable
+private fun PrivacyFooter() {
+    Text(
+        text = stringResource(R.string.privacy_footer),
+        fontSize = 12.sp,
+        color = MaterialTheme.colorScheme.onSurfaceVariant,
+        textAlign = TextAlign.Center,
+        lineHeight = 16.sp,
         modifier = Modifier
             .fillMaxWidth()
-            .padding(top = 4.dp, bottom = 8.dp),
+            .padding(horizontal = 8.dp, vertical = 4.dp)
+    )
+}
+
+@Composable
+private fun SectionLabelWithInfo(text: String, onInfoClick: () -> Unit) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.SpaceBetween,
-        verticalAlignment = androidx.compose.ui.Alignment.CenterVertically
+        verticalAlignment = Alignment.CenterVertically
     ) {
         Text(
             text = text,
-            fontSize = 14.sp,
-            fontWeight = FontWeight.Medium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant
+            fontSize = 11.sp,
+            fontWeight = FontWeight.ExtraBold,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            letterSpacing = 1.sp
         )
         IconButton(
             onClick = onInfoClick,
@@ -943,7 +1375,7 @@ private fun SectionLabelWithInfo(text: String, onInfoClick: () -> Unit) {
             Icon(
                 imageVector = Icons.Outlined.Info,
                 contentDescription = stringResource(R.string.style_guide_open_content_description),
-                tint = MaterialTheme.colorScheme.primary
+                tint = MaterialTheme.colorScheme.onSurfaceVariant
             )
         }
     }
@@ -953,10 +1385,11 @@ private fun SectionLabelWithInfo(text: String, onInfoClick: () -> Unit) {
 private fun SectionLabel(text: String) {
     Text(
         text = text,
-        fontSize = 14.sp,
-        fontWeight = FontWeight.Medium,
+        fontSize = 11.sp,
+        fontWeight = FontWeight.ExtraBold,
         color = MaterialTheme.colorScheme.onSurfaceVariant,
-        modifier = Modifier.padding(top = 4.dp, bottom = 8.dp)
+        letterSpacing = 1.sp,
+        modifier = Modifier.padding(horizontal = 2.dp)
     )
 }
 
@@ -966,101 +1399,85 @@ private fun SettingToggle(
     subtitle: String,
     checked: Boolean,
     enabled: Boolean = true,
+    compactSwitch: Boolean = false,
     onCheckedChange: (Boolean) -> Unit,
-    onInfo: (() -> Unit)? = null
+    onInfo: (() -> Unit)? = null,
+    titleSize: androidx.compose.ui.unit.TextUnit = 16.sp,
+    titleWeight: FontWeight = FontWeight.Medium,
+    subtitleSize: androidx.compose.ui.unit.TextUnit = 13.sp
 ) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(vertical = 4.dp),
-        horizontalArrangement = Arrangement.SpaceBetween
+            .padding(vertical = 8.dp),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically
     ) {
         Column(modifier = Modifier.weight(1f)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Text(text = title, fontSize = 16.sp, fontWeight = FontWeight.Medium)
+                Text(text = title, fontSize = titleSize, fontWeight = titleWeight)
                 if (onInfo != null) {
                     Spacer(modifier = Modifier.size(4.dp))
                     Icon(
                         imageVector = Icons.Outlined.Info,
                         contentDescription = stringResource(R.string.info_icon_desc),
                         modifier = Modifier
-                            .size(18.dp)
+                            .size(15.dp)
                             .clickable { onInfo() },
                         tint = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
             }
-            Text(text = subtitle, fontSize = 13.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Text(
+                text = subtitle,
+                fontSize = subtitleSize,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                lineHeight = (subtitleSize.value + 4).sp
+            )
         }
         Spacer(modifier = Modifier.size(12.dp))
-        Switch(checked = checked, onCheckedChange = onCheckedChange, enabled = enabled)
-    }
-}
-
-@Composable
-private fun StyleOption(
-    title: String,
-    subtitle: String,
-    selected: Boolean,
-    enabled: Boolean = true,
-    onClick: () -> Unit,
-    onInfo: (() -> Unit)? = null
-) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clickable(enabled = enabled, onClick = onClick)
-            .padding(vertical = 4.dp),
-        horizontalArrangement = Arrangement.SpaceBetween
-    ) {
-        Column(modifier = Modifier.weight(1f)) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Text(text = title, fontSize = 15.sp, fontWeight = FontWeight.Medium)
-                if (onInfo != null) {
-                    Spacer(modifier = Modifier.size(4.dp))
-                    Icon(
-                        imageVector = Icons.Outlined.Info,
-                        contentDescription = stringResource(R.string.info_icon_desc),
-                        modifier = Modifier
-                            .size(18.dp)
-                            .clickable { onInfo() },
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                }
-            }
-            Text(text = subtitle, fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
-        }
-        Spacer(modifier = Modifier.size(12.dp))
-        RadioButton(selected = selected, onClick = onClick, enabled = enabled)
-    }
-}
-
-@Composable
-private fun HelpEntryButton(onClick: () -> Unit) {
-    OutlinedButton(
-        onClick = onClick,
-        modifier = Modifier.fillMaxWidth()
-    ) {
-        Text(stringResource(R.string.open_help), fontSize = 16.sp)
-    }
-}
-
-@Composable
-private fun OfficialAccountButton() {
-    val context = LocalContext.current
-    val officialUrl = stringResource(R.string.line_official_url)
-    Button(
-        onClick = {
-            context.openExternalUri(officialUrl)
-        },
-        modifier = Modifier.fillMaxWidth(),
-        colors = ButtonDefaults.buttonColors(
-            containerColor = Green40,
-            contentColor = Color.White
+        BrandSwitch(
+            checked = checked,
+            onCheckedChange = onCheckedChange,
+            enabled = enabled,
+            compact = compactSwitch
         )
-    ) {
-        Text(stringResource(R.string.join_official_account), fontSize = 16.sp)
     }
+}
+
+@Composable
+private fun BrandSwitch(
+    checked: Boolean,
+    onCheckedChange: ((Boolean) -> Unit)?,
+    enabled: Boolean = true,
+    compact: Boolean = false
+) {
+    Switch(
+        checked = checked,
+        onCheckedChange = onCheckedChange,
+        enabled = enabled,
+        modifier = if (compact) Modifier.scale(0.85f) else Modifier,
+        colors = SwitchDefaults.colors(
+            checkedTrackColor = ActionGreen,
+            checkedBorderColor = ActionGreen,
+            checkedThumbColor = Color.White
+        )
+    )
+}
+
+@Composable
+private fun InfoAlert(dialog: Pair<String, String>?, onDismiss: () -> Unit) {
+    if (dialog == null) return
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(dialog.first) },
+        text = { Text(dialog.second) },
+        confirmButton = {
+            TextButton(onClick = onDismiss) {
+                Text(stringResource(android.R.string.ok))
+            }
+        }
+    )
 }
 
 private fun isNotificationListenerEnabled(context: Context): Boolean {
