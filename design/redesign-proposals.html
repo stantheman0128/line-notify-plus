@@ -1,0 +1,959 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Notify+ — 3 個新 App 設計方向</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --ink:#0b0d12; --ink2:#3b4252; --ink3:#6b7280; --line:#e3e6ec;
+  --bg:#f6f7f9; --card:#fff;
+  --a:#6366f1; --b:#0f766e; --c:#f59e0b;
+  --font:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang TC","Noto Sans TC","Helvetica Neue",sans-serif;
+  --mono:ui-monospace,SFMono-Regular,"SF Mono",Menlo,monospace;
+}
+html{scroll-behavior:smooth}
+body{font-family:var(--font);background:var(--bg);color:var(--ink);-webkit-font-smoothing:antialiased;line-height:1.6}
+
+/* ---------- page shell ---------- */
+.wrap{max-width:1280px;margin:0 auto;padding:0 32px}
+header.hero{padding:72px 0 40px;border-bottom:1px solid var(--line);background:
+  radial-gradient(900px 340px at 12% -10%,rgba(99,102,241,.14),transparent 60%),
+  radial-gradient(700px 300px at 88% -20%,rgba(245,158,11,.12),transparent 60%);}
+.kicker{font-size:12px;letter-spacing:.16em;text-transform:uppercase;color:var(--ink3);font-weight:700}
+h1{font-size:clamp(34px,5vw,52px);line-height:1.1;letter-spacing:-.03em;margin:14px 0 18px;font-weight:800}
+.lede{font-size:18px;color:var(--ink2);max-width:70ch}
+.meta{display:flex;gap:10px;flex-wrap:wrap;margin-top:26px}
+.tag{font-size:12px;padding:6px 12px;border-radius:999px;background:#fff;border:1px solid var(--line);color:var(--ink2);font-weight:600}
+
+/* diagnosis */
+.diag{padding:52px 0;border-bottom:1px solid var(--line)}
+h2.sec{font-size:13px;letter-spacing:.16em;text-transform:uppercase;color:var(--ink3);font-weight:700;margin-bottom:22px}
+.dgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:14px}
+.dcard{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:20px}
+.dcard b{display:block;font-size:15px;margin-bottom:6px}
+.dcard p{font-size:13.5px;color:var(--ink3);line-height:1.55}
+.dcard .n{font-family:var(--mono);font-size:11px;color:var(--a);font-weight:700;letter-spacing:.05em}
+
+/* nav */
+nav.sticky{position:sticky;top:0;z-index:50;background:rgba(246,247,249,.86);backdrop-filter:blur(14px);border-bottom:1px solid var(--line)}
+nav.sticky .wrap{display:flex;gap:8px;padding:12px 32px;align-items:center;overflow-x:auto}
+nav a{font-size:13px;font-weight:600;color:var(--ink2);text-decoration:none;padding:8px 14px;border-radius:10px;white-space:nowrap}
+nav a:hover{background:#fff;box-shadow:0 1px 3px rgba(0,0,0,.06)}
+nav .brand{font-weight:800;font-size:13px;margin-right:8px;letter-spacing:-.01em}
+
+/* concept sections */
+section.concept{padding:70px 0;border-bottom:1px solid var(--line)}
+.chead{display:grid;grid-template-columns:1.25fr 1fr;gap:44px;align-items:start;margin-bottom:44px}
+@media(max-width:900px){.chead{grid-template-columns:1fr}}
+.badge{display:inline-flex;align-items:center;gap:8px;font-family:var(--mono);font-size:11px;font-weight:700;letter-spacing:.1em;padding:6px 11px;border-radius:8px;margin-bottom:16px}
+h3.ct{font-size:clamp(27px,3.4vw,40px);line-height:1.12;letter-spacing:-.025em;font-weight:800;margin-bottom:14px}
+h3.ct .sub{display:block;font-size:16px;font-weight:600;color:var(--ink3);letter-spacing:0;margin-top:10px}
+.thesis{font-size:16.5px;color:var(--ink2)}
+.facts{background:var(--card);border:1px solid var(--line);border-radius:16px;overflow:hidden}
+.frow{display:grid;grid-template-columns:104px 1fr;gap:14px;padding:13px 18px;border-bottom:1px solid var(--line);font-size:13.5px}
+.frow:last-child{border-bottom:none}
+.frow span{color:var(--ink3);font-weight:600;font-size:12px;letter-spacing:.03em;text-transform:uppercase;padding-top:2px}
+.frow div{color:var(--ink2)}
+.pills{display:flex;gap:6px;flex-wrap:wrap}
+.pill{font-size:11.5px;font-weight:600;padding:4px 9px;border-radius:7px;background:#f1f2f6;color:var(--ink2)}
+
+/* phones row */
+.phones{display:flex;gap:26px;flex-wrap:wrap}
+.pcol{width:322px}
+.plabel{font-size:13px;font-weight:700;margin-bottom:4px}
+.pnote{font-size:12.5px;color:var(--ink3);margin-bottom:14px;min-height:36px;line-height:1.45}
+.phone{width:322px;height:706px;border-radius:44px;padding:9px;background:#0a0a0c;
+  box-shadow:0 1px 2px rgba(0,0,0,.3),0 18px 40px -12px rgba(0,0,0,.4),0 0 0 1px rgba(255,255,255,.06) inset}
+.screen{width:100%;height:100%;border-radius:36px;overflow:hidden;display:flex;flex-direction:column;font-size:14px;position:relative}
+.sb{display:flex;justify-content:space-between;align-items:center;padding:11px 20px 5px;font-size:11.5px;font-weight:700;flex:0 0 auto}
+.sb .r{display:flex;gap:5px;align-items:center;font-size:10px;opacity:.75}
+/* fade the cut-off edge so overflowing content reads as "scrollable", not broken */
+.body{flex:1;overflow:hidden;position:relative;
+  -webkit-mask-image:linear-gradient(to bottom,#000 86%,rgba(0,0,0,.15) 100%);
+  mask-image:linear-gradient(to bottom,#000 86%,rgba(0,0,0,.15) 100%)}
+
+/* takeaways */
+.tk{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-top:40px}
+@media(max-width:900px){.tk{grid-template-columns:1fr}}
+.tkc{border-radius:14px;padding:18px 20px;background:var(--card);border:1px solid var(--line)}
+.tkc h4{font-size:12px;letter-spacing:.1em;text-transform:uppercase;color:var(--ink3);margin-bottom:9px}
+.tkc ul{list-style:none;font-size:13.5px;color:var(--ink2)}
+.tkc li{padding-left:16px;position:relative;margin-bottom:7px;line-height:1.5}
+.tkc li:before{content:"";position:absolute;left:0;top:8px;width:5px;height:5px;border-radius:50%;background:currentColor;opacity:.35}
+.tkc.risk li:before{border-radius:1px;background:#ef4444;opacity:.7}
+
+/* matrix */
+.matrix{padding:70px 0}
+table{width:100%;border-collapse:separate;border-spacing:0;background:#fff;border:1px solid var(--line);border-radius:16px;overflow:hidden;font-size:13.5px}
+th,td{padding:15px 18px;text-align:left;border-bottom:1px solid var(--line);vertical-align:top}
+th{background:#f9fafb;font-size:11.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--ink3);font-weight:700}
+tr:last-child td{border-bottom:none}
+td:first-child{font-weight:700;width:170px;color:var(--ink)}
+.dot{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:7px;vertical-align:1px}
+footer{padding:44px 0 80px;color:var(--ink3);font-size:13px;border-top:1px solid var(--line)}
+
+/* ============ shared in-phone atoms ============ */
+.scroll{padding:14px;display:flex;flex-direction:column;gap:11px;height:100%}
+.appbar{display:flex;align-items:center;justify-content:space-between;padding:8px 18px 14px;flex:0 0 auto}
+.tabbar{display:flex;flex:0 0 auto;padding:9px 6px 16px}
+.tabbar div{flex:1;text-align:center;font-size:9.5px;font-weight:600;display:flex;flex-direction:column;align-items:center;gap:4px}
+.ic{width:20px;height:20px;border-radius:6px;display:block}
+
+/* ============ A — CONTROL ROOM ============ */
+.A{background:#0b0f1a;color:#e8ebf5}
+.A .sb{color:#e8ebf5}
+.A-title{font-size:18px;font-weight:800;letter-spacing:-.02em}
+.A-live{display:flex;align-items:center;gap:6px;font-size:10.5px;font-family:var(--mono);color:#4ade80;font-weight:700;
+  background:rgba(74,222,128,.1);padding:4px 9px;border-radius:999px;border:1px solid rgba(74,222,128,.25)}
+.A-live i{width:6px;height:6px;border-radius:50%;background:#4ade80;display:block;box-shadow:0 0 0 3px rgba(74,222,128,.2)}
+.A-hero{background:linear-gradient(150deg,#1b1f3b,#141830 60%);border:1px solid rgba(129,140,248,.28);border-radius:18px;padding:16px}
+.A-hero .lbl{font-size:10px;letter-spacing:.14em;text-transform:uppercase;color:#8b93b8;font-weight:700}
+.A-hero .big{font-size:25px;font-weight:800;letter-spacing:-.02em;margin:5px 0 2px}
+.A-hero .sub{font-size:11.5px;color:#9aa2c4;font-family:var(--mono)}
+.A-bars{display:flex;align-items:flex-end;gap:3px;height:30px;margin-top:12px}
+.A-bars i{flex:1;background:linear-gradient(180deg,#818cf8,#4338ca);border-radius:2px;display:block;opacity:.85}
+.A-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:7px}
+.A-stat{background:#131829;border:1px solid #212842;border-radius:12px;padding:9px 6px;text-align:center}
+.A-stat .k{font-size:9px;letter-spacing:.04em;color:#7d86ab;font-weight:700}
+.A-stat .v{font-family:var(--mono);font-size:19px;font-weight:700;margin-top:2px;letter-spacing:-.03em}
+.A-stat .d{font-size:8.5px;color:#4ade80;font-family:var(--mono);margin-top:1px}
+.A-stat .d.dim{color:#6b7499}
+.A-sechead{display:flex;justify-content:space-between;align-items:baseline;margin-top:4px}
+.A-sechead b{font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:#7d86ab}
+.A-sechead a{font-size:10.5px;color:#818cf8;font-family:var(--mono)}
+.A-feed{background:#131829;border:1px solid #212842;border-radius:14px;overflow:hidden}
+.A-ev{display:grid;grid-template-columns:16px 1fr auto;gap:10px;padding:11px 13px;border-bottom:1px solid #1c2238;align-items:start}
+.A-ev:last-child{border-bottom:none}
+.A-ev .dt{width:7px;height:7px;border-radius:2px;margin-top:5px}
+.A-ev .t1{font-size:12.5px;font-weight:600}
+.A-ev .t2{font-size:10.5px;color:#7d86ab;margin-top:1px}
+.A-ev .ts{font-family:var(--mono);font-size:9.5px;color:#5d6689;padding-top:2px}
+.A .tabbar{background:#0e1322;border-top:1px solid #1e2540}
+.A .tabbar div{color:#5d6689}
+.A .tabbar div.on{color:#a5b4fc}
+.A .tabbar .ic{background:#2a3154}
+.A .tabbar div.on .ic{background:#818cf8}
+.A-search{background:#131829;border:1px solid #212842;border-radius:11px;padding:9px 12px;font-size:12px;color:#5d6689}
+.A-chips{display:flex;gap:6px}
+.A-chip{font-size:10.5px;font-weight:600;padding:5px 10px;border-radius:8px;background:#131829;border:1px solid #212842;color:#8b93b8}
+.A-chip.on{background:#312e81;border-color:#4f46e5;color:#c7d2fe}
+.A-row{display:grid;grid-template-columns:32px 1fr auto;gap:11px;align-items:center;padding:10px 13px;border-bottom:1px solid #1c2238}
+.A-row:last-child{border-bottom:none}
+.av{width:32px;height:32px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:800;color:#fff}
+.A-row .nm{font-size:13px;font-weight:600}
+.A-row .mt{font-size:10px;color:#7d86ab;font-family:var(--mono);margin-top:1px}
+.rt{font-size:9.5px;font-weight:700;font-family:var(--mono);padding:3px 7px;border-radius:6px;letter-spacing:.03em}
+.rt.stack{background:rgba(129,140,248,.14);color:#a5b4fc;border:1px solid rgba(129,140,248,.3)}
+.rt.mute{background:rgba(148,163,184,.1);color:#94a3b8;border:1px solid rgba(148,163,184,.22)}
+.rt.pass{background:rgba(74,222,128,.1);color:#4ade80;border:1px solid rgba(74,222,128,.25)}
+.A-check{display:grid;grid-template-columns:18px 1fr auto;gap:10px;padding:12px 13px;border-bottom:1px solid #1c2238;align-items:center}
+.A-check:last-child{border-bottom:none}
+.A-check .nm{font-size:12.5px;font-weight:600}
+.A-check .ds{font-size:10.5px;color:#7d86ab;line-height:1.4;margin-top:2px}
+.ok{width:17px;height:17px;border-radius:50%;background:rgba(74,222,128,.13);color:#4ade80;font-size:10px;display:flex;align-items:center;justify-content:center;font-weight:800}
+.warn{width:17px;height:17px;border-radius:50%;background:rgba(245,158,11,.14);color:#fbbf24;font-size:10px;display:flex;align-items:center;justify-content:center;font-weight:800}
+.A-btn{background:#4338ca;color:#fff;border-radius:11px;padding:12px;text-align:center;font-size:12.5px;font-weight:700}
+.A-note{font-size:10.5px;color:#6b7499;line-height:1.5;padding:0 2px}
+
+/* ============ B — INBOX ============ */
+.B{background:#faf9f7;color:#1c1917}
+.B .sb{color:#1c1917}
+.B-title{font-size:25px;font-weight:800;letter-spacing:-.03em}
+.B-cnt{font-size:11.5px;color:#a8a29e;font-weight:600;margin-top:1px}
+.B-search{background:#f0efec;border-radius:12px;padding:10px 13px;font-size:12.5px;color:#a8a29e;display:flex;gap:8px;align-items:center}
+.B-shead{font-size:10.5px;letter-spacing:.13em;text-transform:uppercase;color:#a8a29e;font-weight:800;padding:0 3px;margin-top:3px}
+.B-card{background:#fff;border-radius:16px;padding:13px 14px;box-shadow:0 1px 2px rgba(28,25,23,.05),0 1px 8px -3px rgba(28,25,23,.08)}
+.B-card.vip{border-left:3px solid #0f766e}
+.B-ctop{display:flex;gap:11px;align-items:center}
+.B-ctop .av{border-radius:50%}
+.B-ctop .nm{font-size:14px;font-weight:700;letter-spacing:-.01em}
+.B-ctop .rl{font-size:10.5px;color:#a8a29e;margin-top:1px}
+.B-ctop .rr{margin-left:auto;text-align:right}
+.B-ctop .tm{font-size:10.5px;color:#a8a29e;font-variant-numeric:tabular-nums}
+.B-badge{background:#0f766e;color:#fff;font-size:10px;font-weight:800;padding:2px 7px;border-radius:999px;display:inline-block;margin-top:4px}
+.B-msgs{margin-top:10px;padding-left:43px;display:flex;flex-direction:column;gap:5px}
+.B-msg{font-size:12.5px;color:#57534e;line-height:1.45;display:flex;gap:6px}
+.B-msg b{color:#1c1917;font-weight:600;flex:0 0 auto}
+.B-msg.more{color:#0f766e;font-weight:600;font-size:11.5px}
+.B-quick{display:flex;gap:6px;margin-top:11px;padding-left:43px}
+.B-q{font-size:11px;font-weight:600;padding:5px 10px;border-radius:8px;background:#f0efec;color:#57534e;white-space:nowrap}
+.B-q.p{background:#0f766e;color:#fff}
+.B .tabbar{background:rgba(250,249,247,.95);border-top:1px solid #eae8e4}
+.B .tabbar div{color:#a8a29e}
+.B .tabbar div.on{color:#0f766e}
+.B .tabbar .ic{background:#d6d3d1}
+.B .tabbar div.on .ic{background:#0f766e}
+/* thread */
+.B-tbar{display:flex;align-items:center;gap:11px;padding:8px 16px 12px;border-bottom:1px solid #eae8e4}
+.B-bub{max-width:76%;padding:9px 12px;border-radius:16px;font-size:12.5px;line-height:1.45}
+.B-in{background:#fff;border-bottom-left-radius:5px;box-shadow:0 1px 3px rgba(28,25,23,.07)}
+.B-out{background:#0f766e;color:#fff;border-bottom-right-radius:5px;margin-left:auto}
+.B-who{font-size:10px;color:#a8a29e;font-weight:700;margin:0 0 3px 4px}
+.B-day{text-align:center;font-size:10px;color:#a8a29e;font-weight:700;letter-spacing:.08em;margin:4px 0}
+.B-reply{display:flex;gap:8px;align-items:center;padding:10px 14px 16px;border-top:1px solid #eae8e4;background:rgba(250,249,247,.97)}
+.B-reply .f{flex:1;background:#f0efec;border-radius:999px;padding:10px 15px;font-size:12.5px;color:#a8a29e}
+.B-send{width:34px;height:34px;border-radius:50%;background:#0f766e;color:#fff;display:flex;align-items:center;justify-content:center;font-size:14px}
+.B-acts{display:flex;gap:7px;padding:11px 14px;overflow:hidden}
+.B-act{font-size:11px;font-weight:600;padding:7px 11px;border-radius:9px;background:#fff;border:1px solid #eae8e4;color:#57534e;white-space:nowrap}
+.B-res{background:#fff;border-radius:14px;padding:12px 14px;box-shadow:0 1px 6px -2px rgba(28,25,23,.1)}
+.B-res .hl{background:#fef3c7;border-radius:3px;padding:0 2px;font-weight:700}
+.B-empty{font-size:11.5px;color:#a8a29e;text-align:center;padding:6px}
+
+/* ============ C — FOCUS ============ */
+.C{background:#0a0a0a;color:#fafaf9}
+.C .sb{color:#fafaf9}
+.C-kick{font-size:10px;letter-spacing:.18em;text-transform:uppercase;color:#78716c;font-weight:800}
+.C-h{font-size:31px;font-weight:800;letter-spacing:-.035em;line-height:1.05;margin-top:3px}
+.C-hero{background:#f59e0b;color:#0a0a0a;border-radius:20px;padding:17px}
+.C-hero .st{font-size:10px;letter-spacing:.16em;text-transform:uppercase;font-weight:800;opacity:.62}
+.C-hero .nmm{font-size:27px;font-weight:800;letter-spacing:-.035em;margin:4px 0 6px;line-height:1.05}
+.C-hero .rule{font-size:12.5px;font-weight:600;opacity:.78;line-height:1.4}
+.C-hero .bar{height:5px;background:rgba(10,10,10,.16);border-radius:99px;margin-top:14px;overflow:hidden}
+.C-hero .bar i{display:block;height:100%;width:62%;background:#0a0a0a;border-radius:99px}
+.C-hero .tl{display:flex;justify-content:space-between;font-size:10px;font-weight:700;margin-top:6px;opacity:.62;font-variant-numeric:tabular-nums}
+.C-modes{display:grid;grid-template-columns:1fr 1fr;gap:9px}
+.C-mode{background:#141414;border:1px solid #262626;border-radius:15px;padding:13px}
+.C-mode .em{font-size:17px}
+.C-mode .nm{font-size:13.5px;font-weight:700;margin-top:7px;letter-spacing:-.01em}
+.C-mode .ds{font-size:10.5px;color:#78716c;margin-top:2px;line-height:1.35}
+.C-mode.on{background:#1c1917;border-color:#f59e0b}
+.C-next{background:#141414;border:1px solid #262626;border-radius:14px;padding:12px 14px;display:flex;align-items:center;gap:11px}
+.C-next .tmm{font-family:var(--mono);font-size:15px;font-weight:700;color:#f59e0b}
+.C-next .tx{font-size:11.5px;color:#a8a29e;line-height:1.35}
+.C-rule{background:#141414;border:1px solid #262626;border-radius:15px;padding:13px 14px}
+.C-rule .top{display:flex;align-items:center;gap:8px;margin-bottom:9px}
+.C-rule .idx{font-family:var(--mono);font-size:9.5px;color:#57534e;font-weight:700}
+.C-rule .hit{font-family:var(--mono);font-size:9.5px;color:#78716c;margin-left:auto}
+.sw{width:34px;height:20px;border-radius:99px;background:#333;position:relative;flex:0 0 auto}
+.sw i{position:absolute;top:2px;left:2px;width:16px;height:16px;border-radius:50%;background:#78716c;display:block}
+.sw.on{background:#f59e0b}.sw.on i{left:16px;background:#0a0a0a}
+.C-sent{font-size:13px;line-height:1.85;color:#e7e5e4}
+.C-w{font-size:9.5px;font-weight:800;letter-spacing:.1em;color:#78716c;margin-right:5px}
+.ch{display:inline-block;padding:2px 8px;border-radius:7px;font-size:12px;font-weight:700;margin:0 1px}
+.ch.who{background:#1e293b;color:#93c5fd}
+.ch.what{background:#3b2f14;color:#fcd34d}
+.ch.act{background:#1c2e22;color:#86efac}
+.ch.act.kill{background:#33201f;color:#fca5a5}
+.C-add{border:1.5px dashed #333;border-radius:15px;padding:14px;text-align:center;font-size:12.5px;font-weight:700;color:#78716c}
+.C .tabbar{background:#0e0e0e;border-top:1px solid #262626}
+.C .tabbar div{color:#57534e}
+.C .tabbar div.on{color:#f59e0b}
+.C .tabbar .ic{background:#333}
+.C .tabbar div.on .ic{background:#f59e0b}
+.C-bhead{font-size:10px;letter-spacing:.15em;text-transform:uppercase;color:#78716c;font-weight:800;margin-top:5px}
+.C-opts{display:flex;flex-direction:column;gap:7px}
+.C-opt{background:#141414;border:1px solid #262626;border-radius:12px;padding:11px 13px;display:flex;align-items:center;gap:10px;font-size:12.5px}
+.C-opt.on{border-color:#f59e0b;background:#1c1917}
+.C-opt .rd{width:15px;height:15px;border-radius:50%;border:1.5px solid #57534e;flex:0 0 auto}
+.C-opt.on .rd{border-color:#f59e0b;background:radial-gradient(circle,#f59e0b 45%,transparent 48%)}
+.C-prev{background:#1c1917;border:1px solid #333;border-radius:15px;padding:12px}
+.C-prev .pl{font-size:9.5px;letter-spacing:.14em;text-transform:uppercase;color:#78716c;font-weight:800;margin-bottom:9px}
+.C-nt{background:#262626;border-radius:12px;padding:10px 11px;display:flex;gap:9px;align-items:flex-start}
+.C-nt .nb{flex:1}
+.C-nt .h1x{font-size:11.5px;font-weight:700}
+.C-nt .h2x{font-size:11px;color:#a8a29e;line-height:1.4;margin-top:2px}
+.C-cta{background:#f59e0b;color:#0a0a0a;border-radius:12px;padding:13px;text-align:center;font-size:13px;font-weight:800}
+</style>
+</head>
+<body>
+
+<header class="hero">
+  <div class="wrap">
+    <div class="kicker">Notify+ · Design Exploration</div>
+    <h1>三個彼此互斥的 App 設計方向</h1>
+    <p class="lede">
+      現況：Notify+ 是一個功能已經完成的 <b>NotificationListenerService</b> 工具，但它的 UI 是一張「設定清單」——
+      首頁把 App 最有價值的東西（它其實握有你所有 LINE 訊息的本機副本、以及重組通知的能力）全都藏在開關後面。
+      下面三個方向不是三種配色，而是三種<b>不同的產品命題</b>：每一個都會改變首頁、資訊架構、以及你之後該做什麼功能。
+    </p>
+    <div class="meta">
+      <span class="tag">Kotlin · Jetpack Compose</span>
+      <span class="tag">minSdk 26 / targetSdk 35</span>
+      <span class="tag">零網路權限 · 純本機</span>
+      <span class="tag">v1.3.1 / vc17 待送審</span>
+      <span class="tag">已解除 Impersonation 退件</span>
+    </div>
+  </div>
+</header>
+
+<div class="diag">
+  <div class="wrap">
+    <h2 class="sec">為什麼要重新設計 — 現況的四個結構性問題</h2>
+    <div class="dgrid">
+      <div class="dcard">
+        <div class="n">01 · 首頁</div>
+        <b>首頁是設定頁，不是產品</b>
+        <p>使用者開 App 只看到「服務運行中」+ 兩個開關。裝完之後沒有任何回訪理由，App 的價值 100% 發生在通知列，使用者永遠不會回來。</p>
+      </div>
+      <div class="dcard">
+        <div class="n">02 · 信任</div>
+        <b>最敏感的權限，最少的透明度</b>
+        <p>通知存取權能讀到全部訊息。目前 UI 完全沒有告訴使用者「我讀了什麼、做了什麼、沒有傳出去」——而這剛好是這類 App 最大的下載阻力。</p>
+      </div>
+      <div class="dcard">
+        <div class="n">03 · 規模</div>
+        <b>聊天室管理無法擴張</b>
+        <p>幾百個聊天室 × 一個開關的平面清單。沒有批次操作、沒有優先級、沒有「只擋 @all」這種真實需求（ROADMAP 已列但無處可放）。</p>
+      </div>
+      <div class="dcard">
+        <div class="n">04 · 品牌</div>
+        <b>視覺仍依附 LINE 綠</b>
+        <p>vc12 曾因 Impersonation 退件。雖已放行，主色仍是 <code>#06C755</code>＋動態取色，等於沒有自己的識別，也無法延伸到官網／截圖／宣傳。</p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<nav class="sticky">
+  <div class="wrap">
+    <span class="brand">Notify+ ↗</span>
+    <a href="#a">A · Control Room</a>
+    <a href="#b">B · Second Inbox</a>
+    <a href="#c">C · Focus Engine</a>
+    <a href="#matrix">對照與建議</a>
+  </div>
+</nav>
+
+<!-- ============================== A ============================== -->
+<section class="concept" id="a">
+  <div class="wrap">
+    <div class="chead">
+      <div>
+        <span class="badge" style="background:#eef0ff;color:#4338ca">DIRECTION A</span>
+        <h3 class="ct">Control Room
+          <span class="sub">把看不見的背景服務，變成看得見的儀表板</span>
+        </h3>
+        <p class="thesis">
+          命題：<b>這個 App 的產品其實是「信任」</b>。它要求的是 Android 上最敏感的權限之一，
+          所以首頁不該是開關，而該是一個誠實的控制台：現在在聽什麼、今天處理了幾則、合併了幾次雙 callback、
+          哪些能力做不到（例如「在 LINE 內直接讀」收不到已讀信號）。
+          這個方向幾乎<b>不需要新的核心邏輯</b>——你的 listener 已經產生了這些事件，只是從來沒顯示出來。
+        </p>
+      </div>
+      <div class="facts">
+        <div class="frow"><span>IA</span><div>Dashboard · Routing · Diagnostics · Settings（底部 4 tab）</div></div>
+        <div class="frow"><span>視覺</span><div>深色技術感、Indigo #6366F1、等寬數字、資料密度高</div></div>
+        <div class="frow"><span>新增</span><div class="pills"><span class="pill">事件流</span><span class="pill">統計計數器</span><span class="pill">自我診斷</span><span class="pill">能力限制說明</span></div></div>
+        <div class="frow"><span>工作量</span><div><b>最小</b>：無新資料模型，只需把既有事件寫進本機 ring buffer + 計數器</div></div>
+        <div class="frow"><span>風險</span><div>偏工程師口味；一般使用者可能覺得「數字很酷但與我無關」</div></div>
+      </div>
+    </div>
+
+    <div class="phones">
+      <!-- A1 -->
+      <div class="pcol">
+        <div class="plabel">A1 · Dashboard</div>
+        <div class="pnote">狀態成為主角：即時吞吐、今日計數、可捲動的事件流。回訪理由 = 「想看它幫我擋掉多少」。</div>
+        <div class="phone"><div class="screen A">
+          <div class="sb"><span>9:41</span><div class="r"><span>▮▮▯</span><span>◍</span><span>100</span></div></div>
+          <div class="appbar"><div class="A-title">Notify+</div><div class="A-live"><i></i>LISTENING</div></div>
+          <div class="body"><div class="scroll">
+            <div class="A-hero">
+              <div class="lbl">今日已處理</div>
+              <div class="big">342 則訊息</div>
+              <div class="sub">來自 28 個聊天室 · 上線 6d 4h</div>
+              <div class="A-bars">
+                <i style="height:18%"></i><i style="height:9%"></i><i style="height:4%"></i><i style="height:6%"></i>
+                <i style="height:22%"></i><i style="height:48%"></i><i style="height:71%"></i><i style="height:55%"></i>
+                <i style="height:83%"></i><i style="height:62%"></i><i style="height:96%"></i><i style="height:74%"></i>
+                <i style="height:41%"></i><i style="height:58%"></i><i style="height:88%"></i><i style="height:34%"></i>
+              </div>
+            </div>
+            <div class="A-grid">
+              <div class="A-stat"><div class="k">重組</div><div class="v">128</div><div class="d">↑12%</div></div>
+              <div class="A-stat"><div class="k">擋下</div><div class="v">67</div><div class="d dim">23 室</div></div>
+              <div class="A-stat"><div class="k">回覆</div><div class="v">17</div><div class="d dim">4.2s</div></div>
+              <div class="A-stat"><div class="k">合併</div><div class="v">41</div><div class="d">0 誤刪</div></div>
+            </div>
+            <div class="A-sechead"><b>即時活動</b><a>全部 →</a></div>
+            <div class="A-feed">
+              <div class="A-ev"><i class="dt" style="background:#818cf8"></i>
+                <div><div class="t1">設計組 · 堆疊 3 則</div><div class="t2">取代原始通知 · thread mode</div></div><div class="ts">09:41</div></div>
+              <div class="A-ev"><i class="dt" style="background:#4ade80"></i>
+                <div><div class="t1">快速回覆已送出</div><div class="t2">→ 陳雨柔 · 通知已於 1s 後清除</div></div><div class="ts">09:38</div></div>
+              <div class="A-ev"><i class="dt" style="background:#94a3b8"></i>
+                <div><div class="t1">股票討論區 · 已擋下</div><div class="t2">聊天室已靜音 · 含 @all</div></div><div class="ts">09:33</div></div>
+              <div class="A-ev"><i class="dt" style="background:#fbbf24"></i>
+                <div><div class="t1">合併雙 callback 通知</div><div class="t2">conversation + legacy · 相隔 24ms</div></div><div class="ts">09:31</div></div>
+            </div>
+            <div class="A-note">所有事件僅存於本機記憶體（上限 200 筆），關閉 App 或重開機即清除。此 App 無網路權限。</div>
+          </div></div>
+          <div class="tabbar">
+            <div class="on"><i class="ic"></i>儀表板</div><div><i class="ic"></i>路由</div>
+            <div><i class="ic"></i>診斷</div><div><i class="ic"></i>設定</div>
+          </div>
+        </div></div>
+      </div>
+
+      <!-- A2 -->
+      <div class="pcol">
+        <div class="plabel">A2 · Routing（原「聊天室管理」）</div>
+        <div class="pnote">開關 → <b>三態路由</b>：堆疊 / 靜音 / 原樣放行。每列顯示實際流量，讓「該關哪個」有依據。</div>
+        <div class="phone"><div class="screen A">
+          <div class="sb"><span>9:41</span><div class="r"><span>▮▮▯</span><span>◍</span><span>100</span></div></div>
+          <div class="appbar"><div class="A-title">路由</div><div class="A-live" style="color:#a5b4fc;background:rgba(129,140,248,.1);border-color:rgba(129,140,248,.28)">142 個聊天室</div></div>
+          <div class="body"><div class="scroll">
+            <div class="A-search">🔍　搜尋聊天室</div>
+            <div class="A-chips">
+              <span class="A-chip on">最吵</span><span class="A-chip">好友</span><span class="A-chip">群組</span><span class="A-chip">社群</span>
+            </div>
+            <div class="A-sechead"><b>本週流量最高</b><a>批次設定</a></div>
+            <div class="A-feed">
+              <div class="A-row"><div class="av" style="background:#7c3aed">股</div>
+                <div><div class="nm">股票討論區</div><div class="mt">社群 · 本週 412 則</div></div><span class="rt mute">靜音</span></div>
+              <div class="A-row"><div class="av" style="background:#0891b2">設</div>
+                <div><div class="nm">設計組</div><div class="mt">群組 · 本週 188 則</div></div><span class="rt stack">堆疊</span></div>
+              <div class="A-row"><div class="av" style="background:#be185d">家</div>
+                <div><div class="nm">家族群</div><div class="mt">群組 · 本週 96 則</div></div><span class="rt stack">堆疊</span></div>
+              <div class="A-row"><div class="av" style="background:#ea580c">雨</div>
+                <div><div class="nm">陳雨柔</div><div class="mt">好友 · 本週 54 則</div></div><span class="rt stack">堆疊</span></div>
+              <div class="A-row"><div class="av" style="background:#16a34a">發</div>
+                <div><div class="nm">發票管家</div><div class="mt">官方帳號 · 本週 31 則</div></div><span class="rt pass">原樣</span></div>
+              <div class="A-row"><div class="av" style="background:#475569">健</div>
+                <div><div class="nm">健身房揪團</div><div class="mt">社群 · 本週 27 則</div></div><span class="rt mute">靜音</span></div>
+              <div class="A-row"><div class="av" style="background:#0d9488">工</div>
+                <div><div class="nm">工程週會</div><div class="mt">群組 · 本週 22 則</div></div><span class="rt stack">堆疊</span></div>
+              <div class="A-row"><div class="av" style="background:#9333ea">讀</div>
+                <div><div class="nm">讀書會</div><div class="mt">社群 · 本週 14 則</div></div><span class="rt stack">堆疊</span></div>
+            </div>
+            <div class="A-note">分類由受單元測試的 classifier 判定，可長按手動固定為好友／群組／社群。</div>
+          </div></div>
+          <div class="tabbar">
+            <div><i class="ic"></i>儀表板</div><div class="on"><i class="ic"></i>路由</div>
+            <div><i class="ic"></i>診斷</div><div><i class="ic"></i>設定</div>
+          </div>
+        </div></div>
+      </div>
+
+      <!-- A3 -->
+      <div class="pcol">
+        <div class="plabel">A3 · Diagnostics</div>
+        <div class="pnote">把 ROADMAP 裡的先天限制搬到 UI，主動說明「做不到什麼」。這一頁能直接砍掉大部分負評與客服。</div>
+        <div class="phone"><div class="screen A">
+          <div class="sb"><span>9:41</span><div class="r"><span>▮▮▯</span><span>◍</span><span>100</span></div></div>
+          <div class="appbar"><div class="A-title">診斷</div><div class="A-live"><i></i>6/7 正常</div></div>
+          <div class="body"><div class="scroll">
+            <div class="A-sechead"><b>權限與連線</b><a>重新檢查</a></div>
+            <div class="A-feed">
+              <div class="A-check"><div class="ok">✓</div>
+                <div><div class="nm">通知存取權</div><div class="ds">已授權 · listener 已連線 6d 4h</div></div><span class="rt pass">OK</span></div>
+              <div class="A-check"><div class="ok">✓</div>
+                <div><div class="nm">發送通知權限</div><div class="ds">POST_NOTIFICATIONS 已授權</div></div><span class="rt pass">OK</span></div>
+              <div class="A-check"><div class="ok">✓</div>
+                <div><div class="nm">網路權限</div><div class="ds">未宣告 INTERNET — 資料不可能離開裝置</div></div><span class="rt pass">無</span></div>
+              <div class="A-check"><div class="warn">!</div>
+                <div><div class="nm">電池最佳化</div><div class="ds">OEM 可能在待機時延遲 listener 重綁</div></div><span class="rt mute">建議關閉</span></div>
+            </div>
+            <div class="A-sechead"><b>已知限制（不是 bug）</b><a>說明</a></div>
+            <div class="A-feed">
+              <div class="A-check"><div class="warn">!</div>
+                <div><div class="nm">在 LINE 內直接讀不會清通知</div><div class="ds">取代模式下原始通知已被撤除，系統不會再送已讀信號。滑掉或點擊即可清除。</div></div><span></span></div>
+              <div class="A-check"><div class="warn">!</div>
+                <div><div class="nm">Android 15+ 私密通知</div><div class="ds">系統在 callback 前遮蔽內容時，App 無法還原原文，會保留 LINE 原通知。</div></div><span></span></div>
+              <div class="A-check"><div class="ok">✓</div>
+                <div><div class="nm">Apple 分組安全 budget</div><div class="ds">單室 8 / 全域 24 child · 本週 fail-open 2 次</div></div><span class="rt stack">正常</span></div>
+            </div>
+            <div class="A-btn">匯出診斷報告（純文字）</div>
+          </div></div>
+          <div class="tabbar">
+            <div><i class="ic"></i>儀表板</div><div><i class="ic"></i>路由</div>
+            <div class="on"><i class="ic"></i>診斷</div><div><i class="ic"></i>設定</div>
+          </div>
+        </div></div>
+      </div>
+    </div>
+
+    <div class="tk">
+      <div class="tkc"><h4>為什麼會贏</h4><ul>
+        <li>直接攻擊此類 App 最大的下載阻力：「你會不會偷看我訊息」</li>
+        <li>幾乎不用寫新邏輯，事件已存在於 listener 內</li>
+        <li>診斷頁把先天限制前置說明，等於自動客服</li>
+        <li>深色 Indigo 建立與 LINE 完全無關的品牌識別</li>
+      </ul></div>
+      <div class="tkc"><h4>需要新做</h4><ul>
+        <li>本機 ring buffer（200 筆事件，不落地）</li>
+        <li>每日計數器 + 按小時吞吐彙總</li>
+        <li>權限／連線自我檢查與 OEM 提示</li>
+        <li>三態路由取代單一 boolean（含既有偏好遷移）</li>
+      </ul></div>
+      <div class="tkc risk"><h4>風險</h4><ul>
+        <li>資料密度高，對非技術用戶可能過載</li>
+        <li>統計本身不解決任何新使用者痛點</li>
+        <li>「事件流」若被誤解為雲端記錄，反而傷信任 → 文案必須極明確</li>
+      </ul></div>
+    </div>
+  </div>
+</section>
+
+<!-- ============================== B ============================== -->
+<section class="concept" id="b">
+  <div class="wrap">
+    <div class="chead">
+      <div>
+        <span class="badge" style="background:#e6f4f1;color:#0f766e">DIRECTION B</span>
+        <h3 class="ct">Second Inbox
+          <span class="sub">你已經握有全部訊息了 — 為什麼不做成收件匣？</span>
+        </h3>
+        <p class="thesis">
+          命題：<b>從工具升級成每日必開的 App</b>。你的 <code>ChatMessage</code> 已經存著每個聊天室的訊息串、頭貼、
+          時間、以及可用的 <code>PendingIntent</code> 與 RemoteInput。等於你已經有一個完整的「LINE 通知收件匣」，
+          卻只把它渲染到系統通知列就丟掉。這個方向把它變成 App 內的 triage 介面：分堆、VIP、延後、
+          直接回覆、以及 ROADMAP 上的<b>跨聊天室搜尋</b>（這是 LINE 自己都難用的功能）。
+        </p>
+      </div>
+      <div class="facts">
+        <div class="frow"><span>IA</span><div>Inbox · Search · Chats · Settings（底部 4 tab）</div></div>
+        <div class="frow"><span>視覺</span><div>暖白紙感、Ink #1C1917、Teal #0F766E、大字距舒適排版</div></div>
+        <div class="frow"><span>新增</span><div class="pills"><span class="pill">收件匣</span><span class="pill">VIP 置頂</span><span class="pill">App 內回覆</span><span class="pill">歷史搜尋</span><span class="pill">延後提醒</span></div></div>
+        <div class="frow"><span>工作量</span><div><b>最大</b>：需要真正的本機持久層（Room）＋保留期政策</div></div>
+        <div class="frow"><span>風險</span><div>⚠️ 開始長期儲存訊息內容 → Data safety 答案與「No data collected」敘事必須重寫</div></div>
+      </div>
+    </div>
+
+    <div class="phones">
+      <!-- B1 -->
+      <div class="pcol">
+        <div class="plabel">B1 · Inbox</div>
+        <div class="pnote">一個聊天室一張卡，卡內就是堆疊後的訊息串。VIP 獨立分區，快速動作直接在卡上。</div>
+        <div class="phone"><div class="screen B">
+          <div class="sb"><span>9:41</span><div class="r"><span>▮▮▯</span><span>◍</span><span>100</span></div></div>
+          <div class="appbar" style="align-items:flex-end">
+            <div><div class="B-title">收件匣</div><div class="B-cnt">14 則未讀 · 5 個聊天室</div></div>
+            <div style="font-size:19px;opacity:.35">⋯</div>
+          </div>
+          <div class="body"><div class="scroll" style="gap:9px">
+            <div class="B-search">🔍　搜尋所有訊息</div>
+            <div class="B-shead">VIP · 一律通知</div>
+            <div class="B-card vip">
+              <div class="B-ctop">
+                <div class="av" style="background:#ea580c">雨</div>
+                <div><div class="nm">陳雨柔</div><div class="rl">好友</div></div>
+                <div class="rr"><div class="tm">09:38</div><div class="B-badge">3</div></div>
+              </div>
+              <div class="B-msgs">
+                <div class="B-msg">晚點的會議改到四點可以嗎？</div>
+                <div class="B-msg">另外那份合約我看過了</div>
+                <div class="B-msg">第三頁有個數字怪怪的</div>
+              </div>
+              <div class="B-quick"><span class="B-q p">回覆</span><span class="B-q">在 LINE 開啟</span><span class="B-q">完成</span></div>
+            </div>
+            <div class="B-shead">今天</div>
+            <div class="B-card">
+              <div class="B-ctop">
+                <div class="av" style="background:#0891b2">設</div>
+                <div><div class="nm">設計組</div><div class="rl">群組 · 12 人</div></div>
+                <div class="rr"><div class="tm">09:41</div><div class="B-badge">8</div></div>
+              </div>
+              <div class="B-msgs">
+                <div class="B-msg"><b>Ken</b>新的 icon 我放上去了</div>
+                <div class="B-msg"><b>Mia</b>齒輪那版比較好認</div>
+                <div class="B-msg"><b>Ken</b>那我把另一版砍掉</div>
+                <div class="B-msg more">+ 還有 5 則 →</div>
+              </div>
+              <div class="B-quick"><span class="B-q">回覆</span><span class="B-q">延後 1 小時</span></div>
+            </div>
+            <div class="B-card">
+              <div class="B-ctop">
+                <div class="av" style="background:#be185d">家</div>
+                <div><div class="nm">家族群</div><div class="rl">群組 · 6 人</div></div>
+                <div class="rr"><div class="tm">08:12</div><div class="B-badge">3</div></div>
+              </div>
+              <div class="B-msgs">
+                <div class="B-msg"><b>媽</b>週末回來吃飯嗎</div>
+                <div class="B-msg"><b>姊</b>我要帶朋友</div>
+              </div>
+            </div>
+            <div class="B-card">
+              <div class="B-ctop">
+                <div class="av" style="background:#0d9488">工</div>
+                <div><div class="nm">工程週會</div><div class="rl">群組 · 24 人</div></div>
+                <div class="rr"><div class="tm">昨天</div></div>
+              </div>
+              <div class="B-msgs"><div class="B-msg"><b>Alex</b>週報連結補上了</div></div>
+            </div>
+            <div class="B-empty">已顯示最近 7 天 · 更早請用搜尋</div>
+          </div></div>
+          <div class="tabbar">
+            <div class="on"><i class="ic"></i>收件匣</div><div><i class="ic"></i>搜尋</div>
+            <div><i class="ic"></i>聊天室</div><div><i class="ic"></i>設定</div>
+          </div>
+        </div></div>
+      </div>
+
+      <!-- B2 -->
+      <div class="pcol">
+        <div class="plabel">B2 · Conversation</div>
+        <div class="pnote">點卡片進來 = 通知歷史的完整對話串，可直接用 RemoteInput 回覆，不必開 LINE。</div>
+        <div class="phone"><div class="screen B">
+          <div class="sb"><span>9:41</span><div class="r"><span>▮▮▯</span><span>◍</span><span>100</span></div></div>
+          <div class="B-tbar">
+            <div style="font-size:17px;opacity:.4">←</div>
+            <div class="av" style="background:#0891b2;border-radius:50%">設</div>
+            <div><div style="font-size:14.5px;font-weight:700">設計組</div><div style="font-size:10.5px;color:#a8a29e">群組 · 12 人 · 堆疊模式</div></div>
+            <div style="margin-left:auto;font-size:17px;opacity:.35">⋯</div>
+          </div>
+          <div class="B-acts">
+            <span class="B-act">☆ 設為 VIP</span><span class="B-act">🔕 靜音 8 小時</span><span class="B-act">↗ 在 LINE 開啟</span>
+          </div>
+          <div class="body"><div class="scroll" style="gap:7px;padding-top:2px">
+            <div class="B-day">今天 09:22</div>
+            <div><div class="B-who">Ken</div><div class="B-bub B-in">新的 icon 我放上去了，三個尺寸都有</div></div>
+            <div><div class="B-who">Mia</div><div class="B-bub B-in">齒輪那版比較好認，圓形遮罩也不會切到</div></div>
+            <div class="B-bub B-out">同意，那就走 0.80 那版</div>
+            <div><div class="B-who">Ken</div><div class="B-bub B-in">那我把另一版砍掉</div></div>
+            <div><div class="B-who">Mia</div><div class="B-bub B-in">順便問一下 feature graphic 要一起換嗎</div></div>
+            <div class="B-day">09:38</div>
+            <div><div class="B-who">Ken</div><div class="B-bub B-in">送審前一定要一起換，不然視覺會對不上</div></div>
+            <div><div class="B-who">Alex</div><div class="B-bub B-in">我下午把 1024×500 重出一版</div></div>
+            <div><div class="B-who">Mia</div><div class="B-bub B-in">👍</div></div>
+          </div></div>
+          <div class="B-reply">
+            <div class="f">回覆設計組…</div>
+            <div class="B-send">↑</div>
+          </div>
+        </div></div>
+      </div>
+
+      <!-- B3 -->
+      <div class="pcol">
+        <div class="plabel">B3 · Search</div>
+        <div class="pnote">ROADMAP v2.0 的「跨聊天室搜尋」。這是使用者真的會為之留下 App 的功能 — LINE 自己的搜尋很難用。</div>
+        <div class="phone"><div class="screen B">
+          <div class="sb"><span>9:41</span><div class="r"><span>▮▮▯</span><span>◍</span><span>100</span></div></div>
+          <div class="appbar" style="padding-bottom:10px"><div><div class="B-title" style="font-size:22px">搜尋</div></div></div>
+          <div class="body"><div class="scroll" style="gap:10px">
+            <div class="B-search" style="background:#fff;box-shadow:0 1px 6px -2px rgba(28,25,23,.12);color:#1c1917;font-weight:600">🔍　合約</div>
+            <div style="display:flex;gap:6px">
+              <span class="B-q p">全部</span><span class="B-q">好友</span><span class="B-q">群組</span><span class="B-q">本月</span>
+            </div>
+            <div class="B-shead">7 筆結果</div>
+            <div class="B-res">
+              <div style="display:flex;gap:9px;align-items:center;margin-bottom:7px">
+                <div class="av" style="background:#ea580c;border-radius:50%;width:24px;height:24px;font-size:10px">雨</div>
+                <div style="font-size:12.5px;font-weight:700">陳雨柔</div>
+                <div style="margin-left:auto;font-size:10.5px;color:#a8a29e">今天 09:38</div>
+              </div>
+              <div style="font-size:12.5px;color:#57534e;line-height:1.5">另外那份<span class="hl">合約</span>我看過了，第三頁有個數字怪怪的</div>
+            </div>
+            <div class="B-res">
+              <div style="display:flex;gap:9px;align-items:center;margin-bottom:7px">
+                <div class="av" style="background:#0d9488;border-radius:50%;width:24px;height:24px;font-size:10px">工</div>
+                <div style="font-size:12.5px;font-weight:700">工程週會</div>
+                <div style="margin-left:auto;font-size:10.5px;color:#a8a29e">8月24日</div>
+              </div>
+              <div style="font-size:12.5px;color:#57534e;line-height:1.5"><b style="color:#1c1917">Alex</b>　<span class="hl">合約</span>審核流程改成兩階段，法務先看</div>
+            </div>
+            <div class="B-res">
+              <div style="display:flex;gap:9px;align-items:center;margin-bottom:7px">
+                <div class="av" style="background:#0891b2;border-radius:50%;width:24px;height:24px;font-size:10px">設</div>
+                <div style="font-size:12.5px;font-weight:700">設計組</div>
+                <div style="margin-left:auto;font-size:10.5px;color:#a8a29e">8月19日</div>
+              </div>
+              <div style="font-size:12.5px;color:#57534e;line-height:1.5"><b style="color:#1c1917">Mia</b>　外包<span class="hl">合約</span>的素材授權範圍要寫清楚</div>
+            </div>
+            <div class="B-res" style="background:#f0efec;box-shadow:none">
+              <div style="font-size:11.5px;color:#78716c;line-height:1.55">
+                <b style="color:#1c1917">保留期：30 天</b><br>
+                訊息僅存在此裝置，加密於 App 私有空間，逾期自動刪除。可在設定改為 7 天或關閉保存。
+              </div>
+            </div>
+          </div></div>
+          <div class="tabbar">
+            <div><i class="ic"></i>收件匣</div><div class="on"><i class="ic"></i>搜尋</div>
+            <div><i class="ic"></i>聊天室</div><div><i class="ic"></i>設定</div>
+          </div>
+        </div></div>
+      </div>
+    </div>
+
+    <div class="tk">
+      <div class="tkc"><h4>為什麼會贏</h4><ul>
+        <li>從「裝了就忘」變成每天開的 App — 留存量級不同</li>
+        <li>跨聊天室搜尋是明確的付費點，也已在 ROADMAP</li>
+        <li>VIP／延後／完成，把通知變成可清空的工作流</li>
+        <li>暖白＋Teal 與 LINE 綠徹底切開，可延伸到官網與截圖</li>
+      </ul></div>
+      <div class="tkc"><h4>需要新做</h4><ul>
+        <li>Room 持久層 + 保留期（7/30 天/關閉）與自動清理</li>
+        <li>App 內回覆需長期持有 RemoteInput（PendingIntent 會過期，需 fallback）</li>
+        <li>VIP / snooze / 已完成 三種狀態的資料模型</li>
+        <li>全文索引（FTS4/5）與中文分詞</li>
+      </ul></div>
+      <div class="tkc risk"><h4>風險</h4><ul>
+        <li>🔴 Data safety 從「No data collected」變成「本機儲存訊息」，敘事與審查風險上升</li>
+        <li>🔴 儲存全部訊息 = 手機被解鎖即全洩，需考慮生物辨識鎖</li>
+        <li>PendingIntent 失效時回覆會靜默失敗，體驗落差大</li>
+        <li>工作量遠大於 A、C，可能拖延上架</li>
+      </ul></div>
+    </div>
+  </div>
+</section>
+
+<!-- ============================== C ============================== -->
+<section class="concept" id="c">
+  <div class="wrap">
+    <div class="chead">
+      <div>
+        <span class="badge" style="background:#fef3c7;color:#92400e">DIRECTION C</span>
+        <h3 class="ct">Focus Engine
+          <span class="sub">使用者要的不是「整理通知」，是「安靜」</span>
+        </h3>
+        <p class="thesis">
+          命題：<b>從整理器變成過濾器</b>。真正的痛點不是通知排版醜，而是 LINE 群組太吵、
+          又不敢完全關掉怕漏掉重要訊息。這正是 ROADMAP 上那幾條做不完的需求
+          （<code>只擋 @all、保留 @我</code>、個別靜音、回覆後清除）真正的歸屬地——它們不是散落的開關，
+          而是同一個東西：<b>規則引擎 + 情境模式</b>。這個方向能做出 LINE 官方永遠不會做的事。
+        </p>
+      </div>
+      <div class="facts">
+        <div class="frow"><span>IA</span><div>Focus · Rules · Chats · Settings（底部 4 tab）</div></div>
+        <div class="frow"><span>視覺</span><div>近黑 #0A0A0A + Amber #F59E0B、大字編輯風、chip 化規則語句</div></div>
+        <div class="frow"><span>新增</span><div class="pills"><span class="pill">情境模式</span><span class="pill">規則引擎</span><span class="pill">排程</span><span class="pill">摘要投遞</span><span class="pill">突破名單</span></div></div>
+        <div class="frow"><span>工作量</span><div><b>中等</b>：規則模型 + 排程；判斷條件多數已存在於 classifier</div></div>
+        <div class="frow"><span>風險</span><div>規則若誤判＝漏掉真訊息，信任一次就崩。需要 fail-open 與可追溯的「被擋下」清單</div></div>
+      </div>
+    </div>
+
+    <div class="phones">
+      <!-- C1 -->
+      <div class="pcol">
+        <div class="plabel">C1 · Focus</div>
+        <div class="pnote">首頁只回答一個問題：<b>現在什麼會響？</b> 大字狀態卡 + 情境切換 + 下一個排程。</div>
+        <div class="phone"><div class="screen C">
+          <div class="sb"><span>9:41</span><div class="r"><span>▮▮▯</span><span>◍</span><span>100</span></div></div>
+          <div class="appbar" style="align-items:flex-start;padding-bottom:12px">
+            <div><div class="C-kick">Notify+</div><div class="C-h">專注</div></div>
+            <div style="font-size:18px;opacity:.3;padding-top:12px">⚙</div>
+          </div>
+          <div class="body"><div class="scroll" style="gap:11px">
+            <div class="C-hero">
+              <div class="st">進行中 · 剩 1h 12m</div>
+              <div class="nmm">工作模式</div>
+              <div class="rule">只有 VIP 與直接標註你的訊息會響<br>其他 18 個聊天室累積成 12:00 摘要</div>
+              <div class="bar"><i></i></div>
+              <div class="tl"><span>08:30</span><span>11:00</span></div>
+            </div>
+            <div class="C-bhead">切換情境</div>
+            <div class="C-modes">
+              <div class="C-mode on"><div class="em">💼</div><div class="nm">工作</div><div class="ds">VIP + @我</div></div>
+              <div class="C-mode"><div class="em">🌙</div><div class="nm">睡眠</div><div class="ds">全部靜音</div></div>
+              <div class="C-mode"><div class="em">🚇</div><div class="nm">通勤</div><div class="ds">全部堆疊</div></div>
+              <div class="C-mode"><div class="em">🔔</div><div class="nm">全開</div><div class="ds">不過濾</div></div>
+            </div>
+            <div class="C-next">
+              <div class="tmm">11:00</div>
+              <div class="tx">自動切換到 <b style="color:#fafaf9">全開</b><br>週一至週五 · 可編輯排程</div>
+            </div>
+            <div class="C-bhead">此模式期間已擋下</div>
+            <div class="C-rule" style="padding:0">
+              <div style="display:flex;align-items:center;gap:10px;padding:11px 13px;border-bottom:1px solid #262626">
+                <div class="av" style="background:#7c3aed;border-radius:9px;width:28px;height:28px;font-size:11px">股</div>
+                <div style="flex:1"><div style="font-size:12.5px;font-weight:600">股票討論區</div><div style="font-size:10px;color:#78716c">31 則 · 含 2 次 @all</div></div>
+                <div style="font-size:11px;color:#f59e0b;font-weight:700">查看</div>
+              </div>
+              <div style="display:flex;align-items:center;gap:10px;padding:11px 13px">
+                <div class="av" style="background:#475569;border-radius:9px;width:28px;height:28px;font-size:11px">健</div>
+                <div style="flex:1"><div style="font-size:12.5px;font-weight:600">健身房揪團</div><div style="font-size:10px;color:#78716c">9 則</div></div>
+                <div style="font-size:11px;color:#f59e0b;font-weight:700">查看</div>
+              </div>
+            </div>
+            <div style="font-size:10.5px;color:#57534e;line-height:1.5;padding:0 2px">被擋下的訊息永遠可在此查看，Notify+ 不會讓任何訊息真正消失。</div>
+          </div></div>
+          <div class="tabbar">
+            <div class="on"><i class="ic"></i>專注</div><div><i class="ic"></i>規則</div>
+            <div><i class="ic"></i>聊天室</div><div><i class="ic"></i>設定</div>
+          </div>
+        </div></div>
+      </div>
+
+      <!-- C2 -->
+      <div class="pcol">
+        <div class="plabel">C2 · Rules</div>
+        <div class="pnote">規則寫成一句可讀的話，變數是可點的 chip。每條顯示命中次數 → 使用者看得出它有沒有在做事。</div>
+        <div class="phone"><div class="screen C">
+          <div class="sb"><span>9:41</span><div class="r"><span>▮▮▯</span><span>◍</span><span>100</span></div></div>
+          <div class="appbar" style="align-items:flex-start;padding-bottom:12px">
+            <div><div class="C-kick">4 條啟用中</div><div class="C-h">規則</div></div>
+            <div style="font-size:22px;color:#f59e0b;padding-top:10px">＋</div>
+          </div>
+          <div class="body"><div class="scroll" style="gap:9px">
+            <div class="C-rule">
+              <div class="top"><span class="idx">規則 01</span><span class="hit">本週命中 14</span><span class="sw on"><i></i></span></div>
+              <div class="C-sent">
+                <span class="C-w">當</span><span class="ch who">任何群組</span>出現<span class="ch what">@all</span><br>
+                <span class="C-w">則</span><span class="ch act kill">靜音</span>，但<span class="ch act">直接 @我</span>照常通知
+              </div>
+            </div>
+            <div class="C-rule">
+              <div class="top"><span class="idx">規則 02</span><span class="hit">本週命中 6</span><span class="sw on"><i></i></span></div>
+              <div class="C-sent">
+                <span class="C-w">當</span><span class="ch who">陳雨柔</span>或<span class="ch who">媽</span>傳訊息<br>
+                <span class="C-w">則</span><span class="ch act">突破所有情境</span>並<span class="ch act">響鈴</span>
+              </div>
+            </div>
+            <div class="C-rule">
+              <div class="top"><span class="idx">規則 03</span><span class="hit">本週命中 128</span><span class="sw on"><i></i></span></div>
+              <div class="C-sent">
+                <span class="C-w">當</span><span class="ch who">任何社群</span>在<span class="ch what">09:00–18:00</span><br>
+                <span class="C-w">則</span><span class="ch act">累積成摘要</span>，每<span class="ch what">3 小時</span>送一次
+              </div>
+            </div>
+            <div class="C-rule">
+              <div class="top"><span class="idx">規則 04</span><span class="hit">本週命中 41</span><span class="sw on"><i></i></span></div>
+              <div class="C-sent">
+                <span class="C-w">當</span>我在通知上<span class="ch what">回覆</span>後<br>
+                <span class="C-w">則</span>1 秒後<span class="ch act">清除該通知</span>
+              </div>
+            </div>
+            <div class="C-rule" style="opacity:.5">
+              <div class="top"><span class="idx">規則 05</span><span class="hit">已停用</span><span class="sw"><i></i></span></div>
+              <div class="C-sent">
+                <span class="C-w">當</span><span class="ch who">官方帳號</span>傳訊息<br>
+                <span class="C-w">則</span><span class="ch act">保留 LINE 原通知</span>
+              </div>
+            </div>
+            <div class="C-add">＋ 新增規則</div>
+          </div></div>
+          <div class="tabbar">
+            <div><i class="ic"></i>專注</div><div class="on"><i class="ic"></i>規則</div>
+            <div><i class="ic"></i>聊天室</div><div><i class="ic"></i>設定</div>
+          </div>
+        </div></div>
+      </div>
+
+      <!-- C3 -->
+      <div class="pcol">
+        <div class="plabel">C3 · Rule Builder</div>
+        <div class="pnote">建規則時<b>即時預覽</b>結果通知長什麼樣。這一步是把「規則引擎」從工程師玩具變成一般人能用的關鍵。</div>
+        <div class="phone"><div class="screen C">
+          <div class="sb"><span>9:41</span><div class="r"><span>▮▮▯</span><span>◍</span><span>100</span></div></div>
+          <div class="appbar" style="align-items:flex-start;padding-bottom:10px">
+            <div style="font-size:17px;opacity:.4;padding-top:6px">←</div>
+            <div style="margin-left:12px;flex:1"><div class="C-kick">規則 01</div><div class="C-h" style="font-size:24px">編輯條件</div></div>
+          </div>
+          <div class="body"><div class="scroll" style="gap:10px">
+            <div class="C-sent" style="background:#141414;border:1px solid #262626;border-radius:14px;padding:13px 14px;font-size:13.5px">
+              <span class="C-w">當</span><span class="ch who">任何群組</span>出現<span class="ch what">@all</span><br>
+              <span class="C-w">則</span><span class="ch act kill">靜音</span>
+            </div>
+            <div class="C-bhead">例外 — 以下情況仍要通知</div>
+            <div class="C-opts">
+              <div class="C-opt on"><div class="rd"></div><div>訊息直接標註我（@我的名字）</div></div>
+              <div class="C-opt on"><div class="rd"></div><div>來自 VIP 名單的成員</div></div>
+              <div class="C-opt"><div class="rd"></div><div>含關鍵字「急」「今天」「開會」</div></div>
+              <div class="C-opt"><div class="rd"></div><div>同一人 5 分鐘內連傳 3 則以上</div></div>
+            </div>
+            <div class="C-prev">
+              <div class="pl">預覽 · 命中此規則時</div>
+              <div class="C-nt">
+                <div class="av" style="background:#7c3aed;border-radius:8px;width:26px;height:26px;font-size:10px">股</div>
+                <div class="nb">
+                  <div class="h1x">股票討論區 · 已靜音 3 則</div>
+                  <div class="h2x">被規則 01 擋下 · 點擊查看內容</div>
+                </div>
+              </div>
+              <div style="font-size:10.5px;color:#78716c;line-height:1.5;margin-top:10px">
+                靜音仍會產生一則無聲的「已擋下」摘要。<b style="color:#fafaf9">Notify+ 不會讓訊息無痕消失</b>——
+                任何判斷失誤都可追溯。
+              </div>
+            </div>
+            <div class="C-bhead">安全機制</div>
+            <div style="font-size:11px;color:#78716c;line-height:1.6;background:#141414;border:1px solid #262626;border-radius:13px;padding:12px 13px">
+              若系統遮蔽通知內容、或無法確定聊天室來源，此規則<b style="color:#f59e0b">自動不生效</b>（fail-open），
+              保留 LINE 原始通知。寧可多響一次，不可漏一則。
+            </div>
+            <div class="C-cta">儲存規則</div>
+          </div></div>
+          <div class="tabbar">
+            <div><i class="ic"></i>專注</div><div class="on"><i class="ic"></i>規則</div>
+            <div><i class="ic"></i>聊天室</div><div><i class="ic"></i>設定</div>
+          </div>
+        </div></div>
+      </div>
+    </div>
+
+    <div class="tk">
+      <div class="tkc"><h4>為什麼會贏</h4><ul>
+        <li>直接命中真實痛點：群組吵但不敢關</li>
+        <li>ROADMAP 那幾條孤立需求終於有了統一的家</li>
+        <li>LINE 官方不可能做「過濾自家通知」→ 天然護城河</li>
+        <li>規則數／命中數天然形成 free vs pro 的切分線</li>
+      </ul></div>
+      <div class="tkc"><h4>需要新做</h4><ul>
+        <li>規則資料模型（條件 → 動作）＋評估順序</li>
+        <li>情境模式與時間排程（含 DND 互動）</li>
+        <li>摘要投遞（累積 + 定時 flush）</li>
+        <li>@all vs @我 的可靠偵測 — 需先在多 OEM 蒐集真實 extras，不可用可見文字猜</li>
+      </ul></div>
+      <div class="tkc risk"><h4>風險</h4><ul>
+        <li>🔴 漏一則重要訊息 = 直接一星，必須全程 fail-open</li>
+        <li>@all 偵測目前尚無跨 OEM 實證資料（ROADMAP 已標未完成）</li>
+        <li>規則 UI 容易做成工程師專用 → 必須靠預覽與範本救</li>
+        <li>與系統 DND／專注模式可能語意衝突，需明確說明優先權</li>
+      </ul></div>
+    </div>
+  </div>
+</section>
+
+<!-- ============================== MATRIX ============================== -->
+<div class="matrix" id="matrix">
+  <div class="wrap">
+    <h2 class="sec">三方向對照</h2>
+    <table>
+      <tr>
+        <th></th>
+        <th><span class="dot" style="background:#6366f1"></span>A · Control Room</th>
+        <th><span class="dot" style="background:#0f766e"></span>B · Second Inbox</th>
+        <th><span class="dot" style="background:#f59e0b"></span>C · Focus Engine</th>
+      </tr>
+      <tr><td>一句話</td>
+        <td>讓你相信它</td><td>讓你每天用它</td><td>讓你的手機安靜</td></tr>
+      <tr><td>首頁回答</td>
+        <td>它現在在做什麼？</td><td>我有什麼要處理？</td><td>現在什麼會響？</td></tr>
+      <tr><td>核心新資產</td>
+        <td>事件流 + 自我診斷</td><td>本機訊息庫 + 搜尋</td><td>規則引擎 + 情境模式</td></tr>
+      <tr><td>工程量</td>
+        <td><b>小</b>（1–2 週）</td><td><b>大</b>（6–10 週）</td><td><b>中</b>（3–5 週）</td></tr>
+      <tr><td>Play 政策衝擊</td>
+        <td>無 — 仍可誠實填 No data collected</td>
+        <td>🔴 高 — 需重寫 Data safety，開始長期儲存訊息內容</td>
+        <td>低 — 判斷全在記憶體，不需持久化訊息內文</td></tr>
+      <tr><td>對留存的影響</td>
+        <td>中 — 有回訪理由但淺</td><td>高 — 變成日常入口</td><td>中高 — 情境切換是每日行為</td></tr>
+      <tr><td>最大風險</td>
+        <td>對一般用戶太技術</td><td>隱私敘事崩掉 + 工期失控</td><td>誤擋一則就失去信任</td></tr>
+      <tr><td>可否疊加</td>
+        <td colspan="3">A 是 B、C 的地基（兩者都需要「被擋下／被處理」的可追溯清單）。<b>A → C → B</b> 是風險最低的順序：先建立信任，再賣安靜，最後才碰訊息儲存。</td></tr>
+    </table>
+
+    <div class="tk" style="margin-top:26px">
+      <div class="tkc" style="border-color:#c7d2fe;background:#f5f6ff">
+        <h4>如果目標是「盡快上架」</h4>
+        <ul><li>選 <b>A</b>。不動核心邏輯、不碰 Data safety 答案，只把已有事件可視化</li>
+        <li>順手解決品牌問題：Indigo 主色徹底脫離 LINE 綠，截圖與 feature graphic 一次到位</li></ul>
+      </div>
+      <div class="tkc" style="border-color:#fde68a;background:#fffbeb">
+        <h4>如果目標是「產品差異化」</h4>
+        <ul><li>選 <b>C</b>。這是唯一 LINE 官方做不到、且能收費的方向</li>
+        <li>但必須先補完 @all／@我 的跨 OEM extras 實證，否則規則不可靠</li></ul>
+      </div>
+      <div class="tkc" style="border-color:#99f6e4;background:#f0fdfa">
+        <h4>如果目標是「做成真正的 App」</h4>
+        <ul><li>選 <b>B</b>，但要有意識地接受：隱私敘事從此改變、工期翻倍</li>
+        <li>建議先上 A 或 C，用真實使用者驗證需求後再投入</li></ul>
+      </div>
+    </div>
+  </div>
+</div>
+
+<footer>
+  <div class="wrap">
+    Notify+ design exploration · 三個方向皆為提案，未修改任何 App 原始碼<br>
+    畫面內資料為虛構示意 · Notify+ 是獨立第三方工具，與 LINE Corporation / LY Corporation 無關
+  </div>
+</footer>
+
+</body>
+</html>
