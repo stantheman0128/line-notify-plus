@@ -6,7 +6,19 @@
 - 根因：NotificationListenerService 只能在 LINE 已發布通知後收到 callback，無法在 LINE 第一聲之前攔截；兩個通知頻道同時發聲時，後發的 Notify+ 可能打斷 LINE 音效。
 - v1.6.2 / vc34 在首頁新增兩步設定捷徑：保留 LINE 訊息分類但設為靜音，再選擇 Notify+ 鈴聲；禁止把 LINE 訊息分類整個關閉，以免 listener 收不到內容。
 - 同時納入 sender/mirror 去重、正確 group-summary flags、遮蔽 clone 防護、Apple tag 冪等、靜音前置守門、取消重試與 targetSdk 36。
-- 本節建立時尚未完成 Gradle 建置、實機 LINE 回歸、push 或 Play 上傳；不得把下方歷史驗證當成本版驗證。
+- JDK 21 執行 `testDebugUnitTest lintDebug assembleDebug bundleRelease --rerun-tasks --stacktrace`：
+  **107 tests / 0 failures / 0 errors / 0 skipped**，lint **0 errors / 64 warnings**，103 個 task 全部實際執行。
+- 可並存 debug APK：`com.stanslab.linenotify.singlepoptest`、`1.6.2-single-pop-test / vc34`，
+  SHA-256 `81843FDDB9F9A6299BFAF895E3E4683F5D7827B4CDC4EDF83A807F150509D01B`；權限仍只有
+  `BIND_NOTIFICATION_LISTENER_SERVICE` 與 `POST_NOTIFICATIONS`，沒有 `INTERNET`。
+- 簽章 release AAB：7,171,596 bytes，SHA-256
+  `6B050E4AC1090CE5BD4AD40A780A6A85661072D0416D5D95866BB06D81BF3A38`；`jarsigner -verify`
+  回傳 `jar verified` / exit 0。隔離 worktree 的暫存 `keystore.properties` 與 JKS 副本已刪除。
+- Nothing A065 實機 smoke：測試版冷啟動、權限提示、平行 listener 警告、服務狀態與兩步聲音設定卡均正常；
+  LINE 按鈕在尚未記住實際 channel 時安全退回 App 通知分類頁，Notify+ 按鈕精準開啟 `line_notify_plus`。
+- 測試後已先恢復正式版 listener，再解除安裝 `.singlepoptest`；手機只剩正式 `1.6.0 / vc32` 且 listener active。
+- 尚未以真實新進 LINE 訊息驗證雙響／截斷的聽感，也尚未上傳 Play；一般 NLS 無法保證 LINE 第一聲從未發生，
+  正式解法仍是保留 LINE 訊息分類但設為靜音。branch 可 push，但不可把 UI smoke 說成聲音競態已實收通過。
 
 ---
 

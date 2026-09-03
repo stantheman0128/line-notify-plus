@@ -1,7 +1,7 @@
 # Notify+ — Play Store 文案素材
 
 最後更新：2026-09-03
-版本：v1.6.2 (versionCode 34，整合候選，尚未完成建置、實機驗證或上傳)
+版本：v1.6.2 (versionCode 34，建置與可並存實機 UI smoke 通過；真實 LINE 聲音回歸待驗，尚未上傳)
 
 > ⚠️ 2026-06-23 因 Impersonation policy 被退件（舊名「LINE Notify+」+ 舊 feature graphic 模仿 LINE 識別）。
 > 本檔已改名為 Notify+、去掉 LINE 品牌主打、開頭即聲明第三方非官方。商店描述可以「描述功能會用到 LINE 通知」，但名稱與識別不可暗示官方關聯。
