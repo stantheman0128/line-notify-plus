@@ -150,6 +150,15 @@ fun AboutScreen(onBack: () -> Unit) {
                         verticalArrangement = Arrangement.spacedBy(12.dp)
                     ) {
                     ChangelogEntry(
+                        "v1.6.2",
+                        listOf(
+                            stringResource(R.string.changelog_1_6_2_sound_setup),
+                        )
+                    )
+
+                    HorizontalDivider()
+
+                    ChangelogEntry(
                         "v1.6.1",
                         listOf(
                             stringResource(R.string.changelog_1_6_1_long_message),

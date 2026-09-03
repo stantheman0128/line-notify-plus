@@ -33,14 +33,13 @@ class LineNotificationListener : NotificationListenerService() {
 
     companion object {
         private const val TAG = "LineNotify"
-        internal val LINE_PACKAGES = setOf(
-            "jp.naver.line.android",
-            "com.linecorp.line",
-        )
-        private const val CHANNEL_ID = "line_notify_plus"
+        internal val LINE_PACKAGES = LineMessageChannelSettings.knownPackages.toSet()
+        const val CHANNEL_ID = "line_notify_plus"
         const val PREFS_NAME = "line_notify_prefs"
         const val KEY_REPLACE_ORIGINAL = "replace_original"
         const val KEY_SERVICE_ENABLED = "service_enabled"
+        const val KEY_LAST_LINE_MESSAGE_PACKAGE = "last_line_message_package"
+        const val KEY_LAST_LINE_MESSAGE_CHANNEL = "last_line_message_channel"
         // 舊版語意：只停用 Notify+ 增強，仍保留 LINE 原始通知。不可直接改成完全靜音，
         // 否則既有使用者升級後會無預警漏通知。
         const val KEY_DISABLED_CHATS = "disabled_chats"
@@ -833,6 +832,17 @@ class LineNotificationListener : NotificationListenerService() {
         }
 
         val channelId = notification.channelId
+        // 記住 LINE 實際使用的訊息頻道，讓設定頁能直達正確分類。只保存 package/channel
+        // 座標，不保存通知標題、本文或聯絡人資料。
+        if (NotificationClassifier.isSupportedMessageChannel(channelId) &&
+            (prefs.getString(KEY_LAST_LINE_MESSAGE_PACKAGE, null) != sbn.packageName ||
+                prefs.getString(KEY_LAST_LINE_MESSAGE_CHANNEL, null) != channelId)
+        ) {
+            prefs.edit()
+                .putString(KEY_LAST_LINE_MESSAGE_PACKAGE, sbn.packageName)
+                .putString(KEY_LAST_LINE_MESSAGE_CHANNEL, channelId)
+                .apply()
+        }
         if (!NotificationClassifier.isSupportedMessageChannel(channelId)) {
             Log.d(TAG, "略過非聊天通知 channelHash=${channelId?.hashCode()}")
             return

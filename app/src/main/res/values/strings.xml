@@ -43,7 +43,14 @@
     <string name="replace_original_title">取代原始通知</string>
     <string name="replace_original_subtitle">隱藏 LINE 原本的通知，僅顯示完整通知</string>
     <string name="replace_original_info_title">「取代原始通知」說明</string>
-    <string name="replace_original_info_body">關閉時：LINE 原本的通知照常出現，你會看到兩則。好處是你在 LINE 裡把訊息讀掉時，這則會自動跟著消失。\n\n開啟時：用一則完整通知取代 LINE 原本的，畫面只留一則。若要在直接開啟 LINE 聊天室後也清除 Notify+，可另外啟用實驗性的聊天室開啟偵測。</string>
+    <string name="replace_original_info_body">關閉時：LINE 原本的通知照常出現，你會看到兩則。好處是你在 LINE 裡把訊息讀掉時，這則會自動跟著消失。\n\n開啟時：通知欄最後只保留 Notify+ 的完整通知。Android 必須先發布 LINE 通知，Notify+ 才能收到並取代，因此部分手機仍可能短暫顯示 LINE 的通知或先播放一小段聲音。\n\n若要避免雙響或聲音被截斷，請保留 LINE「訊息提醒」分類但設為靜音，再由 Notify+ 播放鈴聲。</string>
+    <string name="sound_setup_title">避免雙響與鈴聲被截斷</string>
+    <string name="sound_setup_body">LINE 通知會先發布，Notify+ 才能取代。兩邊都發聲時，後一個音效可能中斷前一個。請先把 LINE 的「訊息提醒」設為靜音，再到 Notify+ 選擇要完整播放的鈴聲。</string>
+    <string name="sound_setup_keep_channel_warning">請勿關閉 LINE 的「訊息提醒」分類；關閉後 Notify+ 可能收不到訊息內容。只要將聲音設為「無」或「靜音」即可。</string>
+    <string name="sound_setup_line_action">1. 將 LINE 訊息提醒設為靜音</string>
+    <string name="sound_setup_notify_plus_action">2. 選擇 Notify+ 鈴聲</string>
+    <string name="line_app_not_found">找不到已安裝的 LINE App</string>
+    <string name="notification_settings_not_found">這台手機無法開啟通知設定，請從系統設定手動進入 App 通知</string>
     <string name="accessibility_section_title">LINE 內開啟同步</string>
     <string name="accessibility_read_sync_title">LINE 聊天室開啟偵測（實驗性）</string>
     <string name="accessibility_read_sync_subtitle">直接在 LINE 開啟聊天室時，嘗試清除對應的 Notify+ 通知</string>
@@ -100,6 +107,7 @@
     <string name="changelog_1_2_0_clear">新增回覆後、已讀後自動清除通知的設定</string>
     <string name="changelog_1_2_0_dual">雙開 LINE 時可以區分不同帳號的訊息來源</string>
     <string name="changelog_1_2_0_ui">介面改版，文案調整讓功能更好懂</string>
+    <string name="changelog_1_6_2_sound_setup">新增避免雙響的設定引導：保留 LINE 訊息提醒但設為靜音，改由 Notify+ 完整播放鈴聲</string>
     <string name="changelog_1_6_1_long_message">修正較長的 LINE 訊息可能只顯示部分內容；現在會優先使用通知提供的完整文字</string>
     <string name="changelog_1_6_0_home">首頁重新整理，服務狀態、主要開關與通知風格更容易找到</string>
     <string name="changelog_1_6_0_chats">聊天室支援常駐搜尋、分類分區與批次選取</string>
@@ -228,7 +236,9 @@
     <string name="faq_q_network">App 會上傳我的訊息嗎？</string>
     <string name="faq_a_network">不會。App 沒有 INTERNET 權限，也沒有 analytics、後端或自我更新功能。</string>
     <string name="faq_q_original">取代原始通知是什麼？</string>
-    <string name="faq_a_original">開啟後會隱藏 LINE 原本的通知，只留下 Notify+ 重新整理後的通知。點 Notify+ 通知進入 LINE 時會一起清除；若直接在 LINE App 裡讀取，Android 不一定會把已讀狀態通知 Notify+，可手動滑掉通知。</string>
+    <string name="faq_a_original">開啟後，通知欄最後只留下 Notify+ 重新整理後的通知。Android 必須先收到 LINE 原始通知才能取代，因此部分手機仍可能短暫顯示 LINE 通知或先播放一小段聲音。</string>
+    <string name="faq_q_sound_cut_off">為什麼 LINE 先響一下，鈴聲還會被截斷？</string>
+    <string name="faq_a_sound_cut_off">Notify+ 必須等 LINE 發出通知後才讀得到內容，因此無法在 LINE 發聲前攔截。若 LINE 和 Notify+ 都設定聲音，後一個音效可能中斷前一個。請在首頁依序把 LINE「訊息提醒」設為靜音，再替 Notify+ 選擇鈴聲。請勿關閉整個 LINE 訊息分類，否則 Notify+ 可能收不到內容。</string>
     <string name="faq_q_reply">快速回覆送不出去怎麼辦？</string>
     <string name="faq_a_reply">這是 closed testing 期間仍在追的行為類 bug。請保留當下通知，回報手機型號、Android 版本與 LINE 版本。</string>
     <string name="faq_q_sensitive_hidden">為什麼顯示「系統已隱藏含有私密資訊」？</string>

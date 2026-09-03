@@ -43,7 +43,14 @@
     <string name="replace_original_title">Replace original notifications</string>
     <string name="replace_original_subtitle">Hide the original LINE notification and show only the complete notification</string>
     <string name="replace_original_info_title">About \"Replace original notifications\"</string>
-    <string name="replace_original_info_body">Off: LINE\'s own notification still appears, so you\'ll see two. The upside is that when you read the message in LINE, this one clears automatically too.\n\nOn: one complete notification replaces LINE\'s, so you only see one. To also clear Notify+ after opening a chat directly in LINE, enable the experimental chat-open detection option.</string>
+    <string name="replace_original_info_body">Off: LINE\'s own notification still appears, so you\'ll see two. The upside is that when you read the message in LINE, this one clears automatically too.\n\nOn: the notification shade eventually keeps only the complete Notify+ notification. Android must post LINE\'s notification before Notify+ can read and replace it, so some phones may briefly show LINE or play the beginning of its sound.\n\nTo prevent double sounds or cut-off tones, keep LINE\'s message category enabled but silent, then let Notify+ play the alert sound.</string>
+    <string name="sound_setup_title">Prevent double or cut-off sounds</string>
+    <string name="sound_setup_body">LINE posts first, and only then can Notify+ replace it. If both notifications make a sound, the second sound can interrupt the first. Silence LINE\'s message category, then choose the sound you want Notify+ to play in full.</string>
+    <string name="sound_setup_keep_channel_warning">Do not disable LINE\'s message category. Notify+ may stop receiving message content. Set only its sound to None or Silent.</string>
+    <string name="sound_setup_line_action">1. Silence LINE message alerts</string>
+    <string name="sound_setup_notify_plus_action">2. Choose the Notify+ sound</string>
+    <string name="line_app_not_found">No supported LINE app is installed</string>
+    <string name="notification_settings_not_found">This phone could not open notification settings. Open the app\'s notifications manually from system settings.</string>
     <string name="accessibility_section_title">Open-chat sync in LINE</string>
     <string name="accessibility_read_sync_title">LINE chat-open detection (experimental)</string>
     <string name="accessibility_read_sync_subtitle">Try to clear the matching Notify+ notification when you open a chat directly in LINE</string>
@@ -100,6 +107,7 @@
     <string name="changelog_1_2_0_clear">Added settings to auto-clear notifications after replying or reading</string>
     <string name="changelog_1_2_0_dual">Tell apart different accounts when running dual LINE</string>
     <string name="changelog_1_2_0_ui">Refreshed interface with clearer wording</string>
+    <string name="changelog_1_6_2_sound_setup">Added guided sound setup to prevent double or cut-off alerts: keep LINE message alerts enabled but silent, and let Notify+ play the full sound</string>
     <string name="changelog_1_6_1_long_message">Fixed longer LINE messages sometimes showing only part of the text; Notify+ now prefers the complete text provided by the notification</string>
     <string name="changelog_1_6_0_home">Redesigned the home screen so service status, key controls, and notification styles are easier to find</string>
     <string name="changelog_1_6_0_chats">Added always-available chat search, category sections, and multi-select</string>
@@ -228,7 +236,9 @@
     <string name="faq_q_network">Will the app upload my messages?</string>
     <string name="faq_a_network">No. The app has no INTERNET permission, analytics, backend, or self-update feature.</string>
     <string name="faq_q_original">What does replacing original notifications mean?</string>
-    <string name="faq_a_original">When enabled, the original LINE notification is hidden and only the rebuilt Notify+ notification remains. Tapping the Notify+ notification to open LINE clears it too. If you read directly inside LINE, Android may not report that state to Notify+, so you may need to dismiss it manually.</string>
+    <string name="faq_a_original">When enabled, the notification shade eventually keeps only the rebuilt Notify+ notification. Android must first receive LINE\'s original notification before Notify+ can replace it, so some phones may briefly show LINE or play the beginning of its sound.</string>
+    <string name="faq_q_sound_cut_off">Why does LINE sound first, or why is its tone cut off?</string>
+    <string name="faq_a_sound_cut_off">Notify+ can read the message only after LINE posts a notification, so it cannot intercept LINE before the first sound. If LINE and Notify+ both have sounds, the second can interrupt the first. Follow the two sound-setup buttons on the home screen: silence LINE\'s message category, then choose a Notify+ sound. Do not disable LINE\'s entire message category, or Notify+ may stop receiving content.</string>
     <string name="faq_q_reply">What if quick replies do not send?</string>
     <string name="faq_a_reply">This is still being investigated during closed testing. Keep the notification and report the phone model, Android version, and LINE version.</string>
     <string name="faq_q_sensitive_hidden">Why does it say “Sensitive notification content hidden”?</string>

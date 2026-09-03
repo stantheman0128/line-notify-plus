@@ -2,15 +2,18 @@ package com.stanslab.linenotify
 
 import android.Manifest
 import android.accessibilityservice.AccessibilityServiceInfo
+import android.content.ActivityNotFoundException
 import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
+import android.net.Uri
 import android.os.Build
 import android.os.Bundle
 import android.provider.Settings
 import android.service.notification.NotificationListenerService
 import android.view.accessibility.AccessibilityManager
+import android.widget.Toast
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -58,6 +61,7 @@ import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Switch
 import androidx.compose.material3.SwitchDefaults
@@ -97,6 +101,7 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LifecycleEventEffect
 import com.stanslab.linenotify.service.LineNotificationListener
 import com.stanslab.linenotify.service.LineAccessibilityService
+import com.stanslab.linenotify.service.LineMessageChannelSettings
 import com.stanslab.linenotify.ui.theme.ActionGreen
 import com.stanslab.linenotify.ui.theme.BrandGreen
 import com.stanslab.linenotify.ui.theme.FillGreen
@@ -227,6 +232,22 @@ fun MainScreen(windowWidthSizeClass: WindowWidthSizeClass) {
     val onOpenAccessibilitySettings = {
         context.startActivity(Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS))
     }
+    val onOpenLineMessageChannelSettings = {
+        openLineNotificationSettings(
+            context = context,
+            rememberedPackage = prefs.getString(
+                LineNotificationListener.KEY_LAST_LINE_MESSAGE_PACKAGE,
+                null,
+            ),
+            rememberedChannelId = prefs.getString(
+                LineNotificationListener.KEY_LAST_LINE_MESSAGE_CHANNEL,
+                null,
+            ),
+        )
+    }
+    val onOpenNotifyPlusNotificationSettings = {
+        openNotifyPlusNotificationSettings(context)
+    }
     val onRequestPostNotifications = {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             postNotificationsLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
@@ -338,7 +359,9 @@ fun MainScreen(windowWidthSizeClass: WindowWidthSizeClass) {
                         onReplaceOriginalChange = onReplaceOriginalChange,
                         onNotificationStyleChange = onNotificationStyleChange,
                         onOpenPermissionSettings = onOpenPermissionSettings,
-                        onRequestPostNotifications = onRequestPostNotifications
+                        onRequestPostNotifications = onRequestPostNotifications,
+                        onOpenLineMessageChannelSettings = onOpenLineMessageChannelSettings,
+                        onOpenNotifyPlusNotificationSettings = onOpenNotifyPlusNotificationSettings,
                     )
                 }
 
@@ -386,7 +409,9 @@ fun MainScreen(windowWidthSizeClass: WindowWidthSizeClass) {
                     onReplaceOriginalChange = onReplaceOriginalChange,
                     onNotificationStyleChange = onNotificationStyleChange,
                     onOpenPermissionSettings = onOpenPermissionSettings,
-                    onRequestPostNotifications = onRequestPostNotifications
+                    onRequestPostNotifications = onRequestPostNotifications,
+                    onOpenLineMessageChannelSettings = onOpenLineMessageChannelSettings,
+                    onOpenNotifyPlusNotificationSettings = onOpenNotifyPlusNotificationSettings,
                 )
                 HomeSecondaryPane(
                     isListenerEnabled = isListenerEnabled,
@@ -421,7 +446,9 @@ private fun HomeStatusAndControls(
     onReplaceOriginalChange: (Boolean) -> Unit,
     onNotificationStyleChange: (String) -> Unit,
     onOpenPermissionSettings: () -> Unit,
-    onRequestPostNotifications: () -> Unit
+    onRequestPostNotifications: () -> Unit,
+    onOpenLineMessageChannelSettings: () -> Unit,
+    onOpenNotifyPlusNotificationSettings: () -> Unit,
 ) {
     when {
         isServiceRunning -> ServiceStatusStrip()
@@ -444,6 +471,12 @@ private fun HomeStatusAndControls(
             onServiceEnabledChange = onServiceEnabledChange,
             onReplaceOriginalChange = onReplaceOriginalChange
         )
+        if (serviceEnabled && replaceOriginal) {
+            SoundSetupCard(
+                onOpenLineSettings = onOpenLineMessageChannelSettings,
+                onOpenNotifyPlusSettings = onOpenNotifyPlusNotificationSettings,
+            )
+        }
         NotificationStyleSection(
             notifStyle = notifStyle,
             featuresEnabled = serviceEnabled,
@@ -457,6 +490,58 @@ private fun HomeStatusAndControls(
         Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU
     ) {
         PostNotificationsButton(onClick = onRequestPostNotifications)
+    }
+}
+
+@Composable
+private fun SoundSetupCard(
+    onOpenLineSettings: () -> Unit,
+    onOpenNotifyPlusSettings: () -> Unit,
+) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(16.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.secondaryContainer,
+        ),
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline),
+    ) {
+        Column(
+            modifier = Modifier.padding(15.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            Text(
+                text = stringResource(R.string.sound_setup_title),
+                fontSize = 15.sp,
+                fontWeight = FontWeight.ExtraBold,
+                color = MaterialTheme.colorScheme.onSecondaryContainer,
+            )
+            Text(
+                text = stringResource(R.string.sound_setup_body),
+                fontSize = 13.sp,
+                lineHeight = 18.sp,
+                color = MaterialTheme.colorScheme.onSecondaryContainer,
+            )
+            Text(
+                text = stringResource(R.string.sound_setup_keep_channel_warning),
+                fontSize = 12.sp,
+                lineHeight = 17.sp,
+                fontWeight = FontWeight.SemiBold,
+                color = MaterialTheme.colorScheme.onSecondaryContainer,
+            )
+            OutlinedButton(
+                onClick = onOpenLineSettings,
+                modifier = Modifier.fillMaxWidth(),
+            ) {
+                Text(stringResource(R.string.sound_setup_line_action))
+            }
+            OutlinedButton(
+                onClick = onOpenNotifyPlusSettings,
+                modifier = Modifier.fillMaxWidth(),
+            ) {
+                Text(stringResource(R.string.sound_setup_notify_plus_action))
+            }
+        }
     }
 }
 
@@ -1503,6 +1588,78 @@ private fun isLineAccessibilityServiceEnabled(context: Context): Boolean {
             val serviceInfo = info.resolveInfo.serviceInfo
             ComponentName(serviceInfo.packageName, serviceInfo.name) == component
         }
+}
+
+private fun openLineNotificationSettings(
+    context: Context,
+    rememberedPackage: String?,
+    rememberedChannelId: String?,
+) {
+    val installedPackages = LineMessageChannelSettings.knownPackages
+        .filterTo(mutableSetOf()) { context.isPackageInstalled(it) }
+    val target = LineMessageChannelSettings.resolveTarget(
+        installedPackages = installedPackages,
+        rememberedPackage = rememberedPackage,
+        rememberedChannelId = rememberedChannelId,
+    )
+    if (target == null) {
+        Toast.makeText(context, R.string.line_app_not_found, Toast.LENGTH_LONG).show()
+        return
+    }
+
+    val appSettingsIntent = Intent(Settings.ACTION_APP_NOTIFICATION_SETTINGS)
+        .putExtra(Settings.EXTRA_APP_PACKAGE, target.packageName)
+    val appDetailsIntent = Intent(
+        Settings.ACTION_APPLICATION_DETAILS_SETTINGS,
+        Uri.parse("package:${target.packageName}"),
+    )
+    val intents = target.channelId?.let { channelId ->
+        listOf(
+            Intent(Settings.ACTION_CHANNEL_NOTIFICATION_SETTINGS)
+                .putExtra(Settings.EXTRA_APP_PACKAGE, target.packageName)
+                .putExtra(Settings.EXTRA_CHANNEL_ID, channelId),
+            appSettingsIntent,
+            appDetailsIntent,
+        )
+    } ?: listOf(appSettingsIntent, appDetailsIntent)
+
+    if (intents.none { context.tryStartActivity(it) }) {
+        Toast.makeText(context, R.string.notification_settings_not_found, Toast.LENGTH_LONG).show()
+    }
+}
+
+private fun openNotifyPlusNotificationSettings(context: Context) {
+    val intents = listOf(
+        Intent(Settings.ACTION_CHANNEL_NOTIFICATION_SETTINGS)
+            .putExtra(Settings.EXTRA_APP_PACKAGE, context.packageName)
+            .putExtra(Settings.EXTRA_CHANNEL_ID, LineNotificationListener.CHANNEL_ID),
+        Intent(Settings.ACTION_APP_NOTIFICATION_SETTINGS)
+            .putExtra(Settings.EXTRA_APP_PACKAGE, context.packageName),
+        Intent(
+            Settings.ACTION_APPLICATION_DETAILS_SETTINGS,
+            Uri.parse("package:${context.packageName}"),
+        ),
+    )
+    if (intents.none { context.tryStartActivity(it) }) {
+        Toast.makeText(context, R.string.notification_settings_not_found, Toast.LENGTH_LONG).show()
+    }
+}
+
+@Suppress("DEPRECATION")
+private fun Context.isPackageInstalled(packageName: String): Boolean = try {
+    packageManager.getApplicationInfo(packageName, 0)
+    true
+} catch (_: PackageManager.NameNotFoundException) {
+    false
+}
+
+private fun Context.tryStartActivity(intent: Intent): Boolean = try {
+    startActivity(intent)
+    true
+} catch (_: ActivityNotFoundException) {
+    false
+} catch (_: SecurityException) {
+    false
 }
 
 private fun hasPostNotificationsPermission(context: Context): Boolean {
