@@ -1,7 +1,7 @@
 # Notify+ — Play Store 文案素材
 
-最後更新：2026-08-29
-版本：v1.5.0 (versionCode 31，實驗候選，尚未實機驗證或上傳)
+最後更新：2026-09-03
+版本：v1.6.2 (versionCode 34，整合候選，尚未完成建置、實機驗證或上傳)
 
 > ⚠️ 2026-06-23 因 Impersonation policy 被退件（舊名「LINE Notify+」+ 舊 feature graphic 模仿 LINE 識別）。
 > 本檔已改名為 Notify+、去掉 LINE 品牌主打、開頭即聲明第三方非官方。商店描述可以「描述功能會用到 LINE 通知」，但名稱與識別不可暗示官方關聯。
@@ -85,18 +85,18 @@ GitHub：https://github.com/stantheman0128/line-notify-plus
 
 ---
 
-## Release notes v1.5.0 / vc31（實驗候選）
+## Release notes v1.6.2 / vc34（Play Console 上限 500 字元）
 
 ### 繁體中文
 
 ```
-新增選配的 LINE 聊天室開啟偵測：直接進入聊天室時，嘗試清除對應的 Notify+ 通知。同名、雙開或辨識不完整時會保留通知。另修正從舊版升級時，先前隱藏的 LINE 通知可能再次出現的問題。
+新增避免雙響與鈴聲被截斷的設定引導：保留 LINE「訊息提醒」分類但將聲音設為靜音，再由 Notify+ 完整播放選定鈴聲。並整合通知去重、摘要接管、靜音守門與取消重試等穩定性修正。
 ```
 
 ### English
 
 ```
-Added optional LINE chat-open detection to try clearing the matching Notify+ notification when you enter a chat. Notifications stay when a chat is ambiguous or cannot be confirmed. Also fixed previously hidden LINE notifications possibly reappearing after an upgrade.
+Added guided setup to prevent double or cut-off alerts: keep LINE's message category enabled but silent, then let Notify+ play the selected sound in full. Also integrates reliability fixes for deduplication, summary handling, chat mute gating, and original-notification cancellation retries.
 ```
 
 > 送審前仍須完成真實 LINE 實機回歸、Accessibility declaration 與示範影片。

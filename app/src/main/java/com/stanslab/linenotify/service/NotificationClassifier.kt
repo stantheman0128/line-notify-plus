@@ -41,8 +41,12 @@ object NotificationClassifier {
         source.tag == "NOTIFICATION_TAG_MESSAGE" &&
             source.id == source.shortcutId.hashCode()
 
+    /** legacy mirror 的通知身分（tag=null 且固定 id）。 */
+    fun isLegacyMirrorIdentity(tag: String?, id: Int): Boolean =
+        tag == null && id == 16_880_000
+
     fun isObservedLineLegacyMirror(source: MirrorSource): Boolean =
-        source.tag == null && source.id == 16_880_000
+        isLegacyMirrorIdentity(source.tag, source.id)
 
     /**
      * 僅接受實機觀察到的方向：較完整的 tagged conversation 先到，固定 ID mirror 後到。
@@ -90,7 +94,66 @@ object NotificationClassifier {
 
     /** 僅攔截 LINE 聊天訊息頻道；付款、好友邀請、動態等其他頻道一律 fail-open。 */
     fun isSupportedMessageChannel(channelId: String?): Boolean =
-        channelId == "NewMessages" || channelId?.endsWith(".notification.NewMessages") == true
+        LineMessageChannelSettings.isSupportedMessageChannel(channelId)
+
+    /** LINE 的「社群活動」頻道，承載社群公告與記事本重要貼文。 */
+    fun isSquareActivityChannel(channelId: String?): Boolean =
+        channelId == "SquareActivity" ||
+            channelId?.endsWith(".notification.SquareActivity") == true
+
+    /**
+     * 靜音可以攔截的頻道，刻意比 [isSupportedMessageChannel] 寬。
+     *
+     * 兩者不是同一件事：[isSupportedMessageChannel] 決定「要不要把它重建成 Notify+ 卡片」，
+     * 這裡決定「使用者說要靜音時，要不要幫他撤掉」。公告類通知沒有 MessagingStyle、沒有
+     * subText，重建成卡片只會生出假聊天室，但撤掉它沒有任何副作用——所以社群活動頻道
+     * 只進這個集合，不進白名單。
+     */
+    fun isMuteEligibleChannel(channelId: String?): Boolean =
+        isSupportedMessageChannel(channelId) || isSquareActivityChannel(channelId)
+
+    /**
+     * 這則通知能不能被歸屬到單一聊天室。歸屬不明就不該套用靜音，否則會誤撤別人的通知。
+     *
+     * 兩種不可歸屬的形狀：系統遮蔽 clone（title 是 App 名稱，跟聊天室無關）、
+     * 以及沒有 subText 的堆疊摘要（title 本身就是多個聊天室拼起來的）。
+     */
+    fun isAttributableChatTitle(
+        title: String?,
+        subText: String?,
+        sourceAppLabel: String?,
+    ): Boolean =
+        title != null &&
+            !matchesAospCloneShapeExceptIcon(title, subText, sourceAppLabel) &&
+            !(subText == null && isStackSummaryTitle(title))
+
+    /**
+     * 這則該不該因為「使用者把該聊天室完全靜音」而直接撤掉。
+     *
+     * 存在的理由是守門順序：靜音檢查原本排在頻道白名單、GROUP_SUMMARY、title/text 空值、
+     * 系統遮蔽這四道早退**之後**，而那四道 return 掉的通知照樣會出現在使用者面前，
+     * 等於靜音對它們一律失效——這就是「我明明關掉了，@all 和社群公告還是會跳」的成因。
+     *
+     * 遮蔽通知刻意排除：原始內容在 callback 前就已不可逆遺失，撤掉它等於讓使用者永遠
+     * 不知道有這則訊息。group summary 也排除，它涵蓋多個聊天室、不可歸屬到單一房。
+     */
+    fun shouldHardMute(
+        channelId: String?,
+        title: String?,
+        subText: String?,
+        text: String?,
+        isGroupSummary: Boolean,
+        sourceAppLabel: String?,
+        systemRedactedText: String?,
+        mutedChats: Set<String>,
+    ): Boolean {
+        if (title == null) return false
+        if (!isMuteEligibleChannel(channelId)) return false
+        if (isGroupSummary) return false
+        if (chatTitleOf(title, subText) !in mutedChats) return false
+        if (textMatchesRedactionPlaceholder(text, systemRedactedText)) return false
+        return isAttributableChatTitle(title, subText, sourceAppLabel)
+    }
 
     /** 分類 → 對應的 SharedPreferences set key。 */
     fun prefsKeyForType(chatType: String): String = when (chatType) {
@@ -124,6 +187,34 @@ object NotificationClassifier {
 
     /** 顯示用聊天室名：有 subText 用 subText(群組/社群名)，否則用 title(發送者)。 */
     fun chatTitleOf(title: String, subText: String?): String = subText ?: title
+
+    /**
+     * 從通知 title 還原「乾淨的發送者顯示名」。
+     *
+     * LINE 26.11.0 對群組訊息的 tagged conversation callback，會把 android.title 組成
+     * 「群組名：發送者」（全形冒號），android.subText = 群組名；同一則訊息的 legacy mirror
+     * callback 則帶乾淨 title = 純發送者名。實測（2026-07-21，Nothing A065 + LINE 26.11.0
+     * dumpsys --noredact 多對樣本）：tagged title="寶貝兒子：Christina王秀華" / subText="寶貝兒子"，
+     * mirror title="Christina王秀華" / subText="寶貝兒子"。兩邊 sender 不一致會害
+     * [mirrorFingerprint] 兩側算出不同指紋、合併失敗，同一則群組訊息在對話串卡片跳兩列。
+     *
+     * 這裡把 tagged 那側的「subText：」前綴剝掉，讓兩邊 sender 一致。
+     * **只剝全形冒號「：」**——實機證據只看到全形；半形冒號不在證據範圍內，不動，避免誤剝
+     * 正常含半形冒號的暱稱。長度守門確保剝完非空（避免整個 title 恰為「群組名：」時剝成空字串）。
+     * 1:1 個人訊息兩邊 title 一致、subText 為 null 或不成前綴，一律原樣回傳 title。
+     * 純字串操作（startsWith/substring），不用正則，subText 含正則特殊字元也安全。
+     */
+    fun senderOf(title: String, subText: String?): String {
+        val prefix = "$subText："
+        if (subText != null &&
+            title != subText &&
+            title.startsWith(prefix) &&
+            title.length > prefix.length
+        ) {
+            return title.substring(prefix.length)
+        }
+        return title
+    }
 
     /** roomKey = profileKey + 分隔字元 + 聊天室名（雙開帳號各自獨立）。 */
     fun roomKeyOf(profileKey: String, chatTitle: String): String =
@@ -168,6 +259,34 @@ object NotificationClassifier {
             .digest("$roomKey\u0000$text\u0000$timeSeconds".toByteArray(Charsets.UTF_8))
         return bytes.joinToString(separator = "") { byte -> "%02x".format(byte) }
     }
+
+    /**
+     * Apple 分組模式下，一張 child 卡的訊息身分 token（最終會變成通知的 tag）。
+     *
+     * 同一則訊息重複貼必須算出同一個 token（→ 同 tag → 覆蓋成一張），
+     * 同房不同訊息必須算出不同 token（→ 各自一張卡，這是 Apple 模式的核心語意）。
+     *
+     * ⛔ **參數列就是白名單**，跟 [mirrorFingerprint] 同一個規矩。絕不可放入 post generation、
+     * `room.messages.size`、`sbn.postTime` 這類「每個 callback 都會變」的值——放進去等於宣告
+     * 每個 callback 都是新訊息，同一則訊息就會拿到兩個 tag、貼出兩張永不互相覆蓋的卡，
+     * 而且各佔一個 cap 名額。vc23 以前正是如此（token 含 `childGeneration` 與 `room.messages.size`），
+     * 這就是「Apple 分組模式下出現兩個一模一樣的通知」的結構性成因。
+     *
+     * [identityWhenMs] 必須是 LINE 的 `notification.when`（同一則訊息的兩個 mirror callback
+     * 帶的值相同），不可以用 `sbn.postTime`（兩個 callback 不同）。真的連續傳兩則相同文字時，
+     * LINE 的 when 毫秒必不同（2026-07-21 實測差 2449ms），所以分辨得出來。
+     *
+     * 這組身分欄位不是新發明，正是第 2 層保底去重已經在用的同一組。差別在於：那一層靠
+     * in-memory 快取，快取被清掉就失效；tag 冪等是結構性質，process 重啟後照樣成立。
+     */
+    fun appleChildToken(
+        roomKey: String,
+        text: String,
+        identityWhenMs: Long,
+        isFromMe: Boolean,
+    ): String =
+        (if (isFromMe) "me" else "in") + ":" +
+            dedupeFingerprint(roomKey, text, identityWhenMs).take(24)
 
     /**
      * LINE 對同一則訊息會送兩個 callback（tagged conversation + legacy mirror `id=16880000`），
@@ -220,9 +339,25 @@ object NotificationClassifier {
     }
 
     /**
-     * Android 15+ 交給不受信任 NotificationListener 的敏感通知 clone：title 會改成來源
-     * App label、text 會改成 framework 的 redacted 字串，subText 被移除。命中後不能重發、
-     * 建立假聊天室或取消原通知，因為原始內容在 callback 前就已不可逆地被移除。
+     * Android 15+ 交給不受信任 NotificationListener 的敏感通知 clone：內容會被換成
+     * framework 的 redacted 占位字串。命中後不能重發、建立假聊天室或取消原通知，
+     * 因為原始內容在 callback 前就已不可逆地被移除。
+     *
+     * **兩條線 OR，因為 OEM 的 clone 形狀分兩種，各自只斷得掉其中一條：**
+     *
+     * 1. **占位字比對**（[textMatchesRedactionPlaceholder]）。realme UI 7 的 clone 保留原
+     *    title/subText（2026-07-18 用戶實證），只有 text 可辨識。
+     * 2. **AOSP clone 形狀**（[matchesAospCloneShape]）。Nothing OS 走標準路徑：title 換成
+     *    App label、subText 移除、largeIcon 換成 App 圖示，但 text 對不上占位字。
+     *    2026-07-12 Nothing A059P 實證：一則「蝦皮店到店包裹通知」在同一毫秒
+     *    （chat_last_active 兩筆皆 1783826523374）多生出一個名為「LINE」的聊天室，
+     *    其頭貼檔 chat_avatars/2336756.png 是 LINE 的 App 圖示。
+     *
+     * 歷史教訓：vc18 的 4acd58f 為了修好第 1 種，把第 2 種的判斷條件整條刪掉，於是
+     * Nothing 這類機器從「偶爾漏判」變成「必然漏判」。兩種形狀要各留一條線，不能二選一。
+     *
+     * 誤判成本刻意壓在安全側：把正常通知誤當 clone，後果只是該則不增強、保留 LINE 原通知
+     * （fail-open）；反過來漏判則會建出假聊天室，還在取代模式下把真訊息的原通知一起取消。
      */
     fun isSystemRedactedNotification(
         title: String,
@@ -230,12 +365,78 @@ object NotificationClassifier {
         subText: String?,
         sourceAppLabel: String?,
         systemRedactedText: String?,
+        largeIconMatchesAppIcon: Boolean = false,
     ): Boolean =
-        !systemRedactedText.isNullOrEmpty() &&
-            text == systemRedactedText &&
-            subText == null &&
-            !sourceAppLabel.isNullOrEmpty() &&
-            title == sourceAppLabel
+        textMatchesRedactionPlaceholder(text, systemRedactedText) ||
+            matchesAospCloneShape(title, subText, sourceAppLabel, largeIconMatchesAppIcon)
+
+    /**
+     * AOSP redaction clone 的形狀：title 等於來源 App 名稱、沒有 subText、
+     * largeIcon 就是該 App 的圖示。
+     *
+     * 三個條件缺一不可。只靠前兩個會誤殺「聊天室名剛好等於 App 名稱」的 1:1 對話
+     * （例如 LINE 官方帳號本身就叫「LINE」）——那種通知帶的是帳號頭像而非 App 圖示，
+     * 由 [largeIconMatchesAppIcon] 分開。
+     */
+    fun matchesAospCloneShape(
+        title: String,
+        subText: String?,
+        sourceAppLabel: String?,
+        largeIconMatchesAppIcon: Boolean,
+    ): Boolean =
+        matchesAospCloneShapeExceptIcon(title, subText, sourceAppLabel) &&
+            largeIconMatchesAppIcon
+
+    /**
+     * clone 形狀裡不需要動到圖片的那幾個條件。
+     *
+     * 存在的唯一理由是給呼叫端當「要不要花成本做圖示比對」的閘門，**不可以在呼叫端自己重寫一份**。
+     * 兩處各自維護同一組條件，正是 vc18 那次回歸的病根：改一邊忘另一邊，
+     * [matchesAospCloneShape] 就會靜默失效而測試照樣全綠。
+     */
+    fun matchesAospCloneShapeExceptIcon(
+        title: String,
+        subText: String?,
+        sourceAppLabel: String?,
+    ): Boolean =
+        !sourceAppLabel.isNullOrEmpty() &&
+            title == sourceAppLabel &&
+            subText == null
+
+    /**
+     * LINE 26.11.0 起，`id=16880000 tag=null` 從 legacy mirror 變成 `GROUP_SUMMARY`
+     * （2026-07-19 於 Nothing A065 dumpsys 實證，flags=...|GROUP_SUMMARY）。
+     * summary 不會被 SystemUI 自動回收，放著不管會在部分 OEM（realme UI 實證）
+     * 以「N則新訊息＋訊息預覽」的完整卡片殘留，看起來就像「原通知沒被取代」。
+     *
+     * 取消條件：取代模式開啟，且內容已由別的通知承載（我方副本或 LINE child 任一在場）。
+     * 兩者皆不在場代表 summary 可能是唯一殘留 → fail-open 保留。
+     */
+    fun shouldCancelLineSummary(
+        replaceEnabled: Boolean,
+        replacementActive: Boolean,
+        lineChildActive: Boolean,
+    ): Boolean = replaceEnabled && (replacementActive || lineChildActive)
+
+    /**
+     * text 是否恰為系統遮蔽占位字。兩處守門共用：
+     * (1) GROUP_SUMMARY 分支排在 title/text 空值檢查之前（summary 不保證帶 android.text），
+     *     走不到 [isSystemRedactedNotification]——遮蔽版 summary 以此保留、不取消；
+     * (2) 取消原通知前的最後重讀：同 key 在延遲窗內被更新成遮蔽版時放手不取消（TOCTOU 窄化）。
+     * null text 不算遮蔽。
+     */
+    fun textMatchesRedactionPlaceholder(text: String?, systemRedactedText: String?): Boolean =
+        text != null &&
+            !systemRedactedText.isNullOrEmpty() &&
+            text == systemRedactedText
+
+    /**
+     * roomKey 格式 = profileKey + [KEY_SEP] + chatTitle（雙開帳號以 profileKey 區分）。
+     * summary 的取消只能由「同 profile」的承載者背書；null roomKey（例如我們自己的
+     * Aggregate 聚合卡）不能算。KEY_SEP 一併比對，避免 profileKey 前綴撞名。
+     */
+    fun roomKeyBelongsToProfile(roomKey: String?, profileKey: String): Boolean =
+        roomKey != null && roomKey.startsWith(profileKey + KEY_SEP)
 
     /**
      * 一個聊天室只該屬於一個分類。把它放進 [chatType] 對應的 set，並從其他兩個 set 移除，

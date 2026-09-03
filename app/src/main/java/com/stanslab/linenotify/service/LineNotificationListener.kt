@@ -82,6 +82,10 @@ class LineNotificationListener : NotificationListenerService() {
         private const val EXTRA_POST_GENERATION = "com.stanslab.linenotify.extra.POST_GENERATION"
         private const val MAX_APPLE_CHILDREN_PER_ROOM = 8
         private const val MAX_APPLE_CHILDREN_TOTAL = 24
+        private const val ICON_COMPARE_SIZE = 64
+        private const val ICON_MATCH_PERCENT = 90
+        private const val SELF_AVATAR_DIR = "self_avatars"
+        private const val SELF_AVATAR_SIZE = 192
 
         /** 某聊天室頭貼的本機檔案（用名字 hash 當檔名，避開 emoji/特殊字元）。 */
         fun avatarFile(context: Context, chatName: String): java.io.File =
@@ -119,6 +123,11 @@ class LineNotificationListener : NotificationListenerService() {
         val receipt: ReplacementReceipt,
         val stateEpoch: Long,
     )
+    private data class RecentPostedEntry(
+        val receipt: ReplacementReceipt,
+        val stateEpoch: Long,
+        val seenElapsed: Long,
+    )
 
     private val summaryIds = mutableMapOf<String, NotificationRef>()
     private val threadNotifIds = mutableMapOf<String, NotificationRef>()
@@ -134,6 +143,9 @@ class LineNotificationListener : NotificationListenerService() {
     private val legacySentinelReleaseMarkers =
         mutableMapOf<String, LegacySentinelMigration.Marker>()
     private val recentMirroredVariants = linkedMapOf<String, MirroredVariantEntry>()
+    // 第 2 層保底去重：fingerprint(房間+全文+毫秒 when) → 最近成功貼出的訊息。嚴格 mirror
+    // 合併之後的兜底，吸收未來任何欄位漂移導致的重複 callback（見 onNotificationPosted）。
+    private val recentPostedPayloads = linkedMapOf<String, RecentPostedEntry>()
     private val mirrorPoisonUntil = mutableMapOf<String, Long>()
     private val nextPostGeneration = java.util.concurrent.atomic.AtomicLong(System.currentTimeMillis())
     private var notificationStateEpoch = 0L
@@ -170,6 +182,7 @@ class LineNotificationListener : NotificationListenerService() {
     private fun invalidateMirrorCandidates() {
         notificationStateEpoch++
         recentMirroredVariants.clear()
+        recentPostedPayloads.clear()
         mirrorPoisonUntil.clear()
     }
 
@@ -251,8 +264,12 @@ class LineNotificationListener : NotificationListenerService() {
         expectedSource: NotificationClassifier.MirrorSource? = null,
         expectedMirrorSignature: String? = null,
     ) {
-        val cancelTask = Runnable {
-            pendingOriginalCancels.remove(key)
+        // activeNotifications 在部分 OEM 不是同步可見（realme UI 實證會慢於 200ms）。
+        // 一次性檢查失敗就放棄會讓 LINE 原通知永久殘留，改成重試階梯；全部失敗才 fail-open。
+        val retryDelays = longArrayOf(200L, 500L, 900L)
+        var attempt = 0
+        lateinit var cancelTask: Runnable
+        cancelTask = Runnable {
             val manager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
             val sourceStillCurrent = if (expectedSource != null && expectedMirrorSignature != null) {
                 runCatching {
@@ -299,13 +316,149 @@ class LineNotificationListener : NotificationListenerService() {
                 isActive(manager, expected)
             }
             if (replacementIsActive) {
-                cancelNotification(key)
+                pendingOriginalCancels.remove(key)
+                if (currentNotificationIsRedacted(key)) {
+                    Log.w(TAG, "原通知已被系統遮蔽（取消前重讀命中）；保留 LINE 原通知")
+                } else {
+                    cancelNotification(key)
+                }
+            } else if (attempt + 1 < retryDelays.size && pendingOriginalCancels[key] === cancelTask) {
+                attempt++
+                Log.d(TAG, "副本尚未可查，${retryDelays[attempt]}ms 後重試取消原通知 attempt=$attempt")
+                handler.postDelayed(cancelTask, retryDelays[attempt])
             } else {
+                pendingOriginalCancels.remove(key)
                 Log.w(TAG, "找不到已提交的 Notify+ 副本；保留 LINE 原通知")
             }
         }
         pendingOriginalCancels[key] = cancelTask
-        handler.postDelayed(cancelTask, 200)
+        handler.postDelayed(cancelTask, retryDelays[0])
+    }
+
+    /**
+     * 接管 LINE 的 group summary／堆疊摘要（詳見 [NotificationClassifier.shouldCancelLineSummary]）。
+     * 延遲 350ms：讓同批 child callback 的副本先貼出，才能通過「內容已由別處承載」的確認。
+     * summary 每次被 LINE 更新都會重新走到這裡（onNotificationPosted 開頭已撤舊任務），
+     * 首則訊息若 summary 先到而暫時保留，下一次更新就會補收。
+     */
+    private fun scheduleLineSummaryCancellation(sbn: StatusBarNotification) {
+        if (!prefs.getBoolean(KEY_REPLACE_ORIGINAL, true)) return
+        // GROUP_SUMMARY 分支在 redaction 守門之前，這裡補同等防線：遮蔽版 summary 是
+        // 「有私密訊息」的唯一提示，一律保留。之後若被 LINE 更新，callback 會重新走到這裡。
+        val summaryText = sbn.notification.extras.getCharSequence("android.text")?.toString()
+        if (NotificationClassifier.textMatchesRedactionPlaceholder(summaryText, systemRedactedText())) {
+            Log.w(TAG, "LINE summary 已被系統遮蔽；保留不取消")
+            return
+        }
+        val key = sbn.key
+        // summary 的取消只能由「同 profile」的承載者背書：雙開帳號或別 profile 的卡
+        // 不能證明這個 summary 的內容已被承載（獨立審查 2026-07-19 反例）。
+        val summaryProfileKey = profileKeyOf(sbn)
+        val task = Runnable {
+            pendingOriginalCancels.remove(key)
+            val manager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+            val replacementActive = runCatching {
+                manager.activeNotifications.orEmpty().any { ours ->
+                    val roomKey = ours.notification.extras.getString(EXTRA_ROOM_KEY)
+                        ?: findRoomKeyByNotification(ours.tag, ours.id)
+                    NotificationClassifier.roomKeyBelongsToProfile(roomKey, summaryProfileKey)
+                }
+            }.getOrDefault(false)
+            val lineChildActive = runCatching {
+                activeNotifications.orEmpty().any { active ->
+                    active.packageName in LINE_PACKAGES &&
+                        profileKeyOf(active) == summaryProfileKey &&
+                        active.key != key &&
+                        // 同上：group summary 看 flags，不看 extras。舊寫法恆為 true，
+                        // 會把別的 summary 誤算成「LINE child 還在」而放行取消。
+                        (active.notification.flags and Notification.FLAG_GROUP_SUMMARY) == 0 &&
+                        NotificationClassifier.isSupportedMessageChannel(active.notification.channelId) &&
+                        !isCallNotification(active.notification)
+                }
+            }.getOrDefault(false)
+            if (NotificationClassifier.shouldCancelLineSummary(
+                    replaceEnabled = prefs.getBoolean(KEY_REPLACE_ORIGINAL, true),
+                    replacementActive = replacementActive,
+                    lineChildActive = lineChildActive,
+                )
+            ) {
+                if (currentNotificationIsRedacted(key)) {
+                    Log.w(TAG, "LINE summary 已被系統遮蔽（取消前重讀命中）；保留不取消")
+                } else {
+                    cancelNotification(key)
+                    Log.d(TAG, "接管 LINE summary，已取消")
+                }
+            } else {
+                Log.d(TAG, "LINE summary 為唯一殘留；fail-open 保留")
+            }
+        }
+        pendingOriginalCancels[key] = task
+        handler.postDelayed(task, 350)
+    }
+
+    /**
+     * 取消指令送出前的最後重讀：該 key 的現行 text 已是系統遮蔽占位字時回 true。
+     * 同 key 在延遲窗內被系統換成遮蔽版時，callback 撤任務攔不到「已在佇列後段」的更新，
+     * 這裡是最後一道。看不到該通知（部分 OEM activeNotifications 可見性延遲）時回 false
+     * 照取消——與歷代版本相同的 fail 方向；殘餘的 binder 飛行窗口為 API 固有、無法原子化。
+     */
+    private fun currentNotificationIsRedacted(key: String): Boolean = runCatching {
+        activeNotifications.orEmpty().firstOrNull { it.key == key }
+            ?.notification?.extras?.getCharSequence("android.text")?.toString()
+            ?.let { current ->
+                NotificationClassifier.textMatchesRedactionPlaceholder(current, systemRedactedText())
+            }
+    }.getOrNull() ?: false
+
+    /**
+     * 通知的 largeIcon 是不是就是來源 App 的圖示。
+     *
+     * AOSP 的 redaction clone 會把 largeIcon 換成 App 圖示。2026-07-12 Nothing A059P 實證：
+     * 被誤建出來的「LINE」聊天室，頭貼檔 chat_avatars/2336756.png 正是 LINE 的 App 圖示；
+     * 而 [recordChat] 只在 largeIcon 非 null 時存檔、沒有任何預設圖 fallback，
+     * 所以那張圖必然是通知自己帶來的。
+     *
+     * 這是 [NotificationClassifier.matchesAospCloneShape] 用來跟「聊天室名剛好等於 App 名稱」
+     * 的正常 1:1 對話分家的關鍵訊號——後者帶的是帳號頭像。
+     *
+     * 任何一步取不到就回 false，維持既有行為（不當成 clone）。
+     */
+    private fun largeIconMatchesAppIcon(sbn: StatusBarNotification): Boolean = runCatching {
+        val large = sbn.notification.getLargeIcon()?.loadDrawable(this) ?: return false
+        val appIcon = packageManager.getApplicationIcon(sbn.packageName)
+        val fromNotification = rasterizeIcon(large) ?: return false
+        val fromPackage = rasterizeIcon(appIcon) ?: run {
+            fromNotification.recycle()
+            return false
+        }
+        val identical = bitmapsMostlyIdentical(fromNotification, fromPackage)
+        fromNotification.recycle()
+        fromPackage.recycle()
+        identical
+    }.getOrDefault(false)
+
+    /** 把 icon 畫到固定尺寸畫布，消掉密度與 adaptive icon 造成的尺寸差異。 */
+    private fun rasterizeIcon(
+        drawable: android.graphics.drawable.Drawable,
+        size: Int = ICON_COMPARE_SIZE,
+    ): Bitmap? = runCatching {
+        val bitmap = Bitmap.createBitmap(size, size, Bitmap.Config.ARGB_8888)
+        val canvas = android.graphics.Canvas(bitmap)
+        drawable.setBounds(0, 0, size, size)
+        drawable.draw(canvas)
+        bitmap
+    }.getOrNull()
+
+    /** 逐點相同率達 [ICON_MATCH_PERCENT]% 就視為同一張圖，容忍縮放插值的少量差異。 */
+    private fun bitmapsMostlyIdentical(a: Bitmap, b: Bitmap): Boolean {
+        val total = ICON_COMPARE_SIZE * ICON_COMPARE_SIZE
+        val pixelsA = IntArray(total)
+        val pixelsB = IntArray(total)
+        a.getPixels(pixelsA, 0, ICON_COMPARE_SIZE, 0, 0, ICON_COMPARE_SIZE, ICON_COMPARE_SIZE)
+        b.getPixels(pixelsB, 0, ICON_COMPARE_SIZE, 0, 0, ICON_COMPARE_SIZE, ICON_COMPARE_SIZE)
+        var same = 0
+        for (i in 0 until total) if (pixelsA[i] == pixelsB[i]) same++
+        return same * 100 >= total * ICON_MATCH_PERCENT
     }
 
     private fun systemRedactedText(): String? {
@@ -551,6 +704,7 @@ class LineNotificationListener : NotificationListenerService() {
         handler.removeCallbacksAndMessages(null)
         pendingOriginalCancels.clear()
         recentMirroredVariants.clear()
+        recentPostedPayloads.clear()
         mirrorPoisonUntil.clear()
         pendingAppleRefCounts.clear()
         pendingThreadRefCounts.clear()
@@ -576,6 +730,7 @@ class LineNotificationListener : NotificationListenerService() {
                 if (sbn.tag == null) manager.cancel(sbn.id) else manager.cancel(sbn.tag, sbn.id)
             }
         rebuildNotificationIndexes(active)
+        restorePersistedSelfAvatars()
         enforceMutedPreferencesOnActiveNotifications()
         Log.d(TAG, "通知監聽已連線")
     }
@@ -752,7 +907,8 @@ class LineNotificationListener : NotificationListenerService() {
         runCatching { activeNotifications.orEmpty() }
             .getOrDefault(emptyArray())
             .filter { it.packageName in LINE_PACKAGES }
-            .filter { NotificationClassifier.isSupportedMessageChannel(it.notification.channelId) }
+            // 用 mute-eligible 而非白名單：listener 重連時要連公告類的殘留一起掃掉。
+            .filter { NotificationClassifier.isMuteEligibleChannel(it.notification.channelId) }
             .filterNot { isCallNotification(it.notification) }
             .filter { sbn ->
                 val extras = sbn.notification.extras
@@ -832,6 +988,8 @@ class LineNotificationListener : NotificationListenerService() {
         }
 
         val channelId = notification.channelId
+        val extras = notification.extras
+
         // 記住 LINE 實際使用的訊息頻道，讓設定頁能直達正確分類。只保存 package/channel
         // 座標，不保存通知標題、本文或聯絡人資料。
         if (NotificationClassifier.isSupportedMessageChannel(channelId) &&
@@ -843,12 +1001,96 @@ class LineNotificationListener : NotificationListenerService() {
                 .putString(KEY_LAST_LINE_MESSAGE_CHANNEL, channelId)
                 .apply()
         }
+        // 靜音硬封鎖必須排在「頻道白名單 / GROUP_SUMMARY / title,text 空值 / 系統遮蔽」這四道
+        // 早退之前。那四道 return 掉的通知照樣會出現在使用者面前，靜音排在它們後面等於對它們
+        // 全部失效——這就是「我明明把聊天室關掉了，@all 和社群公告還是會跳」的成因。
+        //
+        // 仍排在通話守門之後：來電的 title 是對方名字、subText 為 null，形狀跟 1:1 聊天室
+        // 一模一樣，靜音搶在前面會連來電一起撤掉。
+        //
+        // 這裡只做「撤掉」，不重建 Notify+ 卡片，所以能安全地涵蓋公告類頻道
+        // （見 NotificationClassifier.isMuteEligibleChannel）。
+        if (NotificationClassifier.isMuteEligibleChannel(channelId)) {
+            val gateTitle = extras.getCharSequence("android.title")?.toString()
+            val gateSubText = extras.getCharSequence("android.subText")?.toString()
+            val gateText = extras.getCharSequence("android.text")?.toString()
+            val gateAppLabel = runCatching {
+                packageManager.getApplicationLabel(
+                    packageManager.getApplicationInfo(sbn.packageName, 0)
+                ).toString()
+            }.getOrNull()
+
+            // 純公告型社群只走 SquareActivity，永遠不會跑完下面那條會 recordChat 的管線，
+            // 於是不會出現在聊天室管理清單裡，使用者連「關掉它」都做不到。這裡補登錄。
+            if (NotificationClassifier.isSquareActivityChannel(channelId) &&
+                gateTitle != null &&
+                NotificationClassifier.isAttributableChatTitle(gateTitle, gateSubText, gateAppLabel) &&
+                !NotificationClassifier.textMatchesRedactionPlaceholder(gateText, systemRedactedText())
+            ) {
+                val announceTitle = NotificationClassifier.chatTitleOf(gateTitle, gateSubText)
+                recordChatMetadata(
+                    announceTitle,
+                    forcedChatType(announceTitle) ?: NotificationClassifier.TYPE_COMMUNITY,
+                    sbn.postTime,
+                )
+            }
+
+            if (NotificationClassifier.shouldHardMute(
+                    channelId = channelId,
+                    title = gateTitle,
+                    subText = gateSubText,
+                    text = gateText,
+                    isGroupSummary = notification.flags and Notification.FLAG_GROUP_SUMMARY != 0,
+                    sourceAppLabel = gateAppLabel,
+                    systemRedactedText = systemRedactedText(),
+                    mutedChats = prefs.getStringSet(KEY_MUTED_CHATS, emptySet()) ?: emptySet(),
+                )
+            ) {
+                val mutedTitle = NotificationClassifier.chatTitleOf(gateTitle!!, gateSubText)
+                // 舊的 MODE_MUTED 分支會登錄 metadata，前置段接手後也要做，
+                // 否則靜音聊天室的「最後活躍時間」從此凍結、在管理清單裡會慢慢沉底。
+                recordChatMetadata(
+                    mutedTitle,
+                    forcedChatType(mutedTitle)
+                        ?: knownChatType(mutedTitle)
+                        ?: if (NotificationClassifier.isSquareActivityChannel(channelId)) {
+                            NotificationClassifier.TYPE_COMMUNITY
+                        } else {
+                            NotificationClassifier.TYPE_PERSONAL
+                        },
+                    sbn.postTime,
+                )
+                clearChatGroup(
+                    NotificationClassifier.roomKeyOf(profileKeyOf(sbn), mutedTitle)
+                )
+                cancelNotification(sbn.key)
+                Log.d(
+                    TAG,
+                    "靜音前置守門已封鎖 room=${mutedTitle.hashCode()} " +
+                        "channelHash=${channelId?.hashCode()}"
+                )
+                return
+            }
+        }
         if (!NotificationClassifier.isSupportedMessageChannel(channelId)) {
             Log.d(TAG, "略過非聊天通知 channelHash=${channelId?.hashCode()}")
             return
         }
 
-        val extras = notification.extras
+        // LINE 26.11.0 起 id=16880000 從 legacy mirror 變成 GROUP_SUMMARY（A065 dumpsys 實證）。
+        // summary 不會被 SystemUI 回收，放著會在部分 OEM（realme UI 實證）以「N則新訊息＋預覽」
+        // 整卡殘留，看起來就像原通知沒被取代。此檢查必須在 title/text 空值 return 之前——
+        // summary 不保證帶 android.text。取消前仍會確認內容已由別的通知承載（fail-open）。
+        //
+        // ⚠️ 判斷依據是 flags 的 FLAG_GROUP_SUMMARY，不是 extras。framework 從不寫
+        // "android.isGroupSummary" 這個 extras key（它只是 Notification.Builder.setGroupSummary
+        // 的參數名），舊寫法恆為 false，這整個分支自 vc18 引入起從未執行過。
+        // 2026-07-26 Nothing A059P dumpsys 實證：全機通知的 extras 中該 key 出現 0 次，
+        // 而確實帶 GROUP_SUMMARY flag 的通知有 2 個。
+        if (notification.flags and Notification.FLAG_GROUP_SUMMARY != 0) {
+            scheduleLineSummaryCancellation(sbn)
+            return
+        }
 
         val title = extras.getCharSequence("android.title")?.toString() ?: return
         val previewText = extras.getCharSequence("android.text")?.toString() ?: return
@@ -860,12 +1102,20 @@ class LineNotificationListener : NotificationListenerService() {
             val appInfo = packageManager.getApplicationInfo(sbn.packageName, 0)
             packageManager.getApplicationLabel(appInfo).toString()
         }.getOrNull()
+        // 圖片比對有成本，只在 title/subText 已經長得像 AOSP clone 時才做。
+        // 條件必須向 classifier 借，不可在這裡重寫一份（見 matchesAospCloneShapeExceptIcon 的說明）。
+        val cloneShapeCandidate = NotificationClassifier.matchesAospCloneShapeExceptIcon(
+            title = title,
+            subText = subText,
+            sourceAppLabel = sourceAppLabel,
+        )
         if (NotificationClassifier.isSystemRedactedNotification(
                 title = title,
                 text = previewText,
                 subText = subText,
                 sourceAppLabel = sourceAppLabel,
                 systemRedactedText = systemRedactedText(),
+                largeIconMatchesAppIcon = cloneShapeCandidate && largeIconMatchesAppIcon(sbn),
             )
         ) {
             Log.w(TAG, "系統已遮蔽敏感通知；保留原始通知且不建立 Notify+ 副本")
@@ -879,14 +1129,9 @@ class LineNotificationListener : NotificationListenerService() {
             Log.d(TAG, "使用完整通知文字 previewLen=${previewText.length} fullLen=${text.length}")
         }
 
-        // LINE summary 沒有可靠的單一聊天室識別，也可能比 child 先到。永遠 fail-open 保留；
-        // child 被成功取代/取消後 SystemUI 通常會自行重算，不能為了去重而冒險吃掉唯一通知。
-        if (extras.getBoolean("android.isGroupSummary", false)) {
-            return
-        }
-
-        // 過濾 LINE 的堆疊摘要通知（title 含逗號+冒號）
+        // 過濾 LINE 的堆疊摘要通知（title 含逗號+冒號）；與 group summary 同樣接管
         if (NotificationClassifier.isStackSummaryTitle(title)) {
+            scheduleLineSummaryCancellation(sbn)
             return
         }
 
@@ -902,7 +1147,10 @@ class LineNotificationListener : NotificationListenerService() {
         // 實機 dumpsys 驗證：社群帶 line.square.notification=true，群組沒有。
         val isSquareKeyPresent = extras.containsKey("line.square.notification")
         val isSquare = extras.getBoolean("line.square.notification", false)
-        val sender: String = title
+        // LINE 26.11.0 群組 tagged callback 的 title 被組成「群組名：發送者」（見 senderOf）；
+        // 這裡只還原「訊息發送者顯示名」，讓它與 legacy mirror 的乾淨 title 一致（嚴格合併才配得上）。
+        // roomKey/chatTitle 推導不動——那些拿 title 當聊天室名素材，是另一個語意。
+        val sender: String = NotificationClassifier.senderOf(title, subText)
         val chatTitle = NotificationClassifier.chatTitleOf(title, subText)
         val previousType = knownChatType(chatTitle)
         val overrideType = forcedChatType(chatTitle)
@@ -978,6 +1226,7 @@ class LineNotificationListener : NotificationListenerService() {
         recentMirroredVariants.entries.removeAll {
             mirrorNow - it.value.source.seenElapsed > 500L
         }
+        recentPostedPayloads.entries.removeAll { mirrorNow - it.value.seenElapsed > 3000L }
         mirrorPoisonUntil.entries.removeAll { (_, until) -> mirrorNow > until }
         val mirrorSignature = mirroredPayloadFingerprint(sbn, roomKey, sender, text)
         val currentSourceVariant = notification.shortcutId?.let { shortcutId ->
@@ -1033,6 +1282,37 @@ class LineNotificationListener : NotificationListenerService() {
             mirrorSignatureToStore = null
         }
 
+        // 第 2 層保底去重：吸收未來任何欄位漂移導致嚴格 mirror 合併失配的重複 callback。
+        // 嚴格合併靠 shortcutId/groupKey/channelId 等欄位兩邊全等；LINE 改版動到任一欄位就失效
+        // （26.11.0 群組 title 汙染就是這樣繞過第 1 層前的合併）。這裡改用最小充分集合辨識「同一則」：
+        // 房間 + 全文 + 毫秒 when 三者全等。
+        // 辨真偽原理：真的連續傳兩則相同文字，LINE 的 when 毫秒時間戳必不同（2026-07-21 實測差 2449ms）；
+        // 同一則的鏡像 callback when 完全相同。毫秒＋全文＋房間三重相等才吸收，寧可重複不可漏訊息。
+        // 僅在 when > 0 才啟用（傳給 dedupeFingerprint 的第三參數是毫秒 when）。
+        val dedupeWhen = notification.`when`
+        if (dedupeWhen > 0L) {
+            val dedupeKey = NotificationClassifier.dedupeFingerprint(roomKey, text, dedupeWhen)
+            val postedEntry = recentPostedPayloads[dedupeKey]
+            if (postedEntry != null &&
+                mirrorNow - postedEntry.seenElapsed <= 3000L &&
+                postedEntry.stateEpoch == notificationStateEpoch
+            ) {
+                Log.d(TAG, "保底去重：吸收同室同文同時間戳的重複 callback")
+                if (prefs.getBoolean(KEY_REPLACE_ORIGINAL, true)) {
+                    // 照嚴格合併分支（scheduleOriginalCancellation 呼叫）的 fail-open 精神傳參：
+                    // expectedSource/expectedMirrorSignature 在欄位漂移情境拿不到可靠值（本來就是
+                    // 因為它們變了才走到這），函式允許 null → 省略，退回「只驗我方副本仍在場」的最保守取消。
+                    scheduleOriginalCancellation(
+                        key = sbn.key,
+                        receipt = postedEntry.receipt,
+                        requireExactGeneration = true,
+                        requiredStateEpoch = notificationStateEpoch,
+                    )
+                }
+                return
+            }
+        }
+
         // 提取頭貼
         val largeIcon: Bitmap? = try {
             @Suppress("DEPRECATION")
@@ -1053,20 +1333,27 @@ class LineNotificationListener : NotificationListenerService() {
                 }
         } catch (e: Exception) { null }
 
-        // 從 LINE 的 MessagingStyle 通知取出「本人」頭貼與名稱，按帳號(profile)分別快取
+        // 從 LINE 的 MessagingStyle 通知取出「本人」頭貼與名稱，按帳號(profile)分別快取。
+        //
+        // ⚠️ 平台欄位要自己讀，不能只靠 NotificationCompat。androidx.core 1.15.0 的
+        // MessagingStyle.restoreFromCompatExtras 只讀 compat 專屬的 "android.messagingStyleUser"，
+        // 沒讀平台 API 28+ 寫的 Notification.EXTRA_MESSAGING_PERSON("android.messagingUser")
+        // ——androidx 要到 1.19.0 才補上。而平台的 MessagingStyle.addExtras() 是把名字寫進
+        // EXTRA_SELF_DISPLAY_NAME、把含 icon 的 Person 寫進 EXTRA_MESSAGING_PERSON。
+        // 所以 LINE 只要是用平台 Notification.MessagingStyle 建通知，頭貼就會在這一步被靜靜丟掉，
+        // 只剩名字活下來。實機症狀正是「帳號名稱抓得到，但本人頭貼永遠是預設圖」。
         try {
-            val lineUser = NotificationCompat.MessagingStyle
+            val compatUser = NotificationCompat.MessagingStyle
                 .extractMessagingStyleFromNotification(notification)?.user
-            if (lineUser != null) {
-                if (!selfPersonIcons.containsKey(profileKey)) {
-                    lineUser.icon?.let {
-                        selfPersonIcons[profileKey] = it
-                        Log.d(TAG, "✓ 取得帳號[$profileKey]本人頭貼")
-                    }
-                }
-                lineUser.name?.toString()?.takeIf { it.isNotBlank() }
-                    ?.let { accountLabels[profileKey] = it }
+            val selfIcon = compatUser?.icon ?: platformSelfIcon(extras)
+            if (selfIcon != null && !selfPersonIcons.containsKey(profileKey)) {
+                selfPersonIcons[profileKey] = selfIcon
+                persistSelfAvatar(profileKey, selfIcon)
+                Log.d(TAG, "✓ 取得帳號[$profileKey]本人頭貼")
             }
+            val selfName = compatUser?.name?.toString()
+                ?: extras.getCharSequence(Notification.EXTRA_SELF_DISPLAY_NAME)?.toString()
+            selfName?.takeIf { it.isNotBlank() }?.let { accountLabels[profileKey] = it }
         } catch (e: Exception) { /* LINE 沒附就用預設 */ }
 
         // 檢查我們是否還有該聊天室的活躍通知
@@ -1105,8 +1392,14 @@ class LineNotificationListener : NotificationListenerService() {
         }
         room.addMessage(message)
 
-        // 保存 LINE 的 contentIntent 和回覆 action（在取消通知前）
-        if (notification.contentIntent != null) {
+        // 保存 LINE 的 contentIntent 和回覆 action（在取消通知前）。
+        // LINE 26.11.0 起，合併失敗時 mirror（tag=null, id=16880000）會晚到，若照舊 last-writer-wins
+        // 覆蓋，會把 tagged child 原本指向特定聊天室的跳轉蓋掉，變成點通知只能開 LINE 主畫面
+        // （vivo V50 用戶回報）。mirror 的 intent 是彙總體，只准在還沒有值時補上，不准覆蓋既有值。
+        if (notification.contentIntent != null &&
+            (room.contentIntent == null ||
+                !NotificationClassifier.isLegacyMirrorIdentity(sbn.tag, sbn.id))
+        ) {
             room.contentIntent = notification.contentIntent
         }
         notification.actions?.forEach { action ->
@@ -1120,17 +1413,32 @@ class LineNotificationListener : NotificationListenerService() {
         // 先發我們的通知
         val style = prefs.getString(KEY_NOTIFICATION_STYLE, "thread") ?: "thread"
         val replacementReceipt = when (style) {
-            "apple" -> postAppleStyleNotification(room, message)
+            // identityWhenMs 用 LINE 的 notification.when：同一則訊息的兩個 mirror callback
+            // 帶的值相同，sbn.postTime 則不同，用錯就失去 tag 冪等。
+            "apple" -> postAppleStyleNotification(room, message, notification.`when`)
             else -> postThreadStyleNotification(room)
         }
         if (replacementReceipt == null) {
             room.removeMessage(message)
-        } else if (mirrorSignatureToStore != null && currentSourceVariant != null) {
-            recentMirroredVariants[mirrorSignatureToStore] = MirroredVariantEntry(
-                source = currentSourceVariant,
-                receipt = replacementReceipt,
-                stateEpoch = notificationStateEpoch,
-            )
+        } else {
+            if (mirrorSignatureToStore != null && currentSourceVariant != null) {
+                recentMirroredVariants[mirrorSignatureToStore] = MirroredVariantEntry(
+                    source = currentSourceVariant,
+                    receipt = replacementReceipt,
+                    stateEpoch = notificationStateEpoch,
+                )
+            }
+            // 第 2 層保底去重的寫入：為每一則成功貼出的訊息（不限 primary variant）記一筆，
+            // 指紋 = 房間 + 全文 + 毫秒 when。when <= 0 不記（無時間戳無法辨真偽）。
+            val dedupeWhen = notification.`when`
+            if (dedupeWhen > 0L) {
+                val dedupeKey = NotificationClassifier.dedupeFingerprint(roomKey, text, dedupeWhen)
+                recentPostedPayloads[dedupeKey] = RecentPostedEntry(
+                    receipt = replacementReceipt,
+                    stateEpoch = notificationStateEpoch,
+                    seenElapsed = mirrorNow,
+                )
+            }
         }
 
         // 延遲取消 LINE 原通知（確保我們的 contentIntent 不會因為 LINE 通知被取消而失效）
@@ -1300,6 +1608,9 @@ class LineNotificationListener : NotificationListenerService() {
             postAppleStyleNotification(
                 room,
                 replyMessage,
+                // 自己的回覆沒有 LINE 的 when，退回 ChatMessage 自帶的時間戳；
+                // 加上 token 的 "me:" 前綴，不會跟收到的訊息撞身分。
+                identityWhenMs = 0L,
                 replacementVictim = repliedRef,
             )
         } else {
@@ -1316,10 +1627,79 @@ class LineNotificationListener : NotificationListenerService() {
         }
     }
 
+    /**
+     * 讀平台 API 28+ 的 [Notification.EXTRA_MESSAGING_PERSON]，補 androidx.core 1.15.0
+     * 漏讀的那條路（見 onNotificationPosted 內的說明）。
+     *
+     * 轉成 Bitmap 而不是直接包 [android.graphics.drawable.Icon]：Icon 可能是 URI 型，
+     * 那種我方無權轉貼；先 loadDrawable 再畫成點陣圖，順便讓它可以存檔持久化。
+     */
+    private fun platformSelfIcon(extras: Bundle): IconCompat? {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.P) return null
+        return runCatching {
+            @Suppress("DEPRECATION")
+            val person = extras.getParcelable(Notification.EXTRA_MESSAGING_PERSON)
+                as? android.app.Person
+            val drawable = person?.icon?.loadDrawable(this) ?: return null
+            val bitmap = rasterizeIcon(drawable, SELF_AVATAR_SIZE) ?: return null
+            IconCompat.createWithBitmap(bitmap)
+        }.getOrNull()
+    }
+
+    /** 本人頭貼的存檔位置，一個 profile 一張。 */
+    private fun selfAvatarFile(profileKey: String): java.io.File =
+        java.io.File(java.io.File(filesDir, SELF_AVATAR_DIR), "${profileKey.hashCode()}.png")
+
+    /**
+     * 把本人頭貼寫到檔案。
+     *
+     * 沒有這一步，[selfPersonIcons] 就只是純記憶體快取：NotificationListenerService 被系統
+     * 回收重綁之後歸零，而補回來的唯一時機是「下一則帶得出本人頭貼的 LINE 通知」，
+     * 於是重開機後的第一次回覆必然是預設圖。
+     */
+    private fun persistSelfAvatar(profileKey: String, icon: IconCompat) {
+        runCatching {
+            val bitmap = rasterizeIcon(icon.loadDrawable(this) ?: return, SELF_AVATAR_SIZE)
+                ?: return
+            val file = selfAvatarFile(profileKey)
+            file.parentFile?.mkdirs()
+            java.io.FileOutputStream(file).use { bitmap.compress(Bitmap.CompressFormat.PNG, 90, it) }
+            bitmap.recycle()
+        }.onFailure { Log.w(TAG, "存本人頭貼失敗 profile=$profileKey", it) }
+    }
+
+    /** 從存檔還原本人頭貼；listener 重連時呼叫，讓 process 重啟不會退回預設圖。 */
+    private fun restorePersistedSelfAvatars() {
+        val dir = java.io.File(filesDir, SELF_AVATAR_DIR)
+        val files = runCatching { dir.listFiles() }.getOrNull() ?: return
+        for (file in files) {
+            val profileKey = knownProfiles.firstOrNull { "${it.hashCode()}.png" == file.name }
+                ?: continue
+            if (selfPersonIcons.containsKey(profileKey)) continue
+            runCatching { android.graphics.BitmapFactory.decodeFile(file.absolutePath) }
+                .getOrNull()
+                ?.let { selfPersonIcons[profileKey] = IconCompat.createWithBitmap(it) }
+        }
+    }
+
     /** 該帳號的本人頭貼（取不到用綠色預設） */
     private fun selfIconFor(room: ChatRoom): IconCompat =
         selfPersonIcons[room.profileKey]
+            ?: restoreSelfAvatarFromDisk(room.profileKey)
             ?: IconCompat.createWithResource(this, R.drawable.ic_self_avatar)
+
+    /**
+     * 單一 profile 的懶載入。[restorePersistedSelfAvatars] 只在重連時掃一次，而
+     * [knownProfiles] 要等第一則通知才會有內容，兩者先後不保證，這裡補一條直接命中的路。
+     */
+    private fun restoreSelfAvatarFromDisk(profileKey: String): IconCompat? {
+        val file = selfAvatarFile(profileKey)
+        if (!file.exists()) return null
+        return runCatching { android.graphics.BitmapFactory.decodeFile(file.absolutePath) }
+            .getOrNull()
+            ?.let { IconCompat.createWithBitmap(it) }
+            ?.also { selfPersonIcons[profileKey] = it }
+    }
 
     /** 多帳號時，標題前綴帳號來源（例：「工作帳號 · 」）；單帳號時為空字串 */
     private fun acctPrefix(room: ChatRoom): String {
@@ -1416,16 +1796,36 @@ class LineNotificationListener : NotificationListenerService() {
     private fun postAppleStyleNotification(
         room: ChatRoom,
         newMessage: ChatMessage,
+        identityWhenMs: Long,
         replacementVictim: NotificationRef? = null,
     ): ReplacementReceipt? {
         val groupKey = "linenotify_${room.roomKey}"
         val manager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+
+        // tag 由訊息身分決定，不含 generation 也不含 buffer 大小——同一則訊息的兩個 callback
+        // 因此拿到同一個 tag，第二次貼是覆蓋而不是並存（見 appleChildToken 的說明）。
+        val identityWhen = identityWhenMs.takeIf { it > 0L } ?: newMessage.timestamp
+        val messageRef = notificationRef(
+            kind = "apple-child",
+            roomKey = room.roomKey,
+            id = APPLE_CHILD_NOTIFICATION_ID,
+            messageToken = NotificationClassifier.appleChildToken(
+                roomKey = room.roomKey,
+                text = newMessage.text,
+                identityWhenMs = identityWhen,
+                isFromMe = newMessage.isFromMe,
+            ),
+        )
+        val isRepost = appleNotifIds[room.roomKey]?.contains(messageRef) == true
+
         // Preflight：先確認目前看得到的狀態至少存在安全方案；真正提交前仍會重算，
         // 避免 burst 中另一筆 pending transaction 成敗後讓這份計畫過期。
+        // 重貼不佔新名額（additionalChildCount = 0），也不可把正在刷新的那張自己淘汰掉。
         if (planAppleEvictions(
                 manager = manager,
                 currentRoomKey = room.roomKey,
-                additionalChildCount = 1,
+                additionalChildCount = if (isRepost) 0 else 1,
+                protectedRef = if (isRepost) messageRef else null,
                 mandatoryEvictionRef = replacementVictim,
             ) == null
         ) {
@@ -1433,23 +1833,14 @@ class LineNotificationListener : NotificationListenerService() {
             return null
         }
 
-        // generation 是 process 內單調遞增值，確保即使同一房、同一毫秒、同文字、同 sender
-        // 的兩個 callback 也不會得到同 tag 而互相覆蓋。
         val childGeneration = nextPostGeneration.incrementAndGet()
-        val token = "$childGeneration:${newMessage.timestamp}:${room.messages.size}:" +
-            NotificationClassifier.dedupeFingerprint(
-                room.roomKey,
-                newMessage.text,
-                newMessage.timestamp,
-            ).take(12)
-        val messageRef = notificationRef(
-            kind = "apple-child",
-            roomKey = room.roomKey,
-            id = APPLE_CHILD_NOTIFICATION_ID,
-            messageToken = token,
-        )
-        appleNotifIds.getOrPut(room.roomKey) { mutableListOf() }.add(messageRef)
-        appleMessagesByRef[messageRef] = newMessage
+        if (isRepost) {
+            // 這則已經在 buffer 裡（第一個 callback 加的），把這次的重複實例移掉。
+            room.removeMessage(newMessage)
+        } else {
+            appleNotifIds.getOrPut(room.roomKey) { mutableListOf() }.add(messageRef)
+            appleMessagesByRef[messageRef] = newMessage
+        }
         markApplePending(messageRef)
 
         val msgBuilder = NotificationCompat.Builder(this, CHANNEL_ID)
@@ -1482,15 +1873,20 @@ class LineNotificationListener : NotificationListenerService() {
             childGeneration,
         )
         addReplyAction(msgBuilder, room, messageRef)
-        appleNotificationOrder.addLast(room.roomKey to messageRef)
+        // 重貼只是刷新同一張卡，不該改變它在淘汰佇列裡的年紀，也不該再提示一次。
+        if (!isRepost) appleNotificationOrder.addLast(room.roomKey to messageRef)
+        msgBuilder.setOnlyAlertOnce(isRepost)
         val childPosted = runCatching { manager.notify(messageRef.tag, messageRef.id, msgBuilder.build()) }
             .onFailure { Log.e(TAG, "張貼 Apple child 通知失敗", it) }
             .isSuccess
         if (!childPosted) {
             unmarkApplePending(messageRef)
-            appleNotifIds[room.roomKey]?.remove(messageRef)
-            appleMessagesByRef.remove(messageRef)
-            appleNotificationOrder.remove(room.roomKey to messageRef)
+            // 重貼失敗時第一次那張卡與它的索引仍然合法，不可連坐銷毀。
+            if (!isRepost) {
+                appleNotifIds[room.roomKey]?.remove(messageRef)
+                appleMessagesByRef.remove(messageRef)
+                appleNotificationOrder.remove(room.roomKey to messageRef)
+            }
             return null
         }
 
@@ -1531,7 +1927,10 @@ class LineNotificationListener : NotificationListenerService() {
         if (!summaryPosted) {
             unmarkApplePending(messageRef)
             unmarkApplePending(summaryRef)
-            cancelAppleChild(manager, room.roomKey, messageRef)
+            // 重貼時 messageRef 指的是第一個 callback 已經貼出的那張合法卡片。summary 這次
+            // 失敗不代表那張卡有問題，撤掉它反而會讓使用者看不到這則訊息，而且 buffer 裡
+            // 會留下一則沒有卡也沒有索引的孤兒訊息（重貼路徑在前面已 removeMessage 過一次）。
+            if (!isRepost) cancelAppleChild(manager, room.roomKey, messageRef)
             if (summaryWasNew) summaryIds.remove(room.roomKey, summaryRef)
             return null
         }
@@ -1539,7 +1938,11 @@ class LineNotificationListener : NotificationListenerService() {
         Log.d(TAG, "Apple 分組通知 room=${room.chatTitle.hashCode()} count=${room.messages.size}")
         val receipt = ReplacementReceipt(
             posts = listOf(
-                PostedNotification(messageRef, childGeneration, acceptNewerGeneration = false),
+                // tag 冪等之後，「同 tag、較新 generation」在型別上只可能是同一則訊息的重貼，
+                // 不可能是別則訊息（token 不含 generation，見 appleChildToken）。因此放寬世代
+                // 比對是安全的，而且必須放寬：否則重貼會讓第一個 callback 排的取消任務判定
+                // 副本不在場而 fail-open，變成「一張 Notify+ 卡 + 一張沒被撤掉的 LINE 卡」。
+                PostedNotification(messageRef, childGeneration, acceptNewerGeneration = true),
                 PostedNotification(summaryRef, summaryGeneration, acceptNewerGeneration = true),
             ),
             committed = false,
@@ -1580,11 +1983,15 @@ class LineNotificationListener : NotificationListenerService() {
                 if (replacementIsActive) {
                     Log.w(TAG, "Apple budget 提交前狀態已變更；回滾本次副本並保留 LINE 原通知")
                 }
-                appleNotifIds[room.roomKey]?.remove(messageRef)
-                appleMessagesByRef.remove(messageRef)
-                appleNotificationOrder.remove(room.roomKey to messageRef)
-                if (isActive(manager, NotificationRef(messageRef.tag, messageRef.id))) {
-                    manager.cancel(messageRef.tag, messageRef.id)
+                // 重貼的 rollback 只該撤銷「這次刷新」，不可把第一個 callback 貼出的那張
+                // 合法卡片與它的索引一起銷毀——那會讓使用者反而看不到這則訊息。
+                if (!isRepost) {
+                    appleNotifIds[room.roomKey]?.remove(messageRef)
+                    appleMessagesByRef.remove(messageRef)
+                    appleNotificationOrder.remove(room.roomKey to messageRef)
+                    if (isActive(manager, NotificationRef(messageRef.tag, messageRef.id))) {
+                        manager.cancel(messageRef.tag, messageRef.id)
+                    }
                 }
                 if (summaryWasNew) {
                     val exactSummary = PostedNotification(

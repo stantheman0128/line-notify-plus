@@ -161,6 +161,7 @@ fun MainScreen(windowWidthSizeClass: WindowWidthSizeClass) {
     }
 
     var isListenerEnabled by remember { mutableStateOf(false) }
+    var hasParallelNotifyListenerEnabled by remember { mutableStateOf(false) }
     var serviceEnabled by remember {
         mutableStateOf(prefs.getBoolean(LineNotificationListener.KEY_SERVICE_ENABLED, true))
     }
@@ -270,6 +271,7 @@ fun MainScreen(windowWidthSizeClass: WindowWidthSizeClass) {
 
     LifecycleEventEffect(Lifecycle.Event.ON_RESUME) {
         isListenerEnabled = isNotificationListenerEnabled(context)
+        hasParallelNotifyListenerEnabled = isParallelNotifyListenerEnabled(context)
         hasPostNotificationsPermission = hasPostNotificationsPermission(context)
         hasAccessibilityAccess = isLineAccessibilityServiceEnabled(context)
     }
@@ -363,6 +365,9 @@ fun MainScreen(windowWidthSizeClass: WindowWidthSizeClass) {
                         onOpenLineMessageChannelSettings = onOpenLineMessageChannelSettings,
                         onOpenNotifyPlusNotificationSettings = onOpenNotifyPlusNotificationSettings,
                     )
+                    if (hasParallelNotifyListenerEnabled) {
+                        ParallelInstallWarningCard(onOpenPermissionSettings)
+                    }
                 }
 
                 Column(
@@ -428,6 +433,9 @@ fun MainScreen(windowWidthSizeClass: WindowWidthSizeClass) {
                     onOpenChatManagement = onOpenChatManagement,
                     onOpenHelp = onOpenHelp
                 )
+                if (hasParallelNotifyListenerEnabled) {
+                    ParallelInstallWarningCard(onOpenPermissionSettings)
+                }
             }
         }
     }
@@ -712,6 +720,35 @@ private fun PermissionAlertCard(
 }
 
 @Composable
+private fun ParallelInstallWarningCard(onOpenPermissionSettings: () -> Unit) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.errorContainer,
+        ),
+    ) {
+        Column(
+            modifier = Modifier.padding(20.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            Text(
+                text = stringResource(R.string.parallel_notify_warning_title),
+                fontSize = 17.sp,
+                fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.onErrorContainer,
+            )
+            Text(
+                text = stringResource(R.string.parallel_notify_warning_body),
+                color = MaterialTheme.colorScheme.onErrorContainer,
+            )
+            OutlinedButton(onClick = onOpenPermissionSettings) {
+                Text(stringResource(R.string.parallel_notify_warning_action))
+            }
+        }
+    }
+}
+
+@Composable
 private fun PermissionButton(onClick: () -> Unit) {
     Button(
         onClick = onClick,
@@ -822,7 +859,7 @@ private fun MasterControlCard(
     serviceEnabled: Boolean,
     replaceOriginal: Boolean,
     onServiceEnabledChange: (Boolean) -> Unit,
-    onReplaceOriginalChange: (Boolean) -> Unit
+    onReplaceOriginalChange: (Boolean) -> Unit,
 ) {
     var infoDialog by remember { mutableStateOf<Pair<String, String>?>(null) }
     val replaceInfoTitle = stringResource(R.string.replace_original_info_title)
@@ -1662,6 +1699,10 @@ private fun Context.tryStartActivity(intent: Intent): Boolean = try {
     false
 }
 
+private fun isParallelNotifyListenerEnabled(context: Context): Boolean =
+    context.packageName != PRODUCTION_PACKAGE_NAME &&
+        PRODUCTION_PACKAGE_NAME in NotificationManagerCompat.getEnabledListenerPackages(context)
+
 private fun hasPostNotificationsPermission(context: Context): Boolean {
     if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU) return true
     return ContextCompat.checkSelfPermission(
@@ -1669,3 +1710,5 @@ private fun hasPostNotificationsPermission(context: Context): Boolean {
         Manifest.permission.POST_NOTIFICATIONS
     ) == PackageManager.PERMISSION_GRANTED
 }
+
+private const val PRODUCTION_PACKAGE_NAME = "com.stanslab.linenotify"

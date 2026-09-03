@@ -236,8 +236,10 @@ class NotificationClassifierTest {
     }
 
     @Test
-    fun ordinary_message_matching_only_part_of_signature_is_not_redacted() {
-        assertFalse(
+    fun oem_redacted_clone_with_sender_title_is_detected() {
+        // realme UI 7 實際案例（2026-07-18 用戶回報）：clone 的 text 是系統占位字串，
+        // 但 title 保留發送者、subText 可能保留群組名——不能因形狀不合 AOSP 就轉貼占位字。
+        assertTrue(
             NotificationClassifier.isSystemRedactedNotification(
                 title = "朋友",
                 text = "系統已隱藏含有私密資訊的通知內容",
@@ -246,6 +248,19 @@ class NotificationClassifierTest {
                 systemRedactedText = "系統已隱藏含有私密資訊的通知內容",
             )
         )
+        assertTrue(
+            NotificationClassifier.isSystemRedactedNotification(
+                title = "朋友",
+                text = "系統已隱藏含有私密資訊的通知內容",
+                subText = "某個群組",
+                sourceAppLabel = "LINE",
+                systemRedactedText = "系統已隱藏含有私密資訊的通知內容",
+            )
+        )
+    }
+
+    @Test
+    fun ordinary_text_is_not_redacted() {
         assertFalse(
             NotificationClassifier.isSystemRedactedNotification(
                 title = "LINE",
@@ -255,6 +270,82 @@ class NotificationClassifierTest {
                 systemRedactedText = "系統已隱藏含有私密資訊的通知內容",
             )
         )
+    }
+
+    @Test
+    fun missing_system_redacted_text_never_matches() {
+        assertFalse(
+            NotificationClassifier.isSystemRedactedNotification(
+                title = "LINE",
+                text = "系統已隱藏含有私密資訊的通知內容",
+                subText = null,
+                sourceAppLabel = "LINE",
+                systemRedactedText = null,
+            )
+        )
+        assertFalse(
+            NotificationClassifier.isSystemRedactedNotification(
+                title = "LINE",
+                text = "",
+                subText = null,
+                sourceAppLabel = "LINE",
+                systemRedactedText = "",
+            )
+        )
+    }
+
+    // ---- LINE group summary 接管（LINE 26.11.0 起 id=16880000 變成 GROUP_SUMMARY）----
+
+    @Test
+    fun line_summary_cancelled_only_when_content_carried_elsewhere() {
+        // 兩個 active 旗標的語意是「同 profile」承載（聽 listener 端過濾），
+        // 跨雙開帳號的卡不得替 summary 的取消背書。
+        // 取代模式關閉：完全不碰 LINE
+        assertFalse(NotificationClassifier.shouldCancelLineSummary(
+            replaceEnabled = false, replacementActive = true, lineChildActive = true))
+        // summary 是唯一殘留（無我方副本、無 LINE child）：fail-open 保留
+        assertFalse(NotificationClassifier.shouldCancelLineSummary(
+            replaceEnabled = true, replacementActive = false, lineChildActive = false))
+        // 我方副本在場：summary 是多餘的殼，取消
+        assertTrue(NotificationClassifier.shouldCancelLineSummary(
+            replaceEnabled = true, replacementActive = true, lineChildActive = false))
+        // LINE child 還在（例如遮蔽通知放行、或取代失敗）：child 本身載有內容，summary 仍多餘
+        assertTrue(NotificationClassifier.shouldCancelLineSummary(
+            replaceEnabled = true, replacementActive = false, lineChildActive = true))
+    }
+
+    @Test
+    fun redacted_summary_is_kept_not_cancelled() {
+        val placeholder = "系統已隱藏含有私密資訊的通知內容"
+        // 遮蔽版 summary（text 被系統換成占位字）不得進取消流程
+        assertTrue(NotificationClassifier.textMatchesRedactionPlaceholder(
+            text = placeholder, systemRedactedText = placeholder))
+        // 一般 summary 文案不受影響
+        assertFalse(NotificationClassifier.textMatchesRedactionPlaceholder(
+            text = "5 則新訊息", systemRedactedText = placeholder))
+        // summary 常不帶 android.text：null 不可誤判為遮蔽
+        assertFalse(NotificationClassifier.textMatchesRedactionPlaceholder(
+            text = null, systemRedactedText = placeholder))
+        // 系統占位字取不到時永不命中
+        assertFalse(NotificationClassifier.textMatchesRedactionPlaceholder(
+            text = placeholder, systemRedactedText = null))
+    }
+
+    @Test
+    fun replacement_backs_summary_only_within_same_profile() {
+        val sep = NotificationClassifier.KEY_SEP
+        val mainProfile = "jp.naver.line.android@0"
+        val cloneProfile = "jp.naver.line.android@999"
+        assertTrue(NotificationClassifier.roomKeyBelongsToProfile(
+            roomKey = mainProfile + sep + "好友A", profileKey = mainProfile))
+        // 雙開帳號的卡不能替主帳號 summary 背書（2026-07-19 獨立審查反例）
+        assertFalse(NotificationClassifier.roomKeyBelongsToProfile(
+            roomKey = cloneProfile + sep + "好友A", profileKey = mainProfile))
+        assertFalse(NotificationClassifier.roomKeyBelongsToProfile(
+            roomKey = mainProfile + sep + "好友A", profileKey = cloneProfile))
+        // 我們自己的 Aggregate 聚合卡沒有 roomKey extra：不能算背書
+        assertFalse(NotificationClassifier.roomKeyBelongsToProfile(
+            roomKey = null, profileKey = mainProfile))
     }
 
     // ---- per-chat full mute ----
@@ -314,6 +405,61 @@ class NotificationClassifierTest {
         assertEquals(first, same)
         assertFalse(first.contains("私密訊息"))
         assertTrue(first != changed)
+    }
+
+    // ---- senderOf：剝掉 LINE 26.11.0 群組 title 的「群組名：」汙染前綴 ----
+
+    @Test
+    fun sender_of_strips_group_prefix_from_polluted_title() {
+        // 2026-07-21 A065 + LINE 26.11.0 實錄：tagged conversation title 被組成「群組名：發送者」。
+        assertEquals(
+            "Christina王秀華",
+            NotificationClassifier.senderOf("寶貝兒子：Christina王秀華", "寶貝兒子"),
+        )
+    }
+
+    @Test
+    fun sender_of_leaves_clean_mirror_title_untouched() {
+        // 同一則訊息的 legacy mirror title 本來就乾淨（純發送者名），subText 不成前綴 → 不動。
+        assertEquals(
+            "Christina王秀華",
+            NotificationClassifier.senderOf("Christina王秀華", "寶貝兒子"),
+        )
+    }
+
+    @Test
+    fun sender_of_returns_title_when_subtext_null() {
+        // 1:1 個人訊息：subText = null → 原樣回傳。
+        assertEquals("小明", NotificationClassifier.senderOf("小明", null))
+    }
+
+    @Test
+    fun sender_of_returns_title_when_title_equals_subtext() {
+        assertEquals("同名", NotificationClassifier.senderOf("同名", "同名"))
+    }
+
+    @Test
+    fun sender_of_does_not_strip_when_no_prefix() {
+        // title 不以「subText：」開頭 → 不動。
+        assertEquals("別的群組：某人", NotificationClassifier.senderOf("別的群組：某人", "寶貝兒子"))
+    }
+
+    @Test
+    fun sender_of_does_not_strip_when_result_would_be_empty() {
+        // title 恰為「群組名：」（剝完為空字串）→ 長度守門擋下，原樣回傳。
+        assertEquals("寶貝兒子：", NotificationClassifier.senderOf("寶貝兒子：", "寶貝兒子"))
+    }
+
+    @Test
+    fun sender_of_does_not_strip_half_width_colon() {
+        // 證據只看到全形冒號；半形冒號不在證據範圍，一律不剝。
+        assertEquals("寶貝兒子:Christina", NotificationClassifier.senderOf("寶貝兒子:Christina", "寶貝兒子"))
+    }
+
+    @Test
+    fun sender_of_is_safe_with_regex_special_chars_in_subtext() {
+        // 純字串操作，subText 含正則特殊字元不會被當 pattern 解析。
+        assertEquals("小明", NotificationClassifier.senderOf("a.*b(c)[d]：小明", "a.*b(c)[d]"))
     }
 
     // ---- mirrorFingerprint：配對指紋只能由「兩個 callback 必然相同」的欄位組成 ----
@@ -378,6 +524,37 @@ class NotificationClassifierTest {
         val a = realWorldFingerprint(sender = "ab", text = "c")
         val b = realWorldFingerprint(sender = "a", text = "bc")
         assertTrue(a != b)
+    }
+
+    /**
+     * LINE 26.11.0 群組破綻鎖成規格：tagged callback title 帶「群組名：」前綴，legacy mirror
+     * title 乾淨。sender 經 [NotificationClassifier.senderOf] 正規化後兩邊相同 → 指紋相等、
+     * 嚴格合併復活；若不正規化（一邊仍帶前綴）→ 指紋不等、合併失敗（就是 26.11.0 群組重複的成因）。
+     */
+    @Test
+    fun mirror_fingerprint_matches_across_group_callbacks_after_sender_normalization() {
+        val tagged = realWorldFingerprint(
+            sender = NotificationClassifier.senderOf("寶貝兒子：Christina王秀華", "寶貝兒子"),
+        )
+        val legacyMirror = realWorldFingerprint(
+            sender = NotificationClassifier.senderOf("Christina王秀華", "寶貝兒子"),
+        )
+        assertEquals(tagged, legacyMirror)
+    }
+
+    @Test
+    fun mirror_fingerprint_differs_when_group_sender_left_unnormalized() {
+        val polluted = realWorldFingerprint(sender = "寶貝兒子：Christina王秀華")
+        val clean = realWorldFingerprint(sender = "Christina王秀華")
+        assertTrue(polluted != clean)
+    }
+
+    @Test
+    fun dedupe_fingerprint_differs_when_millisecond_when_differs() {
+        // 同室同文、when 差 1ms → 指紋不同（真的連傳兩則相同文字時 when 必不同）。
+        val first = NotificationClassifier.dedupeFingerprint("profile:room", "在嗎", 1_784_045_407_475L)
+        val oneMsLater = NotificationClassifier.dedupeFingerprint("profile:room", "在嗎", 1_784_045_407_476L)
+        assertTrue(first != oneMsLater)
     }
 
     // ---- LINE conversation + legacy mirror（Nothing OS 實機 fixture）----
@@ -548,5 +725,24 @@ class NotificationClassifierTest {
         assertTrue("重複" in after[NotificationClassifier.PREFS_KNOWN_COMMUNITIES]!!)
         assertFalse("重複" in after[NotificationClassifier.PREFS_KNOWN_GROUPS]!!)
         assertFalse("重複" in after[NotificationClassifier.PREFS_KNOWN_CHATS]!!)
+    }
+
+    // ---- isLegacyMirrorIdentity（mirror 覆蓋 contentIntent 的守門判斷）----
+
+    @Test
+    fun legacy_mirror_identity_matches_null_tag_and_fixed_id() {
+        assertTrue(NotificationClassifier.isLegacyMirrorIdentity(tag = null, id = 16_880_000))
+    }
+
+    @Test
+    fun legacy_mirror_identity_false_when_tag_present() {
+        assertFalse(
+            NotificationClassifier.isLegacyMirrorIdentity(tag = "NOTIFICATION_TAG_MESSAGE", id = 16_880_000),
+        )
+    }
+
+    @Test
+    fun legacy_mirror_identity_false_when_id_differs() {
+        assertFalse(NotificationClassifier.isLegacyMirrorIdentity(tag = null, id = 12_345))
     }
 }

@@ -235,6 +235,69 @@ fun AboutScreen(onBack: () -> Unit) {
                     HorizontalDivider()
 
                     ChangelogEntry(
+                        "v1.4.0",
+                        listOf(stringResource(R.string.changelog_1_4_0_settings))
+                    )
+
+                    HorizontalDivider()
+
+                    ChangelogEntry(
+                        "v1.3.8",
+                        listOf(stringResource(R.string.changelog_1_3_8_apple_dupe))
+                    )
+
+                    HorizontalDivider()
+
+                    ChangelogEntry(
+                        "v1.3.7",
+                        listOf(stringResource(R.string.changelog_1_3_7_mute))
+                    )
+
+                    HorizontalDivider()
+
+                    ChangelogEntry(
+                        "v1.3.6",
+                        listOf(stringResource(R.string.changelog_1_3_6_self_avatar))
+                    )
+
+                    HorizontalDivider()
+
+                    ChangelogEntry(
+                        "v1.3.5",
+                        listOf(
+                            stringResource(R.string.changelog_1_3_5_redacted),
+                            stringResource(R.string.changelog_1_3_5_summary),
+                        )
+                    )
+
+                    HorizontalDivider()
+
+                    ChangelogEntry(
+                        "v1.3.4",
+                        listOf(stringResource(R.string.changelog_1_3_4_android16))
+                    )
+
+                    HorizontalDivider()
+
+                    ChangelogEntry(
+                        "v1.3.3",
+                        listOf(stringResource(R.string.changelog_1_3_3_group_dupe))
+                    )
+
+                    HorizontalDivider()
+
+                    ChangelogEntry(
+                        "v1.3.2",
+                        listOf(
+                            stringResource(R.string.changelog_1_3_2_summary),
+                            stringResource(R.string.changelog_1_3_2_retry),
+                            stringResource(R.string.changelog_1_3_2_redacted),
+                        )
+                    )
+
+                    HorizontalDivider()
+
+                    ChangelogEntry(
                         "v1.3.1",
                         listOf(
                             stringResource(R.string.changelog_1_3_1_dupe),

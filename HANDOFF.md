@@ -1,5 +1,15 @@
 # Project Handoff — Notify+
 
+## Latest Session: 2026-09-03（Codex：v1.6.2 聲音設定與通知核心整合）
+
+- branch：`fix/line-alert-sound-2026-09-03`，由 `fix/long-message-text-2026-08-30` 出發，整合 `fix/single-heads-up-test-2026-08-23` 的通知可靠性修正。
+- 根因：NotificationListenerService 只能在 LINE 已發布通知後收到 callback，無法在 LINE 第一聲之前攔截；兩個通知頻道同時發聲時，後發的 Notify+ 可能打斷 LINE 音效。
+- v1.6.2 / vc34 在首頁新增兩步設定捷徑：保留 LINE 訊息分類但設為靜音，再選擇 Notify+ 鈴聲；禁止把 LINE 訊息分類整個關閉，以免 listener 收不到內容。
+- 同時納入 sender/mirror 去重、正確 group-summary flags、遮蔽 clone 防護、Apple tag 冪等、靜音前置守門、取消重試與 targetSdk 36。
+- 本節建立時尚未完成 Gradle 建置、實機 LINE 回歸、push 或 Play 上傳；不得把下方歷史驗證當成本版驗證。
+
+---
+
 ## Latest Session: 2026-08-30（Codex：長訊息改讀完整 android.messages）
 
 ### 狀態
@@ -98,6 +108,184 @@
 ---
 
 ## Previous Session: 2026-07-15（Claude Code：修好「跳兩則」、收編全部工作、vc17 待上架）
+## Archived hardening line merged in this session
+
+## Latest Session: 2026-08-14（Claude Code：守門失效七連修 vc20–vc24，branch `fix/redaction-summary-guards-2026-07-27`）
+
+### ⛔ 上傳指引（取代下方 2026-07-21 節的舊指引；`08bb4bae` vc19 AAB 作廢勿上傳）
+
+- **待上傳 AAB＝vc24 / 1.3.8**：`app/build/outputs/bundle/release/app-release.aab`
+  7,120,044 bytes，SHA-256 `be34c2a568f211ae...`，jarsigner 驗證通過。
+  含 vc19 全部修復＋本輪 vc20–vc24（targetSdk 36、summary flags 死碼、遮蔽 OR、
+  本人頭貼平台欄位＋持久化、靜音前置＋SquareActivity、Apple tag 冪等）。
+- 前置確認：Play Console 沒有任何 draft/退件佔用 vc19–vc24（vc19 從未上傳，理論上乾淨）。
+- 上傳後驗收重點（依風險排序）：
+  1. **summary 接管路徑首次真正上線**（vc21 修死碼後 `scheduleLineSummaryCancellation`
+     才開始執行）——盯有沒有誤刪 LINE 通知。
+  2. Apple 模式重複是否消失（vc24 tag 冪等；`isRepost` 段零測試覆蓋，靠閱讀推導）。
+  3. 群組回覆時本人頭貼（vc22 建立在「LINE 用平台 API」假設上；若無效改走 Photo Picker）。
+  4. 已靜音社群的公告/重要貼文不再跳（vc23）。
+- branch 狀態：10 commits（7 修復＋3 docs 前身）、88 tests 全綠、verifier 兩輪
+  （第一輪 CONFIRMED；第二輪 REFUTED 抓到漏第五處 isRepost guard，已修 `173e324`）。
+- 詳細根因與證據見 git log 各 commit message（每則都含機制、實證、紅綠對照、未驗清單）。
+
+## Session: 2026-07-21（Claude Code：卡內重複根因定罪 + vc19 修復，branch `fix/group-mirror-title-dedup-2026-07-21`）
+
+### 根因（實錄定罪，非推測）
+
+- **LINE 26.11.0 對群組訊息的 tagged conversation callback 把 `android.title` 組成
+  「群組名：發送者」**（全形冒號，實錄 `寶貝兒子：Christina王秀華`），legacy mirror（id=16880000）
+  則帶乾淨發送者名；兩邊 `subText`＝群組名、`text` 同、**`when` 毫秒完全相同**。
+  → `mirrorFingerprint` 的 sender 欄位失配 → 嚴格合併失敗 → 同一則群組訊息在卡片跳兩列。
+  實測（A065 + Play 版 vc18）：**group 合併 1/12、personal 2/2**——只有群組中招。
+  用戶截圖「小寶貝：AAA Christina」＋「AAA Christina」成對出現＝同一機理（小寶貝=群組名）。
+- 證據工具：`tools/diag/notifwatch.py`（既有）＋ 本輪新增 **`tools/diag/notifspy.py`**
+  （0.6s 快輪詢 dumpsys --noredact 側錄 LINE/我方通知完整欄位，釘欄位漂移用）。
+- 考古（為何舊版少發生）：≤vc15 有 `roomKey|text|秒級時間` 簡易去重（兩 callback 同秒必中）；
+  vc16 `20767b3` 把它整段刪掉換成當時從未生效的指紋合併＝退化點；vc17 修好指紋但
+  26.11.0 title 漂移又繞過。
+
+### 修復（branch `fix/group-mirror-title-dedup-2026-07-21`，基底 ec3fa03，vc19 / 1.3.3）
+
+- `99f885f` classifier：`senderOf(title, subText)` 剝「subText＋：」前綴（只剝全形、長度守門、
+  純字串）；11 個新測試把 26.11.0 雙形態指紋相等性鎖成規格。測試 47→58 全綠。
+- `f4bc0e3` listener：sender 改走 senderOf（roomKey/chatTitle 不動）；**第 2 層保底去重**
+  `recentPostedPayloads`（指紋=房間+全文+毫秒 when、3000ms 窗+同 stateEpoch 才吸收、
+  取代開啟才以最保守形式取消原通知；辨真偽靠 when 毫秒——真連發兩則相同文字 when 必不同，實測差 2449ms）。
+- `708844b` 三件套 vc19/1.3.3（vc18 已上傳 Play 燒掉）。
+- ✅ verifier 對抗複驗 **CONFIRMED**（六項：58/0 親跑、senderOf 反例全擋、保底七子項、
+  鐵則合規、manifest 零變更、零回歸面）。assembleDebug/Release、bundleRelease 全綠。
+
+### 驗證狀態與卡點
+
+- ⛔ **實機行為未驗**：A065 現裝 **Play 商店版 vc18**（installer=com.android.vending，
+  Play App Signing 重簽）→ 本地簽章 vc19 `install -r` 被簽章擋下（INSTALL_FAILED_UPDATE_INCOMPATIBLE）。
+  二選一：**A（推薦）Stan 直接上傳 vc19 AAB**（⚠️ 最終版=intent 防蓋硬化後重建：
+  7,116,277 bytes，SHA-256 前綴 `08bb4bae`；舊 `f3a3741f` 版作廢勿上傳），
+  發布後在真實訊息流驗收；**B** Stan 同意 uninstall→裝本地 vc19（設定歸零+listener 重授）。
+- 驗收判準（watcher 跑著看）：群組訊息「收到訊息」次數＝實際則數、每則出現「合併」或
+  「保底去重」log 其一、count 不再翻倍、personal 不受影響。
+- 雙響（heads-up 兩次）＝跨 package 物理限制（LINE child 先震、我方 ~200-280ms 後震，本輪多次實錄），
+  **三選項仍待 Stan 拍板**，本輪未動。
+- 來電不響：查無我方路徑（isCallNotification 自 `309cf52` 未改、VoIP 頻道被 NewMessages allowlist
+  擋在處理流程外）；待有來電樣本（watcher+notifspy 開著打一通）才能證偽間接路徑。
+- ⚠️ master 仍在 vc17（`cd89180`）；已上架的 vc18 branch `fix/line-26110-summary-redaction-2026-07-19`
+  與本輪 vc19 branch 都待 Stan merge。
+- vivo V50（Android 16 / LINE 26.11.0 / Apple 模式）用戶回報「重複＋點通知只能開 LINE」＝同根因雙面：
+  合併失敗時 mirror 後到、last-writer-wins 蓋掉 room.contentIntent 的聊天室跳轉。已加硬化：
+  mirror 形態只准填空不准覆蓋（isLegacyMirrorIdentity guard）。任何 callback 順序下 tagged 的
+  跳轉 intent 都不會被 mirror 蓋掉。
+
+
+
+## Previous Session: 2026-07-19（Claude Code：LINE 26.11.0 結構改變三症狀診斷 + vc18 修復，branch `fix/line-26110-summary-redaction-2026-07-19`）
+
+### 起因（1.3.1 上線後的回報）
+
+1. **realme 用戶（GT 8 Pro / realme UI 7 / Android 16 / LINE 26.11.0）**：LINE 原通知沒被取代、
+   跟 Notify+ 一併出現；開關重開＋重啟無效。另回報私密占位通知又出現（內容是行事曆訊息）。
+2. **Stan（Nothing A065 / LINE 26.11.0）**：同一則訊息 heads-up 跳兩次（下滑只剩一則）；
+   一次目擊 LINE 原通知沒被取消。
+
+### 根因（附證據）
+
+- **LINE 26.11.0 的 `id=16880000 tag=null` 是雙形態**（兩者都在 A065 實證）：
+  單聊天室新訊息時仍是舊式 legacy mirror（2026-07-19 18:12 watcher 實測「合併 mirror
+  callback」有觸發、取代流程綠燈）；未讀累積/彙總狀態時變成 `GROUP_SUMMARY`
+  （同日 dumpsys mArchive 實證 flags=…|GROUP_SUMMARY，26.10.1 時代沒觀察過此形態）。
+  vc17 對 summary 的策略是「永遠保留」＋堆疊摘要 title 也不再取消（vc13 舊版兩者都會
+  cancel）→ summary 態下每則訊息更新那張彙總卡、永遠沒人清 → 在 realme UI 以
+  「N則新訊息＋訊息預覽」整卡殘留 = 用戶看到的「沒被取代」。用戶兩張截圖的 LINE 卡
+  title 都是「28xx則新訊息」= summary，非 child，吻合；她 2868 未讀 = 常駐 summary 態，
+  Stan 未讀少 = 多半 mirror 態 → 頻率差異也對上。
+- **`scheduleOriginalCancellation` 是 200ms 一次性檢查、失敗不重試**，且依賴
+  `activeNotifications` 即時可見（程式碼自註「部分 OEM 不是同步可見」）→ 慢一拍就永久留雙份。
+- **遮蔽偵測四條件 AND 過嚴**：realme 的 redaction clone 保留原 title/subText，只有
+  text=占位字串成立 → 漏判 → 占位字被原樣轉貼、原通知被取消（比不修還糟）。
+  占位字串本身與用戶截圖逐字相同，錯的不是字串比對，是附加條件。
+  舊測試 `ordinary_message_matching_only_part_of_signature_is_not_redacted` 把這個過嚴
+  行為當規格鎖住了，已改寫。
+
+### 修復（三 commit + 三件套，vc18 / 1.3.2）
+
+- `4acd58f` classifier：遮蔽偵測改為只比對 text==系統占位字串（誤中代價=該則不增強，
+  fail-open）；新增 `shouldCancelLineSummary`（取代開啟且內容已由我方副本或 LINE child
+  承載才取消 summary，唯一殘留則保留）。測試 45 全綠（XML 實讀 43+2 / 0 failures）。
+- `f26b640` listener：summary/堆疊摘要接管（延遲 350ms 守門取消；檢查移到 title/text
+  空值 return 之前——summary 不保證帶 android.text）；原通知取消改 200/500/900ms 重試階梯。
+- `e695b96` 三件套 vc18 / 1.3.2 + 中英 changelog。
+
+### 驗證狀態（2026-07-19 晚間已實機驗證）
+
+- ✅ JVM：45 tests 0 failures（`--rerun` + XML 實讀）。assembleDebug / assembleRelease /
+  bundleRelease 全綠。
+- ✅ **A065 實機驗證（vc18 本地簽章版，Stan 同意移除 Play 版重裝、設定歸零）**：
+  watcher（`tools/diag/notifwatch.py`）全程錄，多輪真實訊息 capture 全綠零紅燈：
+  - T1 單則取代 ✅（LINE child+mirror 全取消，終態只剩 Notify+ 卡）
+  - T2 同室連發堆疊 ✅（count 1→5 正確，無重複卡）
+  - T3 多聊天室並存 ✅（兩張 Notify+ 卡並存、LINE 側 16880000 全清、零殘留）
+  - T4 滑除全清 ✅（「本機通知被移除，清整組」）
+  - 雙開分身（user 999）流量 ✅ 正常走完整流程
+  - **全程零「重試」log = 每則都在第一檔 200ms 取消，速度與 vc13 相同**；
+    重試階梯只在首查失敗才啟動（舊版該情況=永久殘留，新版=最多多活 1.4s 後被清）
+  - vc17 紅燈另有 17:19 mArchive 三卡並存實證＋realme 用戶截圖
+  - 未直接命中：GROUP_SUMMARY 形態的「接管 LINE summary」分支（本機 16880000 都在
+    mirror 形態就被清掉、升不上 summary 態）——決策邏輯有 JVM 測試罩著，實地效果等
+    realme 用戶回報
+- ⏳ T5 點擊跳轉 / T6 快速回覆：Stan 手動測。
+- 🔍 **競品「通知優化 for LINE」dex 掃描**：同為 listener+cancelNotification+
+  getActiveNotifications+postDelayed，無 snooze/隱藏 API——「LINE heads-up 先彈」
+  的物理限制對它同樣成立，雙響不是我們獨有的缺陷。
+- 產物：AAB（⚠️ 此輪產物已被下方「加固輪」重建取代，勿上傳 `ca129ebb` 版）。
+  上傳前照慣例先確認 vc18 未被 Console 佔用。
+  ⚠️ A065 目前裝的是**本地簽章 vc18**——之後要換回 Play 軌道版本時需再次移除重裝。
+
+### 下一步
+
+1. watcher 抓到 vc17 紅燈（等訊息進場）→ 對照確認假說。
+2. Stan 決定 vc18 驗證路徑（internal testing 上傳 / 本機重裝）。
+3. 發布後請 realme 用戶確認：LINE 卡片是否只剩 Notify+ 一張、私密占位是否改為顯示 LINE 原通知。
+4. 「heads-up 跳兩次」機制已實錘（2026-07-19 18:12 watcher：LINE child buzz →
+   278ms 後我方 buzz，跨 package 雙響；LINE NewMessages 頻道 importance=4 全響）。
+   **就算取代流程完美運作也會雙響**——我們是 listener，LINE 的第一響攔不住。**未修**，
+   屬產品取捨：候選 (a) onboarding 引導使用者把 LINE 訊息頻道靜音（但 Notify+ fail-open
+   時訊息會無聲）、(b) 偵測 LINE 剛響過就把我方那則設 silent（heads-up 就不彈）、
+   (c) 接受現狀。等 Stan 拍板。
+
+### 加固輪（2026-07-20 凌晨：獨立審查後三處守門收緊，同分支 +2 commits）
+
+Codex 獨立驗證（verify-only）判「不可上架」；逐行複核後它指出的程式碼事實全部屬實，同分支加固：
+
+- **反例 1｜summary 守門不分 profile**：`replacementActive` 原是「有任何一張我方卡就算」
+  （連我方 Aggregate 聚合卡都算）、`lineChildActive` 沒比對 `sbn.user` → 雙開或跨 profile
+  的卡可替別 profile 的 summary 背書，理論上可砍掉唯一內容載體。
+  修：`roomKeyBelongsToProfile`（我方卡 roomKey 取自 `EXTRA_ROOM_KEY` extras、fallback
+  `findRoomKeyByNotification`，比對 profileKey+`:` 前綴；null 不算背書）＋ LINE child 改比
+  `profileKeyOf(active) == summaryProfileKey`。
+- **反例 2｜redacted GROUP_SUMMARY 繞過遮蔽守門**：summary 分支排在 redaction 檢查之前
+  （summary 不保證帶 text，檢查搬不進去）→ 遮蔽版 summary 可能被接管取消。
+  修：`textMatchesRedactionPlaceholder`（null text 不算遮蔽），排程前命中即保留。
+- **反例 3｜check-then-cancel TOCTOU**：**API 固有、vc13/vc17 歷代同款**——listener 只有
+  按 key 取消、沒有比對內容的原子取消；handler 綁主執行緒＋callback 同線程，進程內無交錯，
+  殘餘只剩 binder 飛行窗口（~ms）。窄化：`currentNotificationIsRedacted`——兩個取消點送出
+  cancel 前最後重讀該 key 現行 text，已是占位字就放手；看不到通知時照取消（歷代 fail 方向）。
+  **殘餘窗口記為固有限制；「絕不被取消」級別的保證做不到，文件與驗證單不得再這樣宣稱。**
+- commits：`1c3e40c`（classifier+tests）、`f46e3a5`（listener）。JVM 47/0（XML 實讀 2+45）。
+  版號維持 vc18/1.3.2（未曾發佈、不佔新 vc，changelog 文案仍準確）。
+- 新 AAB：7,114,612 bytes，SHA-256 前綴 `0c3c54125d998b04`。
+- ✅ A065 實機煙霧驗證（2026-07-20 01:24，加固版同簽名 `install -r`＋listener 強制 rebind＋
+  watcher 一輪）：真實訊息走**雙開 user 999 路徑**（正是 profile 綁定改動最該驗的路），
+  取代成功、兩則堆疊 count=2 正常、~1.1s 後終態 children/summaries 全空只剩我方一張卡、
+  零 fail-open 誤觸、零重試、零紅旗。
+- ✅ Codex 重審（2026-07-20 凌晨，審於 `ebfe191`；與 HEAD 差異僅煙霧驗證 docs commit）：
+  **「可上架」**。六條中五條 CONFIRMED（含上輪三反例全數證實已加固、47/0、鐵則合規、
+  rev-list 9 吻合）；「正常路徑」因其無手機標無法獨立重驗——該缺口由我方 A065 煙霧驗證
+  （雙開 999 路徑綠燈）補上。其確認的殘餘風險=非原子 active-snapshot/binder 窗口，
+  「相對舊版只增加保護、沒有更差」，與 HANDOFF 固有限制記載一致。
+- ⏳ 唯一待辦：**Stan 上傳 `0c3c5412` AAB**（先確認 Console 未占用 vc18）→ 發布後追
+  realme 用戶兩個確認問題（「N則新訊息」卡消失？私密通知改顯示 LINE 原通知？）。
+
+## Latest Session: 2026-07-15（Claude Code：修好「跳兩則」、收編全部工作、vc17 待上架）
 
 > 接手的第一件事：**先讀 `AGENTS.md`（鐵則），再讀本節。** 下面兩節是歷史，僅供追溯。
 

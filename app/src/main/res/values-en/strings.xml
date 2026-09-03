@@ -41,7 +41,7 @@
     <string name="enable_stack_notifications_title">Enable complete notifications</string>
     <string name="enable_stack_notifications_subtitle">Intercept LINE notifications and combine messages into complete conversations</string>
     <string name="replace_original_title">Replace original notifications</string>
-    <string name="replace_original_subtitle">Hide the original LINE notification and show only the complete notification</string>
+    <string name="replace_original_subtitle">Keep only the rebuilt Notify+ notification in the shade</string>
     <string name="replace_original_info_title">About \"Replace original notifications\"</string>
     <string name="replace_original_info_body">Off: LINE\'s own notification still appears, so you\'ll see two. The upside is that when you read the message in LINE, this one clears automatically too.\n\nOn: the notification shade eventually keeps only the complete Notify+ notification. Android must post LINE\'s notification before Notify+ can read and replace it, so some phones may briefly show LINE or play the beginning of its sound.\n\nTo prevent double sounds or cut-off tones, keep LINE\'s message category enabled but silent, then let Notify+ play the alert sound.</string>
     <string name="sound_setup_title">Prevent double or cut-off sounds</string>
@@ -67,6 +67,9 @@
     <string name="accessibility_disclosure_decline">Do not enable</string>
     <string name="accessibility_service_label">Notify+ LINE chat detection</string>
     <string name="accessibility_service_description">Detects only the currently open LINE chat to clear its matching Notify+ notification. It does not control LINE or save message content.</string>
+    <string name="parallel_notify_warning_title">Disable the original Notify+ first</string>
+    <string name="parallel_notify_warning_body">This test build installs alongside the original app. If both have notification access, both will rebuild the same message and invalidate the test.</string>
+    <string name="parallel_notify_warning_action">Open notification access</string>
     <string name="clear_timing_title">When to clear notifications</string>
     <string name="clear_after_reply_title">Clear after reply</string>
     <string name="clear_after_reply_subtitle">About a second after you reply from the notification, that notification is cleared</string>
@@ -120,6 +123,17 @@
     <string name="changelog_1_4_2_speed">Notify+ now dismisses more quickly after you read the message in LINE</string>
     <string name="changelog_1_4_2_dupe">Fixed the same message stacking up again and again while the notification shade is open</string>
     <string name="changelog_1_4_1_readsync">Opening or reading a message in the LINE app now also dismisses the Notify+ notification, even when Replace original notifications is on</string>
+    <string name="changelog_1_4_0_settings">Streamlined the notification options on the home screen and clarified how replacing original notifications works.</string>
+    <string name="changelog_1_3_8_apple_dupe">Fixed the same message sometimes appearing as two identical cards in grouped mode that never merged.</string>
+    <string name="changelog_1_3_7_mute">Fixed @all messages, community announcements, and pinned notes still appearing after a chat was turned off. Announcement-only communities now show up in chat management so they can be turned off individually.</string>
+    <string name="changelog_1_3_6_self_avatar">Fixed your own avatar showing as the default icon instead of your LINE profile picture when replying in a group.</string>
+    <string name="changelog_1_3_5_redacted">Fixed some phones showing the same message as two notifications, one of them blank.</string>
+    <string name="changelog_1_3_5_summary">Fixed a leftover LINE summary card that made it look like the original notification was not replaced.</string>
+    <string name="changelog_1_3_4_android16">Updated system compatibility settings for Android 16. Notification behaviour is unchanged.</string>
+    <string name="changelog_1_3_3_group_dupe">Fixed group messages appearing twice and notification taps opening LINE\'s main screen instead of the chat room.</string>
+    <string name="changelog_1_3_2_summary">Fixed a leftover "N new messages" LINE card after a LINE update that made it look like the original notification was not replaced</string>
+    <string name="changelog_1_3_2_retry">Replacing the original notification occasionally failed on some phones (such as realme), leaving both visible. It now retries automatically</string>
+    <string name="changelog_1_3_2_redacted">Fixed some phones re-posting the system\'s "sensitive content hidden" placeholder as a Notify+ notification. These are now left to LINE</string>
     <string name="changelog_1_3_1_dupe">Actually fixed the same message showing up as two notification cards, or four for group chats. The v1.3.0 fix never took effect</string>
     <string name="changelog_1_3_0_redacted">Fixed private messages hidden by the system creating an empty "LINE" chat and hiding the original notification</string>
     <string name="changelog_1_3_0_mute">Turning a chat off now fully mutes it, clearing LINE\'s own notification too. Existing settings keep the old behaviour until you turn the chat back on and off again</string>
@@ -184,7 +198,7 @@
     <string name="chat_search_content_description">Search</string>
     <string name="chat_info_content_description">Info</string>
     <string name="chat_info_title">About chat management</string>
-    <string name="chat_info_body">Manage notifications for each chat. For notifications it can identify, turning a chat off makes Notify+ dismiss both its own and the original LINE notification, including @all and direct mentions. Tap a row to correct its friend, group, or community category.\n\n• Chats marked “Legacy setting” still keep original LINE notifications; turn one on and then off to opt into the new full-mute behavior.\n• Only chats that have received a message appear here.\n• The system may briefly show an alert before Notify+ dismisses it.\n• If Android has already hidden the notification content, Notify+ cannot see the chat name and therefore cannot guarantee blocking that notification.\n• When original LINE notifications are kept, LINE’s global summary may still include a muted chat; Notify+ will not hide other chats’ summary to suppress it.\n• If an avatar is missing or a chat is absent, its notification probably hasn\'t arrived or been captured yet.</string>
+    <string name="chat_info_body">Manage notifications for each chat. For notifications it can identify, turning a chat off makes Notify+ dismiss both its own and the original LINE notification, including @all, direct mentions, and community announcements and pinned notes. Tap a row to correct its friend, group, or community category.\n\n• Chats marked “Legacy setting” still keep original LINE notifications; turn one on and then off to opt into the new full-mute behavior.\n• Only chats that have received a message appear here.\n• The system may briefly show an alert before Notify+ dismisses it.\n• If Android has already hidden the notification content, Notify+ cannot see the chat name and therefore cannot guarantee blocking that notification.\n• LINE’s global summary card may still include a muted chat; Notify+ will not hide other chats’ summary to suppress it.\n• If an avatar is missing or a chat is absent, its notification probably hasn\'t arrived or been captured yet.</string>
     <string name="chat_info_privacy_link">🔒 How we handle your data</string>
     <string name="chat_info_privacy_body">Notify+ does not write a complete message history to its own files. Message data is held temporarily in process memory and passed to Android for display; notification history may retain it according to your system settings. Only chat names, categories, last-active times, switches, and avatars are saved to disk. The App has no network permission and uploads none of this data.</string>
     <string name="chat_select_all">Select all</string>

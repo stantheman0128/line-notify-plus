@@ -7,13 +7,12 @@ import org.junit.Test
 class LineMessageChannelSettingsTest {
 
     @Test
-    fun remembered_message_channel_wins() {
+    fun remembered_real_channel_wins() {
         val target = LineMessageChannelSettings.resolveTarget(
             installedPackages = setOf("jp.naver.line.android"),
             rememberedPackage = "jp.naver.line.android",
             rememberedChannelId = "jp.naver.line.android.notification.NewMessages",
         )
-
         assertEquals(
             LineMessageChannelTarget(
                 "jp.naver.line.android",
@@ -24,36 +23,43 @@ class LineMessageChannelSettingsTest {
     }
 
     @Test
-    fun stale_or_non_message_channel_falls_back_to_app_settings() {
+    fun stale_memory_uses_installed_line_without_guessing_channel() {
         val target = LineMessageChannelSettings.resolveTarget(
             installedPackages = setOf("jp.naver.line.android"),
-            rememberedPackage = "jp.naver.line.android",
-            rememberedChannelId = "jp.naver.line.android.notification.LinePay",
+            rememberedPackage = "com.linecorp.line",
+            rememberedChannelId = "com.linecorp.line.notification.LinePay",
         )
-
         assertEquals(LineMessageChannelTarget("jp.naver.line.android", null), target)
     }
 
     @Test
-    fun installed_remembered_package_wins_when_both_are_present() {
+    fun installed_remembered_package_wins_when_both_line_packages_exist() {
         val target = LineMessageChannelSettings.resolveTarget(
             installedPackages = LineMessageChannelSettings.knownPackages.toSet(),
             rememberedPackage = "com.linecorp.line",
             rememberedChannelId = "NewMessages",
         )
-
         assertEquals(LineMessageChannelTarget("com.linecorp.line", "NewMessages"), target)
     }
 
     @Test
-    fun no_observed_channel_does_not_guess_one() {
+    fun non_message_channel_for_same_package_is_not_reused() {
         val target = LineMessageChannelSettings.resolveTarget(
             installedPackages = setOf("jp.naver.line.android"),
+            rememberedPackage = "jp.naver.line.android",
+            rememberedChannelId = "jp.naver.line.android.notification.LinePay",
+        )
+        assertEquals(LineMessageChannelTarget("jp.naver.line.android", null), target)
+    }
+
+    @Test
+    fun package_without_observed_notification_does_not_guess_channel() {
+        val target = LineMessageChannelSettings.resolveTarget(
+            installedPackages = setOf("com.linecorp.line"),
             rememberedPackage = null,
             rememberedChannelId = null,
         )
-
-        assertEquals(LineMessageChannelTarget("jp.naver.line.android", null), target)
+        assertEquals(LineMessageChannelTarget("com.linecorp.line", null), target)
     }
 
     @Test

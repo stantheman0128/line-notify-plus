@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
+
+    <!-- applicationIdSuffix 會讓 AndroidX 產生另一個 debug 專用權限；本 App 不需要它。 -->
+    <uses-permission
+        android:name="com.stanslab.linenotify.singlepoptest.DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION"
+        tools:node="remove" />
+    <permission
+        android:name="com.stanslab.linenotify.singlepoptest.DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION"
+        tools:node="remove" />
+
+</manifest>
