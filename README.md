@@ -13,6 +13,10 @@ Android 上的 LINE 通知整理工具：攔截原始訊息通知並重新組合
 | **技術** | Kotlin · Jetpack Compose · Gradle（minSdk 26 / targetSdk 35） |
 | **核心機制** | `NotificationListenerService`（**非** AccessibilityService）讀通知；`POST_NOTIFICATIONS` 重發 |
 
+## 開發者
+
+由 [Stan Shih（施博瀚 / Po-Han Shih）](https://stan-shih.com/) 開發。
+
 ## 資料夾結構
 
 ```
