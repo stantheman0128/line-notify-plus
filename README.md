@@ -8,7 +8,7 @@ Android 上的 LINE 通知整理工具：攔截原始訊息通知並重新組合
 |---|---|
 | **Package** | `com.stanslab.linenotify` |
 | **目前版本** | versionName `1.2.1` / versionCode `15` |
-| **狀態** | **尚未上架**（vc12 因 Impersonation policy 退件 → 已改名「Notify+」，待重交 Production；見 `play-store-assets/play-console-progress.md`） |
+| **狀態** | 已於 [Google Play](https://play.google.com/store/apps/details?id=com.stanslab.linenotify) 公開上架（2026-10-09 查核）；可安裝性以商店對你的裝置與地區顯示為準。 |
 | **GitHub** | https://github.com/stantheman0128/line-notify-plus |
 | **技術** | Kotlin · Jetpack Compose · Gradle（minSdk 26 / targetSdk 35） |
 | **核心機制** | `NotificationListenerService`（**非** AccessibilityService）讀通知；`POST_NOTIFICATIONS` 重發 |
@@ -16,6 +16,10 @@ Android 上的 LINE 通知整理工具：攔截原始訊息通知並重新組合
 ## 開發者
 
 由 [Stan Shih（施博瀚 / Po-Han Shih）](https://stan-shih.com/) 開發。
+
+- [Google Play 安裝入口](https://play.google.com/store/apps/details?id=com.stanslab.linenotify)
+- [繁體中文使用指南與限制](https://stan-shih.com/zh/work/notify-plus)
+- [English case study](https://stan-shih.com/work/notify-plus)
 
 ## 資料夾結構
 
